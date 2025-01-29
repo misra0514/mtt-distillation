@@ -394,11 +394,11 @@ def main(args):
             x = student_net(x, flat_param=forward_params)
             # 这里X就不一样了,forward_params 应该是不一样。
             # torch.save(forward_params, "./res/source2.pt") 
-            print("---x---")
+            # print("---x---")
             # print(x)
-            print(this_y)
+            # print(this_y)
             ce_loss = criterion(x, this_y)
-            print(ce_loss)
+            # print(ce_loss)
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
             student_params.append(student_params[-1] - syn_lr * grad)
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
@@ -427,12 +427,13 @@ def main(args):
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
-        print("----LOSS----")
-        print(grand_loss.item())
+        # print("----LOSS----")
+        # print(grand_loss.item())
+        loss_total1 = grand_loss.item()
 
 
         import time
-        time.sleep(10)
+        time.sleep(3)
         # TODO: ROUND 2:
         student_params2 = []
         student_params2 = torch.load( "./res/student_params.pt") 
@@ -453,6 +454,7 @@ def main(args):
                 x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
                 this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
 
+            # TODO: this is where it cause the random input
             # if args.dsa and (not args.no_aug):
             #     x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
 
@@ -463,20 +465,19 @@ def main(args):
             x = student_net(x, flat_param=forward_params)
             # 这里X就不一样了,forward_params 应该是不一样。
             # torch.save(forward_params, "./res/source2.pt") 
-            print("---x---")
+            # print("---x---")
             # print(x)
-            print(this_y)
+            # print(this_y)
             ce_loss = criterion(x, this_y)
-            print(ce_loss)
+            # print(ce_loss)
             grad = torch.autograd.grad(ce_loss, student_params2[-1], create_graph=True)[0]
             student_params2.append(student_params2[-1] - syn_lr * grad)
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
             # TODO:
             # 但如果在grad.detach，那么反向的时间就基本消除掉了。所以证明还是有意义的:
-            # student_params[-2] = student_params[-2].detach()
+            # 如果-2 = detach， 相当于保留1层的backward(最新的结果已经append上了)
+            student_params[-2] = student_params[-2].detach()
 
-        # TODO: log res 每次结果居然会变？x是一样的
-        # 输入的时候还是一样，也没有修改过，但现在值不对
         # end1 = time.time()
         # print("----SYN-----")
         # print(end1-start)
@@ -496,9 +497,14 @@ def main(args):
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
-        print("----LOSS----")
-        print(grand_loss.item())
-
+        # print("----LOSS----")
+        # print(grand_loss.item())
+        loss_total2 = grand_loss.item()
+        diff = abs(loss_total2- loss_total1)
+        res = diff / loss_total1
+        print("+++RES+++")
+        print("STEPS :", args.syn_steps)
+        print(res)
 
 
         # grand_loss.backward()
