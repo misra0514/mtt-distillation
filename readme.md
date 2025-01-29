@@ -86,6 +86,8 @@ Worse (but still interesting) results can be obtained faster through training fe
 The following command will then use the buffers we just generated to distill CIFAR-100 down to just 1 image per class:
 ```bash
 python distill.py --dataset=CIFAR100 --ipc=1 --syn_steps=20 --expert_epochs=3 --max_start_epoch=20 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path={path_to_buffer_storage} --data_path={path_to_dataset}
+
+python distill.py --dataset=CIFAR100 --ipc=1 --syn_steps=3 --expert_epochs=1 --max_start_epoch=1 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=./buffer --data_path=./dataset
 ```
 
 <img src='docs/animation.gif' width=600>
@@ -123,6 +125,9 @@ For example,
 
 ```bash
 python distill.py --texture --dataset=ImageNet --subset=imagesquawk --model=ConvNetD5 --ipc=1 --res=256 --syn_steps=20 --expert_epochs=2 --max_start_epoch=10 --lr_img=1000 --lr_lr=1e-06 --lr_teacher=0.01 --buffer_path={path_to_buffer_storage} --data_path={path_to_dataset}
+
+python distill.py --texture --dataset=ImageNet --subset=imagesquawk --model=ConvNetD5 --ipc=1 --res=256 --syn_steps=1 --expert_epochs=1 --max_start_epoch=1 --lr_img=1000 --lr_lr=1e-06 --lr_teacher=0.01 --buffer_path=./buffer --data_path=./dataset
+
 ```
 will distill the ```imagesquawk``` subset (at 256x256 resolution) into the following 10 textures
 

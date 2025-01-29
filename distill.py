@@ -114,7 +114,9 @@ def main(args):
         image_syn = torch.randn(size=(num_classes * args.ipc, channel, im_size[0]*args.canvas_size, im_size[1]*args.canvas_size), dtype=torch.float)
     else:
         image_syn = torch.randn(size=(num_classes * args.ipc, channel, im_size[0], im_size[1]), dtype=torch.float)
-
+    
+    # TOOD: 看下随机生成还会不会有nan
+    # torch.save(image_syn.cpu(), "./res/image_syn_rand.pt")
     syn_lr = torch.tensor(args.lr_teacher).to(args.device)
 
     if args.pix_init == 'real':
@@ -131,6 +133,8 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
+    # torch.save(image_syn.cpu(), "./res/image_syn.pt")
+    image_syn = torch.load("./res/image_syn.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
@@ -169,18 +173,25 @@ def main(args):
             raise AssertionError("No buffers detected at {}".format(expert_dir))
         file_idx = 0
         expert_idx = 0
-        random.shuffle(expert_files)
+        # random.shuffle(expert_files)
         if args.max_files is not None:
             expert_files = expert_files[:args.max_files]
         print("loading file {}".format(expert_files[file_idx]))
+        print(expert_files)
         buffer = torch.load(expert_files[file_idx])
         if args.max_experts is not None:
             buffer = buffer[:args.max_experts]
-        random.shuffle(buffer)
+        # random.shuffle(buffer)
+
+
+    # expert_trajectory 一共14个，。。？
+    # torch.save(buffer, "./res/source2.pt") 
+
 
     best_acc = {m: 0 for m in model_eval_pool}
 
     best_std = {m: 0 for m in model_eval_pool}
+    # print(image_syn.cpu())
 
     for it in range(0, args.Iteration+1):
         save_this_it = False
@@ -312,16 +323,17 @@ def main(args):
                 file_idx += 1
                 if file_idx == len(expert_files):
                     file_idx = 0
-                    random.shuffle(expert_files)
+                    # random.shuffle(expert_files)
                 print("loading file {}".format(expert_files[file_idx]))
                 if args.max_files != 1:
                     del buffer
                     buffer = torch.load(expert_files[file_idx])
                 if args.max_experts is not None:
                     buffer = buffer[:args.max_experts]
-                random.shuffle(buffer)
+                # random.shuffle(buffer)
 
         start_epoch = np.random.randint(0, args.max_start_epoch)
+        # starting_params  = ceta*, 每个iter会重新选一个，当然如果max_start_epoch=1，那就只能是0.
         starting_params = expert_trajectory[start_epoch]
 
         target_params = expert_trajectory[start_epoch+args.expert_epochs]
@@ -339,61 +351,171 @@ def main(args):
         param_dist_list = []
         indices_chunks = []
 
+        # TODO: 这里做stu traj的训练 再每次append之后把require grad 改成false如何？
+        import time 
+        start = time.time()
+
+        # TODO: 这里看了，只要不提前exit就是nan。看起来是后续操作导致的。应该是backward的问题
+        # print(image_syn.cpu())
+        # torch.save(image_syn.cpu(), "./res/source2.pt")
+        # exit()
+
+        # import copy
+        # student_params2 = copy.deepcopy(student_params)
+        # student_params2 = student_params.copy()
+        torch.save(student_params, "./res/student_params.pt") 
+        torch.save(syn_images, "./res/syn_images.pt") 
+
+
+        # print(image_syn.cpu())
+        # exit()
+
         for step in range(args.syn_steps):
-
             if not indices_chunks:
-                indices = torch.randperm(len(syn_images))
+                # indices = torch.randperm(len(syn_images))
+                # 即便这里不用随机生成，两次运行结果还是不一样
+                indices = torch.arange(len(syn_images)) 
                 indices_chunks = list(torch.split(indices, args.batch_syn))
-
             these_indices = indices_chunks.pop()
-
-
             x = syn_images[these_indices]
+            # torch.save(x, "./res/source3.pt") 这里X还是一样的
             this_y = y_hat[these_indices]
-
             if args.texture:
                 x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
                 this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
 
-            if args.dsa and (not args.no_aug):
-                x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
+            # if args.dsa and (not args.no_aug):
+            #     x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
 
             if args.distributed:
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
                 forward_params = student_params[-1]
             x = student_net(x, flat_param=forward_params)
+            # 这里X就不一样了,forward_params 应该是不一样。
+            # torch.save(forward_params, "./res/source2.pt") 
+            print("---x---")
+            # print(x)
+            print(this_y)
             ce_loss = criterion(x, this_y)
-
+            print(ce_loss)
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-
             student_params.append(student_params[-1] - syn_lr * grad)
+            # student_params.append(student_params[-1] - syn_lr * grad.detach())
+            # TODO:
+            # 但如果在grad.detach，那么反向的时间就基本消除掉了。所以证明还是有意义的:
+            # student_params[-2] = student_params[-2].detach()
 
-
+        # TODO: log res 每次结果居然会变？x是一样的
+        # 输入的时候还是一样，也没有修改过，但现在值不对
+        # end1 = time.time()
+        # print("----SYN-----")
+        # print(end1-start)
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
-
         param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
         param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
-
+        # print("param_loss: " , param_loss.item())
+        # print("param_dist: ", param_dist.item())
+        # print("num_params: ", num_params.item())
         param_loss_list.append(param_loss)
         param_dist_list.append(param_dist)
-
-
         param_loss /= num_params
         param_dist /= num_params
-
-        param_loss /= param_dist
-
+        # param_loss /= param_dist
         grand_loss = param_loss
-
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
-        grand_loss.backward()
+        print("----LOSS----")
+        print(grand_loss.item())
 
-        optimizer_img.step()
-        optimizer_lr.step()
+
+        import time
+        time.sleep(10)
+        # TODO: ROUND 2:
+        student_params2 = []
+        student_params2 = torch.load( "./res/student_params.pt") 
+        syn_images = torch.load("res/syn_images.pt")
+
+
+        for step in range(args.syn_steps):
+            if not indices_chunks:
+                # indices = torch.randperm(len(syn_images))
+                # 即便这里不用随机生成，两次运行结果还是不一样
+                indices = torch.arange(len(syn_images)) 
+                indices_chunks = list(torch.split(indices, args.batch_syn))
+            these_indices = indices_chunks.pop()
+            x = syn_images[these_indices]
+            # torch.save(x, "./res/source3.pt") 这里X还是一样的
+            this_y = y_hat[these_indices]
+            if args.texture:
+                x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
+                this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
+
+            # if args.dsa and (not args.no_aug):
+            #     x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
+
+            if args.distributed:
+                forward_params = student_params2[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
+            else:
+                forward_params = student_params2[-1]
+            x = student_net(x, flat_param=forward_params)
+            # 这里X就不一样了,forward_params 应该是不一样。
+            # torch.save(forward_params, "./res/source2.pt") 
+            print("---x---")
+            # print(x)
+            print(this_y)
+            ce_loss = criterion(x, this_y)
+            print(ce_loss)
+            grad = torch.autograd.grad(ce_loss, student_params2[-1], create_graph=True)[0]
+            student_params2.append(student_params2[-1] - syn_lr * grad)
+            # student_params.append(student_params[-1] - syn_lr * grad.detach())
+            # TODO:
+            # 但如果在grad.detach，那么反向的时间就基本消除掉了。所以证明还是有意义的:
+            # student_params[-2] = student_params[-2].detach()
+
+        # TODO: log res 每次结果居然会变？x是一样的
+        # 输入的时候还是一样，也没有修改过，但现在值不对
+        # end1 = time.time()
+        # print("----SYN-----")
+        # print(end1-start)
+        param_loss = torch.tensor(0.0).to(args.device)
+        param_dist = torch.tensor(0.0).to(args.device)
+        param_loss += torch.nn.functional.mse_loss(student_params2[-1], target_params, reduction="sum")
+        param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+        # print("param_loss: " , param_loss.item())
+        # print("param_dist: ", param_dist.item())
+        # print("num_params: ", num_params.item())
+        param_loss_list.append(param_loss)
+        param_dist_list.append(param_dist)
+        param_loss /= num_params
+        param_dist /= num_params
+        # param_loss /= param_dist
+        grand_loss = param_loss
+        optimizer_img.zero_grad()
+        optimizer_lr.zero_grad()
+
+        print("----LOSS----")
+        print(grand_loss.item())
+
+
+
+        # grand_loss.backward()
+        # # TODO: 为啥有两个step存在？？
+        # optimizer_img.step()
+        # optimizer_lr.step()
+
+
+        # print(x)
+        # exit()
+        # print(image_syn.cpu())
+        # torch.save(image_syn.cpu(), "./res/source3.pt")
+        # exit()
+
+        end2 = time.time()
+        print("----FULL-----")
+        print(end2-start)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
                    "Start_Epoch": start_epoch})
