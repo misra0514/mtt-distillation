@@ -95,8 +95,8 @@ def main(args):
     images_all = torch.cat(images_all, dim=0).to("cpu")
     labels_all = torch.tensor(labels_all, dtype=torch.long, device="cpu")
 
-    for c in range(num_classes):
-        print('class c = %d: %d real images'%(c, len(indices_class[c])))
+    # for c in range(num_classes):
+    #     print('class c = %d: %d real images'%(c, len(indices_class[c])))
 
     for ch in range(channel):
         print('real images channel %d, mean = %.4f, std = %.4f'%(ch, torch.mean(images_all[:, ch]), torch.std(images_all[:, ch])))
@@ -183,6 +183,9 @@ def main(args):
     best_std = {m: 0 for m in model_eval_pool}
 
     for it in range(0, args.Iteration+1):
+        import time 
+        start = time.time()
+
         save_this_it = False
 
         # writer.add_scalar('Progress', it, it)
@@ -339,6 +342,7 @@ def main(args):
         param_dist_list = []
         indices_chunks = []
 
+        syn_start = time.time()
         for step in range(args.syn_steps):
 
             if not indices_chunks:
@@ -367,8 +371,14 @@ def main(args):
 
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
-            student_params.append(student_params[-1] - syn_lr * grad)
+            student_params.append(student_params[-1] - syn_lr * grad.detach())
+            # student_params.append(student_params[-1] - syn_lr * grad)
+            # # TODO: Pruning here
+            # if (len(student_params) > 2 ):  
+            #     # print("DETACH")
+            #     student_params[-3] = student_params[-3].detach()
 
+        syn_end = time.time()
 
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
@@ -383,7 +393,7 @@ def main(args):
         param_loss /= num_params
         param_dist /= num_params
 
-        param_loss /= param_dist
+        # param_loss /= param_dist
 
         grand_loss = param_loss
 
@@ -394,6 +404,13 @@ def main(args):
 
         optimizer_img.step()
         optimizer_lr.step()
+
+        iter_end = time.time()
+        syn_time = syn_end-syn_start
+        iter_time = iter_end-syn_start
+        print("--TIME---")
+        print("syn_time:", syn_time, "  iter_time: ", iter_time)
+        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
                    "Start_Epoch": start_epoch})
