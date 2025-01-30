@@ -4,3 +4,4 @@ dataset/
 buffer/
 test/data
 *.pt
+log*
