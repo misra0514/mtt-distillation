@@ -371,8 +371,11 @@ def main(args):
 
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
-            student_params.append(student_params[-1] - syn_lr * grad.detach())
-            # student_params.append(student_params[-1] - syn_lr * grad)
+            # student_params.append(student_params[-1] - syn_lr * grad.detach())
+            if(step < args.detachNum):
+                student_params.append(student_params[-1] - syn_lr * grad.detach())
+            else:
+                student_params.append(student_params[-1] - syn_lr * grad)
             # # TODO: Pruning here
             # if (len(student_params) > 2 ):  
             #     # print("DETACH")
@@ -426,6 +429,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
+
+    parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
 
     parser.add_argument('--dataset', type=str, default='CIFAR10', help='dataset')
 
