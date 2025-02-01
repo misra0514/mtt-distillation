@@ -400,7 +400,7 @@ def main(args):
             ce_loss = criterion(x, this_y)
             # print(ce_loss)
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-            student_params.append(student_params[-1] - syn_lr * grad)
+            # student_params.append(student_params[-1] - syn_lr * grad)
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
             # TODO:
             # 但如果在grad.detach，那么反向的时间就基本消除掉了。所以证明还是有意义的:
@@ -472,7 +472,11 @@ def main(args):
             # print(ce_loss)
             grad = torch.autograd.grad(ce_loss, student_params2[-1], create_graph=True)[0]
             # student_params2.append(student_params2[-1] - syn_lr * grad)
-            student_params2.append(student_params2[-1] - syn_lr * grad.detach())
+            # student_params2.append(student_params2[-1] - syn_lr * grad.detach())
+            if(step < args.detachNum):
+                student_params2.append(student_params2[-1] - syn_lr * grad.detach())
+            else:
+                student_params2.append(student_params2[-1] - syn_lr * grad)
             # TODO:
             # 但如果在grad.detach，那么反向的时间就基本消除掉了。所以证明还是有意义的:
             # 如果-2 = detach， 相当于保留1层的backward(最新的结果已经append上了)
@@ -537,6 +541,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
+
+    parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
 
     parser.add_argument('--dataset', type=str, default='CIFAR10', help='dataset')
 
