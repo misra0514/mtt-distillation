@@ -400,7 +400,7 @@ def main(args):
             ce_loss = criterion(x, this_y)
             # print(ce_loss)
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-            # student_params.append(student_params[-1] - syn_lr * grad)
+            student_params.append(student_params[-1] - syn_lr * grad)
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
             # TODO:
             # 但如果在grad.detach，那么反向的时间就基本消除掉了。所以证明还是有意义的:
@@ -508,7 +508,7 @@ def main(args):
         res = diff / loss_total1
         print("+++RES+++")
         print("STEPS :", args.syn_steps)
-        print(res)
+        print(1-res)
 
 
         # grand_loss.backward()
