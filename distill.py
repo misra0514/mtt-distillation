@@ -12,10 +12,13 @@ import copy
 import random
 from reparam_module import ReparamModule
 
+import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 def main(args):
+
+    pre_start = time.time()
 
     if args.zca and args.texture:
         raise AssertionError("Cannot use zca and texture together")
@@ -32,6 +35,7 @@ def main(args):
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     eval_it_pool = np.arange(0, args.Iteration + 1, args.eval_it).tolist()
+    eval_it_pool = []
     channel, im_size, num_classes, class_names, mean, std, dst_train, dst_test, testloader, loader_train_dict, class_map, class_map_inv = get_dataset(args.dataset, args.data_path, args.batch_real, args.subset, args=args)
     model_eval_pool = get_eval_pool(args.eval_mode, args.model, args.model)
 
@@ -182,8 +186,10 @@ def main(args):
 
     best_std = {m: 0 for m in model_eval_pool}
 
+    pre_end = time.time()
+
     for it in range(0, args.Iteration+1):
-        import time 
+         
         start = time.time()
 
         save_this_it = False
@@ -414,6 +420,7 @@ def main(args):
         print("--TIME---")
         print("syn_time:", syn_time, "  iter_time: ", iter_time)
         print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
+        print("WARM UP time (", args.syn_steps ,"): ", pre_end-pre_start)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
                    "Start_Epoch": start_epoch})
