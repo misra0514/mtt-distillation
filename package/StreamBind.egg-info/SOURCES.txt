@@ -1,0 +1,7 @@
+setup.py
+StreamBind.egg-info/PKG-INFO
+StreamBind.egg-info/SOURCES.txt
+StreamBind.egg-info/dependency_links.txt
+StreamBind.egg-info/top_level.txt
+src/add2.cpp
+src/add2_kernel.cu

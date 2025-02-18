@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "bitset": "cpp",
+        "functional": "cpp",
+        "iterator": "cpp",
+        "list": "cpp",
+        "memory": "cpp",
+        "random": "cpp"
+    }
+}

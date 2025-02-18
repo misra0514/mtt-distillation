@@ -1,0 +1,1 @@
+void launch_add2(float hitRatio,  uintptr_t stream_handle, at::Tensor base);

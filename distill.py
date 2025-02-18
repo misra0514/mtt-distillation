@@ -186,6 +186,29 @@ def main(args):
 
     best_std = {m: 0 for m in model_eval_pool}
 
+    # TODO: Setups for L2 opt
+    # import ctypes
+    # curr_stm = torch.cuda.current_stream()
+    # cuda = ctypes.CDLL("libcudart.so")
+    # cuda.cudaStreamSetAttribute.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
+    # class cudaStreamAttrValue(ctypes.Structure):
+    #     _fields_ = [("accessPolicyWindow", ctypes.c_int * 5)]  # 示例结构，需根据 CUDA 版本调整
+
+    # attr = cudaStreamAttrValue()
+    # attr.accessPolicyWindow[0] = 1  # 假设这里是 L2 Residency 配置
+    # cuda.cudaStreamSetAttribute(curr_stm, 1, ctypes.byref(attr))
+    # TODO: 这里目前遇到一点问题。因为输入还需要随机排序，取样等等操作。在syn开始之前很难确定数组的起始下标，估计需要改原来的代码
+    # 加上原来的存储也不一定是连续的，就比较麻烦。
+    # print(type(image_syn))
+    # exit()
+    from StreamBind import bind
+    image_syn = image_syn.contiguous() 
+    indices = torch.randperm(len(image_syn))
+    indices_chunks = list(torch.split(indices, args.batch_syn))
+    these_indices = indices_chunks.pop()
+    x = image_syn[these_indices]
+    bind(0.2 ,0, x)
+
     pre_end = time.time()
 
     for it in range(0, args.Iteration+1):
@@ -417,10 +440,10 @@ def main(args):
         iter_end = time.time()
         syn_time = syn_end-syn_start
         iter_time = iter_end-syn_start
-        print("--TIME---")
-        print("syn_time:", syn_time, "  iter_time: ", iter_time)
-        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
-        print("WARM UP time (", args.syn_steps ,"): ", pre_end-pre_start)
+        # print("--TIME---")
+        # print("syn_time:", syn_time, "  iter_time: ", iter_time)
+        # print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
+        # print("WARM UP time (", args.syn_steps ,"): ", pre_end-pre_start)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
                    "Start_Epoch": start_epoch})
@@ -430,6 +453,10 @@ def main(args):
 
         if it%10 == 0:
             print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+
+    iter_end = time.time()
+    print("------------FIN TIME-------------")
+    print(iter_end - pre_end)
 
     wandb.finish()
 
