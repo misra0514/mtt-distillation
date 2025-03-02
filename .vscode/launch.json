@@ -1,0 +1,32 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [
+                "--dataset=CIFAR10",
+                "--pix_init=real",
+                "--ipc=1",
+                "--syn_steps=14",
+                "--max_experts=1",
+                "--expert_epochs=1",
+                "--max_start_epoch=1",
+                "--Iteration=40",
+                "--detachNum=12",
+                "--zca",
+                "--lr_img=1000",
+                "--lr_lr=1e-05",
+                "--lr_teacher=0.01",
+                "--buffer_path=./buffer",
+                "--data_path=./dataset"
+            ]
+        }
+    ]
+}

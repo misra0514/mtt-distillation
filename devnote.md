@@ -19,3 +19,9 @@ cudaAccessPropertyPersisting,cudaAccessPropertyPersisting
 13.03158950805664
 13.146436214447021
 15.254641771316528
+
+
+# checklist3.2
+[ ] load param 可能不是一一对应的，目前只是总维度一样
+[ ] norm 是否需要调整？
+[ ] 并没有并行的load两个param进来，只是伪并行

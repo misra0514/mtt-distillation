@@ -112,6 +112,7 @@ def main(args):
 
 
     ''' initialize the synthetic data '''
+    # TODO: 0: label 也需要对应的更新一下
     label_syn = torch.tensor([np.ones(args.ipc,dtype=np.int_)*i for i in range(num_classes)], dtype=torch.long, requires_grad=False, device=args.device).view(-1) # [0,0,0, 1,1,1, ..., 9,9,9]
 
     if args.texture:
@@ -198,16 +199,14 @@ def main(args):
     # attr.accessPolicyWindow[0] = 1  # 假设这里是 L2 Residency 配置
     # cuda.cudaStreamSetAttribute(curr_stm, 1, ctypes.byref(attr))
     # TODO: 这里目前遇到一点问题。因为输入还需要随机排序，取样等等操作。在syn开始之前很难确定数组的起始下标，估计需要改原来的代码
-    # 加上原来的存储也不一定是连续的，就比较麻烦。
     # print(type(image_syn))
-    # exit()
-    from StreamBind import bind
-    image_syn = image_syn.contiguous() 
-    indices = torch.randperm(len(image_syn))
-    indices_chunks = list(torch.split(indices, args.batch_syn))
-    these_indices = indices_chunks.pop()
-    x = image_syn[these_indices]
-    bind(0.2 ,0, x)
+    # from StreamBind import bind
+    # image_syn = image_syn.contiguous() 
+    # indices = torch.randperm(len(image_syn))
+    # indices_chunks = list(torch.split(indices, args.batch_syn))
+    # these_indices = indices_chunks.pop()
+    # x = image_syn[these_indices]
+    # bind(0.2 ,0, x)
 
     pre_end = time.time()
 
@@ -323,7 +322,9 @@ def main(args):
 
         wandb.log({"Synthetic_LR": syn_lr.detach().cpu()}, step=it)
 
-        student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+        # TODO: 1 get net  换成自己的参数（args）ReparamModule 可能要改
+        # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+        student_net = get_network("ConvNetStacked", channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
 
         student_net = ReparamModule(student_net)
 
@@ -359,7 +360,14 @@ def main(args):
         target_params = expert_trajectory[start_epoch+args.expert_epochs]
         target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
 
-        student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
+        # TODO: 2 stu param 作为forward 的flat_param传入，要么在这里修改，要么重载forward
+        # BUFFER:             1* 51* 14 * model Params
+        # expert_trajectory： 11 * 14 * model Params
+        # starting_params  ： 14 * model Params
+
+        # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
+        student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params  for _ in range(2)], 0).requires_grad_(True)]
+        # student_params = [torch.cat([item.data.to(args.device).reshape(-1) for p in starting_params  for item in (p, p[0]+"1")], 0).requires_grad_(True)]
 
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
 
@@ -395,9 +403,17 @@ def main(args):
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
                 forward_params = student_params[-1]
+            # TODO: 3 模型load, 输入一直是一个x，输出的x虽然是两个（因为两个loss），但后续x就会被覆盖，所以这里拿list也没毛病
+            # x = student_net(x, flat_param=forward_params.repeat(2))
+            x = torch.cat([x,x],1)
             x = student_net(x, flat_param=forward_params)
-            ce_loss = criterion(x, this_y)
+            # ce_loss = criterion(x, this_y)
+            # TODO: 4 两个loss
+            ce_loss0 = criterion(x[0], this_y)
+            ce_loss1 = criterion(x[1], this_y)
+            ce_loss = ce_loss0+ce_loss1
 
+            # TODO: 4 这里存疑，到时候student_params 会是两个，那么grad怎么算？因为目前只是同一个grad算两次而已
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
@@ -415,7 +431,11 @@ def main(args):
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
 
-        param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
+        # TODO: 6 总的loss需要对两个模型分开计算（毕竟target_params也不一样）
+        target_params_all = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params  for _ in range(2)], 0).requires_grad_(True)
+
+        param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params_all, reduction="sum")
+        # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params reduction="sum")
         param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
 
         param_loss_list.append(param_loss)
