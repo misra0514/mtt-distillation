@@ -6,3 +6,4 @@ test/data
 *.pt
 *.pyc
 log*
+data/

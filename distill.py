@@ -417,10 +417,10 @@ def main(args):
         iter_end = time.time()
         syn_time = syn_end-syn_start
         iter_time = iter_end-syn_start
-        print("--TIME---")
-        print("syn_time:", syn_time, "  iter_time: ", iter_time)
-        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
-        print("WARM UP time (", args.syn_steps ,"): ", pre_end-pre_start)
+        # print("--TIME---")
+        # print("syn_time:", syn_time, "  iter_time: ", iter_time)
+        # print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
+        # print("WARM UP time (", args.syn_steps ,"): ", pre_end-pre_start)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
                    "Start_Epoch": start_epoch})
@@ -430,6 +430,10 @@ def main(args):
 
         if it%10 == 0:
             print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+
+    iter_end = time.time()
+    print("------------FIN TIME-------------")
+    print(iter_end - pre_end)
 
     wandb.finish()
 
