@@ -460,9 +460,9 @@ def main(args):
         iter_end = time.time()
         syn_time = syn_end-syn_start
         iter_time = iter_end-syn_start
-        # print("--TIME---")
-        # print("syn_time:", syn_time, "  iter_time: ", iter_time)
-        # print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
+        print("--TIME---")
+        print("syn_time:", syn_time, "  iter_time: ", iter_time)
+        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
         # print("WARM UP time (", args.syn_steps ,"): ", pre_end-pre_start)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
