@@ -419,9 +419,9 @@ def main(args):
         syn_time = syn_end-syn_start
         iter_time = iter_end-syn_start
         print("--TIME---")
-        print("syn_time:", syn_time)
-        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
         print("prepare time (", args.syn_steps ,"): ", syn_start- start)
+        print("syn_time     (", args.syn_steps ,"): ", syn_time)
+        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
         print("sum time (", args.syn_steps ,"): ", iter_end- start)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
