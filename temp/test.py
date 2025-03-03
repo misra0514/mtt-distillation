@@ -34,33 +34,33 @@ class LinearStacked(nn.Module):
         return x
 
 
-# LINERAR TESTS
-# 原始输入：2，3，32，32 新的输入：4，
-input_tensor = torch.randn(4, 3, 32, 32)  # 4张 3×32×32 图片
-input_shape = 3* 32* 32
-out_shape = 2
-# print(input_shape)
-input_tensor = input_tensor.flatten(start_dim=1) # flatten之后是n*后面的，3* 32* 32合并了
-input_tensor = input_tensor.view(2,2,-1)
+# # LINERAR TESTS
+# # 原始输入：2，3，32，32 新的输入：4，
+# input_tensor = torch.randn(4, 3, 32, 32)  # 4张 3×32×32 图片
+# input_shape = 3* 32* 32
+# out_shape = 2
+# # print(input_shape)
+# input_tensor = input_tensor.flatten(start_dim=1) # flatten之后是n*后面的，3* 32* 32合并了
+# input_tensor = input_tensor.view(2,2,-1)
 
-print(input_tensor.shape)
+# print(input_tensor.shape)
 
-model1 = SimpleFlattenNet(input_shape=input_shape, output_dim=out_shape)
-model2 = SimpleFlattenNet(input_shape=input_shape, output_dim=out_shape)
-model3 = LinearStacked(2,input_shape, out_shape)
+# model1 = SimpleFlattenNet(input_shape=input_shape, output_dim=out_shape)
+# model2 = SimpleFlattenNet(input_shape=input_shape, output_dim=out_shape)
+# model3 = LinearStacked(2,input_shape, out_shape)
 
-param = torch.cat([model1.fc.weight.detach() , model2.fc.weight.detach() ],0  )
-bias = torch.cat([model1.fc.bias.detach()  , model2.fc.bias.detach() ],0 )
-# bias = model1.fc.bias.detach() + model2.fc.bias.detach() 
+# param = torch.cat([model1.fc.weight.detach() , model2.fc.weight.detach() ],0  )
+# bias = torch.cat([model1.fc.bias.detach()  , model2.fc.bias.detach() ],0 )
+# # bias = model1.fc.bias.detach() + model2.fc.bias.detach() 
 
-model3.weight.data = param.view(2,-1,out_shape)
-model3.bias.data = bias
+# model3.weight.data = param.view(2,-1,out_shape)
+# model3.bias.data = bias
 
-# 如果是2+2 两幅图片分开输入
-# 输入应该分成： 2*2* (3* 32* 32) 其中第二维是正常就该有的batch。而第一维是由于多个iter带上来的
-output1 = model1(input_tensor[:1].squeeze())
-output2 = model2(input_tensor[1:].squeeze())
-output3 = model3(input_tensor)
+# # 如果是2+2 两幅图片分开输入
+# # 输入应该分成： 2*2* (3* 32* 32) 其中第二维是正常就该有的batch。而第一维是由于多个iter带上来的
+# output1 = model1(input_tensor[:1].squeeze())
+# output2 = model2(input_tensor[1:].squeeze())
+# output3 = model3(input_tensor)
 
 
 
@@ -108,27 +108,51 @@ class StackedCNNEncoder(nn.Module):
 
 
 
-# # # 测试网络
-# if __name__ == "__main__":
-#     model1 = SimpleCNNEncoder()
-#     model2 = StackedCNNEncoder()
-#     sample_input = torch.randn(1, 6, 20, 20)  # 1张 3通道 20x20 的图片
-#     # sample_input
+# # 测试网络
+if __name__ == "__main__":
+    model1 = SimpleCNNEncoder()
+    model2 = StackedCNNEncoder()
 
-#     # param = model1.state_dict()
-#     # param = model1.parameters()
-#     model2.conv1.weight.data = torch.cat([ model1.conv1.weight.data,  model1.conv1.weight.data], 0)
-#     model2.conv1.bias.data = torch.cat([ model1.conv1.bias.data,  model1.conv1.bias.data], 0)
+    sample_input = torch.randn(12, 20, 20)  # 1张 3通道 20x20 的图片
+    output2 = model2(sample_input)
+
+
+    # sample_input = torch.randn(1, 6, 20, 20)  # 1张 3通道 20x20 的图片
+    # sample_input
+
+    # # param = model1.state_dict()
+    # # param = model1.parameters()
+    # model2.conv1.weight.data = torch.cat([ model1.conv1.weight.data,  model1.conv1.weight.data], 0)
+    # model2.conv1.bias.data = torch.cat([ model1.conv1.bias.data,  model1.conv1.bias.data], 0)
     
-#     # for x in param.items():
+    # # for x in param.items():
 
-#         # print(x[1])
-#         # print(type(x[1]))
+    #     # print(x[1])
+    #     # print(type(x[1]))
 
-#     output1 = model1(sample_input[:,3:])
-#     output2 = model2(sample_input)
-#     print("Encoded output shape:", output1)  # 输出形状
-#     print("Encoded output shape:", output2)  # 输出形状
+    # output1 = model1(sample_input[:,3:])
+    # output2 = model2(sample_input)
+    # # print("Encoded output shape:", output1)  # 输出形状
+    # # print("Encoded output shape:", output2)  # 输出形状
 
-#     print(output2[:,6:] == output1)
-    
+    # # print(output2[:,6:] == output1)
+
+    # # print(output1.shape)
+    # # print(output2.shape)
+
+    # loss1 = (torch.rand([1,6,10,10])-output1).sum()
+    # loss2 = (torch.rand([1,12,10,10])-output2).sum()
+
+    # loss1.backward(retain_graph=True)
+    # loss2.backward(retain_graph=True)
+
+
+    # import time
+    # a = time.time()
+    # loss1.backward()
+    # b1 = time.time()
+    # loss2.backward()
+    # b2 = time.time()
+
+    # print(b1-a)
+    # print(b2-b1)

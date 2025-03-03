@@ -199,8 +199,10 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True):
         net = MLP(channel=channel, num_classes=num_classes)
     elif model == 'ConvNet':
         net = ConvNet(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
-    elif model == 'ConvNetStacked':
-        net = ConvNetStacked(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
+    elif model.startswith("ConvStacked"):
+    # elif model == 'ConvNetStacked':
+        stkNum = int(model[11:])
+        net = ConvNetStacked(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, stack_num=stkNum)
 
     elif model == 'LeNet':
         net = LeNet(channel=channel, num_classes=num_classes)

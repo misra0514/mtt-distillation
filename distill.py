@@ -211,7 +211,7 @@ def main(args):
 
     # TODO: 1 get net  换成自己的参数（args）ReparamModule 可能要改
     # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
-    student_net = get_network("ConvNetStacked", channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+    student_net = get_network("ConvStacked"+args.Constk, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
 
     student_net = ReparamModule(student_net)
 
@@ -342,10 +342,10 @@ def main(args):
         else:
             expert_trajectory = buffer[expert_idx]
             expert_idx += 1
-            if expert_idx == len(buffer):
+            if expert_idx == len(buffer): # expert_idx可能类似一个counter，全部读完之后再load
                 expert_idx = 0
                 file_idx += 1
-                if file_idx == len(expert_files):
+                if file_idx == len(expert_files): 
                     file_idx = 0
                     random.shuffle(expert_files)
                 print("loading file {}".format(expert_files[file_idx]))
@@ -363,12 +363,13 @@ def main(args):
         target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
 
         # TODO: 2 stu param 作为forward 的flat_param传入，要么在这里修改，要么重载forward
-        # BUFFER:             1* 51* 14 * model Params
-        # expert_trajectory： 11 * 14 * model Params
-        # starting_params  ： 14 * model Params
+        # BUFFER:             1* 11* 14 * model Params
+        # BUFFER 在每个Iter之中，有可能会重新load 新的参数进来。
+        # expert_trajectory ： 11 * 14 * model Params
+        # starting_params   ： 14 * model Params
 
         # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
-        student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params  for _ in range(2)], 0).requires_grad_(True)]
+        student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params  for _ in range(int(args.Constk))], 0).requires_grad_(True)]
         # student_params = [torch.cat([item.data.to(args.device).reshape(-1) for p in starting_params  for item in (p, p[0]+"1")], 0).requires_grad_(True)]
 
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
@@ -406,14 +407,17 @@ def main(args):
             else:
                 forward_params = student_params[-1]
             # TODO: 3 模型load, 输入一直是一个x，输出的x虽然是两个（因为两个loss），但后续x就会被覆盖，所以这里拿list也没毛病
+            # 因为group conv的原因，最开始应该在Channel 维度做cat
             # x = student_net(x, flat_param=forward_params.repeat(2))
-            x = torch.cat([x,x],1)
+            # x = torch.cat([x,x],1)
+            x = x.repeat_interleave(int(args.Constk),dim =1)
             x = student_net(x, flat_param=forward_params)
             # ce_loss = criterion(x, this_y)
+            ce_loss = 0
             # TODO: 4 两个loss
-            ce_loss0 = criterion(x[0], this_y)
-            ce_loss1 = criterion(x[1], this_y)
-            ce_loss = ce_loss0+ce_loss1
+            for out in x:
+                ce_loss_temp = criterion(out , this_y)
+                ce_loss = ce_loss+ce_loss_temp
 
             # TODO: 4 这里存疑，到时候student_params 会是两个，那么grad怎么算？因为目前只是同一个grad算两次而已
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
@@ -434,8 +438,8 @@ def main(args):
         param_dist = torch.tensor(0.0).to(args.device)
 
         # TODO: 6 总的loss需要对两个模型分开计算（毕竟target_params也不一样）
-        target_params_all = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params  for _ in range(2)], 0).requires_grad_(True)
-
+        # target_params_all = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params  for _ in range(2)], 0)
+        target_params_all = torch.rand_like(student_params[-1])
         param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params_all, reduction="sum")
         # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params reduction="sum")
         param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
@@ -454,6 +458,17 @@ def main(args):
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
+        # start_event = torch.cuda.Event(enable_timing=True)
+        # end_event = torch.cuda.Event(enable_timing=True)
+        # start_event.record()
+        # grand_loss.backward()
+        # end_event.record()
+        # # 等待同步（确保时间测量正确）
+        # torch.cuda.synchronize()
+        # # 计算时间
+        # print(f"Total backward time: {start_event.elapsed_time(end_event):.3f} ms")
+        # exit()
+
         grand_loss.backward()
 
         optimizer_img.step()
@@ -463,9 +478,9 @@ def main(args):
         syn_time = syn_end-syn_start
         iter_time = iter_end-syn_start
         print("--TIME---")
-        print("syn_time:", syn_time)
-        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
         print("prepare time (", args.syn_steps ,"): ", syn_start- start)
+        print("syn_time     (", args.syn_steps ,"): ", syn_time)
+        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
         print("sum time (", args.syn_steps ,"): ", iter_end- start)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
@@ -486,6 +501,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
+
+    parser.add_argument('--Constk', type=str, default="2", help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
 

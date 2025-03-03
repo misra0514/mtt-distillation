@@ -35,27 +35,35 @@ class ConvNetStacked(nn.Module):
 
         # self.features2, shape_feat2 = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
         # num_feat2 = shape_feat2[0]*shape_feat2[1]*shape_feat2[2]
-        # self.classifier2 = nn.Linear(num_feat2, num_classes)
+        # self.classifier2 = nn.Linear(num_feat, num_classes)
 
 
     def forward(self, x):
         # Input x: B*B*M 大小。普通linear的shape 为B*input。新的维度在最外面
         # TODO: 额外的输入可以以channel的形式直接cat在新的维度上，这样子group conv可能比较好做，linear还需要在变换一下
+        # TODO: 可以在输入的时候就把X在Channel 维度排列好。反正group对Batch和channel 都是独立计算。输入没有batch即可
         out = self.features(x)
         # out2 = self.features2(x)
-        out = out.view(out.size(0), -1)
-        # out2 = out.view(out2.size(0), -1)
+        # 10, 256, 4,4   -> 20, 2048
+        # size = out.size(1)
+        # out1 = out[:,:size ]
+        # out2 = out[:,size:]
+        # out, out2 = torch.chunk(out, 2, dim=1)
+        out = torch.cat(torch.chunk(out, self.stack_num, dim=1), 0).contiguous()
+
+        # out = out.view(10, -1)
+        # out2 = out.view(10, -1)
         # out = self.classifier(out)
         # out2 = self.classifier2(out2)
-        # out = torch.cat(out,out2)
 
-        # TODO: 先在forward里面加。能跑通的话再从外面改
-        out = out.view(self.stack_num, -1, self.num_feat)
+        # TODO: out = 【10,4096】, 两张图片在channel 维度cat
+        
+        out = out.view(self.stack_num, 10, -1)
         out = self.classifierStacked(out)
-        out2 = torch.squeeze(out[1:])
-        out =torch.squeeze( out[:1])
 
-        return out, out2
+        out = torch.unbind(out, dim=0)
+
+        return out
 
     def _get_activation(self, net_act):
         if net_act == 'sigmoid':
