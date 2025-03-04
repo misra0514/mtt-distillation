@@ -113,7 +113,7 @@ if __name__ == "__main__":
     model1 = SimpleCNNEncoder()
     model2 = StackedCNNEncoder()
 
-    sample_input = torch.randn(12, 20, 20)  # 1张 3通道 20x20 的图片
+    sample_input = torch.randn(1,6, 20, 20)  # 1张 3通道 20x20 的图片
     output2 = model2(sample_input)
 
 
