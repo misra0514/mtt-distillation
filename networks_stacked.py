@@ -42,6 +42,7 @@ class ConvNetStacked(nn.Module):
         # Input x: B*B*M 大小。普通linear的shape 为B*input。新的维度在最外面
         # TODO: 额外的输入可以以channel的形式直接cat在新的维度上，这样子group conv可能比较好做，linear还需要在变换一下
         # TODO: 可以在输入的时候就把X在Channel 维度排列好。反正group对Batch和channel 都是独立计算。输入没有batch即可
+        batch_size = x.size(0)
         out = self.features(x)
         # out2 = self.features2(x)
         # 10, 256, 4,4   -> 20, 2048
@@ -58,7 +59,7 @@ class ConvNetStacked(nn.Module):
 
         # TODO: out = 【10,4096】, 两张图片在channel 维度cat
         
-        out = out.view(self.stack_num, 10, -1)
+        out = out.view(self.stack_num, batch_size, -1)
         out = self.classifierStacked(out)
 
         out = torch.unbind(out, dim=0)
