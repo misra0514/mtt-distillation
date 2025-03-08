@@ -14,19 +14,19 @@ class SimpleFlattenNet(nn.Module):
         return x
 
 class LinearStacked(nn.Module):
-    # PARAMS: weight=stackNum * batchNum * outFeats, bias = stackNum, x = stackNum * batch * InFeats
-    def __init__(self, stackNum ,in_features, out_features):
+    # PARAMS: weight=stackSize * batchNum * outFeats, bias = stackSize, x = stackSize * batch * InFeats
+    def __init__(self, stackSize ,in_features, out_features):
         super(LinearStacked, self).__init__()
-        self.stackNum = stackNum
+        self.stackSize = stackSize
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = torch.nn.Parameter(torch.randn(stackNum, in_features, out_features))
-        self.bias = torch.nn.Parameter(torch.randn(self.stackNum, out_features))
+        self.weight = torch.nn.Parameter(torch.randn(stackSize, in_features, out_features))
+        self.bias = torch.nn.Parameter(torch.randn(self.stackSize, out_features))
 
     
     def forward(self, x):
         #  b应该在每一个batch上对应位置做加法, out = [2,2,1] 后两维公用一个, b广播为2,1,1
-        b=self.bias.view(self.stackNum,-1,self.out_features)
+        b=self.bias.view(self.stackSize,-1,self.out_features)
         # print(x.shape)
         # print(self.weight.shape)
         x = torch.bmm(x, self.weight)  
@@ -34,11 +34,31 @@ class LinearStacked(nn.Module):
         return x
 
 
+class LinearStacked_2(nn.Module):
+    def __init__(self, stackSize ,in_features, out_features):
+        super(LinearStacked_2, self).__init__()
+        self.stackSize = stackSize
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = torch.nn.Parameter(torch.randn(stackSize, in_features, out_features))
+        self.bias = torch.nn.Parameter(torch.randn(self.stackSize, out_features))
+
+    def forward(self, x):
+        """
+        x目前仅支持二维输入： B* STK * In。 B和stk可以view 在一起。 weight  STK*IN*OUT 
+        """
+        x = x.view(-1,self.stackSize,self.in_features)
+        x = torch.einsum("abc,bcd->abd",x,self.weight)
+        x = x+self.bias
+        return x
+
+
+
 # # LINERAR TESTS
 # # 原始输入：2，3，32，32 新的输入：4，
 # input_tensor = torch.randn(4, 3, 32, 32)  # 4张 3×32×32 图片
-# input_shape = 3* 32* 32
-# out_shape = 2
+input_shape = 3* 32* 32
+out_shape = 2
 # # print(input_shape)
 # input_tensor = input_tensor.flatten(start_dim=1) # flatten之后是n*后面的，3* 32* 32合并了
 # input_tensor = input_tensor.view(2,2,-1)
@@ -47,7 +67,11 @@ class LinearStacked(nn.Module):
 
 # model1 = SimpleFlattenNet(input_shape=input_shape, output_dim=out_shape)
 # model2 = SimpleFlattenNet(input_shape=input_shape, output_dim=out_shape)
-# model3 = LinearStacked(2,input_shape, out_shape)
+input_tensor_2 = torch.randn(4, 3*32, 32)  # 4张 3×32×32 图片
+model3 = LinearStacked_2(2,input_shape, out_shape)
+output3 = model3(input_tensor_2)
+
+exit()
 
 # param = torch.cat([model1.fc.weight.detach() , model2.fc.weight.detach() ],0  )
 # bias = torch.cat([model1.fc.bias.detach()  , model2.fc.bias.detach() ],0 )
@@ -82,10 +106,57 @@ class LinearStacked(nn.Module):
 # print(model1.fc.weight.grad.data)
 # print(model3.weight.grad.data)
 
+
+class Conv2D_Stacked(nn.Module):
+    def __init__(self, in_channels=6, out_channels=12, kernel_size=3, stride=1, padding=1, stackSize=1):
+        super(Conv2D_Stacked, self).__init__()
+        self.stackSize = stackSize
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.weight = torch.nn.Parameter(torch.randn(stackSize, out_channels, in_channels * kernel_size * kernel_size))
+        self.bias_param = torch.nn.Parameter(torch.randn(stackSize, 1, out_channels, 1))  # 用于加到最终的 feature map
+
+        # TODO: 似乎可以直接调用上面写好的LinearStacked？？
+
+    def forward(self, x):
+        """
+        x: 输入形状 (batch_size, in_channels, height, width)
+        输入和以前一样，但是在batch维度上放了一个更大的Stach Num维度
+        """
+        batch_size, _, height, width = x.shape
+
+        # 使用 unfold 进行 im2col 操作，展开窗口
+        x_unfolded = F.unfold(x, kernel_size=self.kernel_size, stride=self.stride, padding=self.padding)
+        # x_unfolded: (batch_size, in_channels * kernel_size * kernel_size, output_height * output_width)
+        # in 1*3*20*20 / k=3 ---> 1,27,400
+
+        # out = self.weight @ x_unfolded  # (batch_size, out_channels, output_height * output_width)
+        x_unfolded = x_unfolded.view(self.stackSize, -1, self.out_channels)
+        out = torch.bmm(x_unfolded, self.weight)
+
+        # if self.bias_param is not None:
+        # out += self.bias_param  # (batch_size, out_channels, output_height * output_width)
+
+        # 计算输出的 feature map 尺寸
+        out_height = (height + 2 * self.padding - self.kernel_size) // self.stride + 1
+        out_width = (width + 2 * self.padding - self.kernel_size) // self.stride + 1
+
+        out = out.view(batch_size*self.stackSize, self.out_channels, out_height, out_width)
+        return out
+
+
+
+
+
+
 class SimpleCNNEncoder(nn.Module):
     def __init__(self):
         super(SimpleCNNEncoder, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=6, kernel_size=3, stride=1, padding=1)  # 卷积层
+        self.conv1 = Conv2D_Stacked(in_channels=3, out_channels=6, kernel_size=3, stride=1, padding=1)  # 卷积层
+        # self.conv1 = nn.Conv2d(in_channels=3, out_channels=6, kernel_size=3, stride=1, padding=1)  # 卷积层
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)  # 最大池化层
 
     def forward(self, x):
@@ -108,13 +179,17 @@ class StackedCNNEncoder(nn.Module):
 
 
 
+
+
 # # 测试网络
 if __name__ == "__main__":
     model1 = SimpleCNNEncoder()
     model2 = StackedCNNEncoder()
 
     sample_input = torch.randn(1,6, 20, 20)  # 1张 3通道 20x20 的图片
-    output2 = model2(sample_input)
+    output1 = model1(sample_input[:,3:])
+
+    # output2 = model2(sample_input)
 
 
     # sample_input = torch.randn(1, 6, 20, 20)  # 1张 3通道 20x20 的图片
@@ -131,7 +206,7 @@ if __name__ == "__main__":
     #     # print(type(x[1]))
 
     # output1 = model1(sample_input[:,3:])
-    # output2 = model2(sample_input)
+    output2 = model2(sample_input)
     # # print("Encoded output shape:", output1)  # 输出形状
     # # print("Encoded output shape:", output2)  # 输出形状
 
