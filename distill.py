@@ -414,7 +414,7 @@ def main(args):
             x = student_net(x, flat_param=forward_params)
             # ce_loss = criterion(x, this_y)
             ce_loss = 0
-            # TODO: 4 两个loss
+            # TODO: 4 两个loss。这个地方目前两种model的写法不同，所以y shape 不一样...
             for out in x:
                 ce_loss_temp = criterion(out , this_y)
                 ce_loss = ce_loss+ce_loss_temp
