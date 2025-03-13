@@ -16,6 +16,18 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+def set_random_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
+
+set_random_seed(42)
+
 def main(args):
 
     pre_start = time.time()
@@ -81,7 +93,7 @@ def main(args):
     args.distributed = torch.cuda.device_count() > 1
 
 
-    print('Hyper-parameters: \n', args.__dict__)
+    # print('Hyper-parameters: \n', args.__dict__)
     print('Evaluation model pool: ', model_eval_pool)
 
     ''' organize the real dataset '''
@@ -135,12 +147,15 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
+    image_syn = torch.load("./script/in.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)
-    optimizer_img = torch.optim.SGD([image_syn], lr=args.lr_img, momentum=0.5)
-    optimizer_lr = torch.optim.SGD([syn_lr], lr=args.lr_lr, momentum=0.5)
+    # optimizer_img = torch.optim.SGD([image_syn], lr=args.lr_img, momentum=0.5) # TODO: 关掉动量，保证梯度下降方向一致
+    # optimizer_lr = torch.optim.SGD([syn_lr], lr=args.lr_lr, momentum=0.5)
+    optimizer_img = torch.optim.SGD([image_syn], lr=args.lr_img)
+    optimizer_lr = torch.optim.SGD([syn_lr], lr=args.lr_lr)
     optimizer_img.zero_grad()
 
     criterion = nn.CrossEntropyLoss().to(args.device)
@@ -173,14 +188,14 @@ def main(args):
             raise AssertionError("No buffers detected at {}".format(expert_dir))
         file_idx = 0
         expert_idx = 0
-        random.shuffle(expert_files)
+        # random.shuffle(expert_files)  # TODO: 为了测精度把随机输入全去掉了
         if args.max_files is not None:
             expert_files = expert_files[:args.max_files]
         print("loading file {}".format(expert_files[file_idx]))
         buffer = torch.load(expert_files[file_idx])
         if args.max_experts is not None:
             buffer = buffer[:args.max_experts]
-        random.shuffle(buffer)
+        # random.shuffle(buffer) # TODO: 为了测精度把随机输入全去掉了
 
     best_acc = {m: 0 for m in model_eval_pool}
 
@@ -322,16 +337,17 @@ def main(args):
                 file_idx += 1
                 if file_idx == len(expert_files):
                     file_idx = 0
-                    random.shuffle(expert_files)
+                    # random.shuffle(expert_files)
                 print("loading file {}".format(expert_files[file_idx]))
                 if args.max_files != 1:
                     del buffer
                     buffer = torch.load(expert_files[file_idx])
                 if args.max_experts is not None:
                     buffer = buffer[:args.max_experts]
-                random.shuffle(buffer)
+                # random.shuffle(buffer)
 
-        start_epoch = np.random.randint(0, args.max_start_epoch)
+        # start_epoch = np.random.randint(0, args.max_start_epoch)
+        start_epoch = 0
         starting_params = expert_trajectory[start_epoch]
 
         target_params = expert_trajectory[start_epoch+args.expert_epochs]
@@ -349,11 +365,14 @@ def main(args):
         param_dist_list = []
         indices_chunks = []
 
+        torch.save(student_params[-1], "./script/a.pt")
+
         syn_start = time.time()
         for step in range(args.syn_steps):
 
             if not indices_chunks:
-                indices = torch.randperm(len(syn_images))
+                # indices = torch.randperm(len(syn_images))
+                indices = torch.arange(len(syn_images))
                 indices_chunks = list(torch.split(indices, args.batch_syn))
 
             these_indices = indices_chunks.pop()
@@ -377,7 +396,9 @@ def main(args):
             ce_loss = criterion(x, this_y)
 
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-
+            # print("GRAD")
+            # print(ce_loss.item())
+            # torch.save(x, "./script/b.pt")
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
             if(step < args.detachNum):
                 student_params.append(student_params[-1] - syn_lr * grad.detach())
@@ -410,6 +431,8 @@ def main(args):
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
+        print("-------------LOSS-------------")
+        print(grand_loss.item())
         grand_loss.backward()
 
         optimizer_img.step()
