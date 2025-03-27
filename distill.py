@@ -35,7 +35,7 @@ def main(args):
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     eval_it_pool = np.arange(0, args.Iteration + 1, args.eval_it).tolist()
-    eval_it_pool = []
+    # eval_it_pool = []
     channel, im_size, num_classes, class_names, mean, std, dst_train, dst_test, testloader, loader_train_dict, class_map, class_map_inv = get_dataset(args.dataset, args.data_path, args.batch_real, args.subset, args=args)
     model_eval_pool = get_eval_pool(args.eval_mode, args.model, args.model)
 
@@ -377,15 +377,10 @@ def main(args):
 
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
-            # student_params.append(student_params[-1] - syn_lr * grad.detach())
             if(step < args.detachNum):
                 student_params.append(student_params[-1] - syn_lr * grad.detach())
             else:
                 student_params.append(student_params[-1] - syn_lr * grad)
-            # # TODO: Pruning here
-            # if (len(student_params) > 2 ):  
-            #     # print("DETACH")
-            #     student_params[-3] = student_params[-3].detach()
 
         syn_end = time.time()
 
@@ -402,7 +397,7 @@ def main(args):
         param_loss /= num_params
         param_dist /= num_params
 
-        # param_loss /= param_dist
+        param_loss /= param_dist
 
         grand_loss = param_loss
 
@@ -429,7 +424,7 @@ def main(args):
             del _
 
         if it%10 == 0:
-            print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+            print('%s iter = %04d, loss = %.7f' % (get_time(), it, grand_loss.item()))
 
     iter_end = time.time()
     print("------------FIN TIME-------------")
