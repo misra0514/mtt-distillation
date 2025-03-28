@@ -16,6 +16,29 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+def local_loss(student_params, target_params,starting_params,  ):
+    param_loss = torch.tensor(0.0).to(args.device)
+    param_dist = torch.tensor(0.0).to(args.device)
+
+    param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
+    param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+
+    param_loss_list.append(param_loss)
+    param_dist_list.append(param_dist)
+
+
+    param_loss /= num_params
+    param_dist /= num_params
+
+    param_loss /= param_dist
+
+    grand_loss = param_loss
+    # 因为这个用来做梯度累计，所以置零0，不更新
+    # optimizer_img.zero_grad()
+    # optimizer_lr.zero_grad()
+
+    grand_loss.backward()
+
 def main(args):
 
     pre_start = time.time()
@@ -377,8 +400,14 @@ def main(args):
 
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
-            if(step < args.detachNum):
+            # if(step < args.detachNum):
+            #     student_params.append(student_params[-1] - syn_lr * grad.detach())
+            # else:
+            if(step % args.trunkSize ==0):
+                # 1 backward && count local grad
+                # 2 pruning
                 student_params.append(student_params[-1] - syn_lr * grad.detach())
+                del student_params[1:-1]
             else:
                 student_params.append(student_params[-1] - syn_lr * grad)
 
@@ -435,6 +464,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
+
+    parser.add_argument('--trunkSize', type=int, default=100, help='discard grad before this syn')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
 

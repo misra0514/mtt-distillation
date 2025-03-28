@@ -6,6 +6,6 @@
 #     --buffer_path=./buffer --data_path=./dataset
 
 
-python distill.py --dataset=CIFAR10 --ipc=1 --syn_steps=20 --expert_epochs=3 \
+python distill.py --dataset=CIFAR100 --ipc=1 --syn_steps=20 --expert_epochs=3 \
     --max_start_epoch=20 --zca --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 \
     --eval_mode=M --buffer_path=buffer --data_path=dataset > output_2.txt  
