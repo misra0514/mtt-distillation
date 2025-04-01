@@ -16,28 +16,21 @@ import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-def local_loss(student_params, target_params,starting_params,  ):
+
+
+def local_loss_backward(student_params, target_params,starting_params, x , lr):
     param_loss = torch.tensor(0.0).to(args.device)
     param_dist = torch.tensor(0.0).to(args.device)
 
     param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
     param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
 
-    param_loss_list.append(param_loss)
-    param_dist_list.append(param_dist)
-
-
-    param_loss /= num_params
-    param_dist /= num_params
-
     param_loss /= param_dist
 
     grand_loss = param_loss
     # 因为这个用来做梯度累计，所以置零0，不更新
-    # optimizer_img.zero_grad()
-    # optimizer_lr.zero_grad()
-
     grand_loss.backward()
+    # x.grad.data = x.grad.data * -lr
 
 def main(args):
 
@@ -356,6 +349,7 @@ def main(args):
         start_epoch = np.random.randint(0, args.max_start_epoch)
         starting_params = expert_trajectory[start_epoch]
 
+        # 这里要改，相当于要从expert_trajectory 里面把每一个需要的取出来，然后再reshape
         target_params = expert_trajectory[start_epoch+args.expert_epochs]
         target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
 
@@ -395,19 +389,26 @@ def main(args):
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
                 forward_params = student_params[-1]
-            x = student_net(x, flat_param=forward_params)
-            ce_loss = criterion(x, this_y)
+            out = student_net(x, flat_param=forward_params)
+            ce_loss = criterion(out, this_y)
 
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
-            # if(step < args.detachNum):
-            #     student_params.append(student_params[-1] - syn_lr * grad.detach())
-            # else:
             if(step % args.trunkSize ==0):
                 # 1 backward && count local grad
+                target_params_temp = expert_trajectory[start_epoch+step]
+                target_params_temp = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params_temp], 0)
+                local_loss_backward(student_params, target_params_temp, starting_params,syn_images , syn_lr)
+                if(step !=0):
+                    syn_images.grad.data = syn_images.grad*syn_lr
                 # 2 pruning
-                student_params.append(student_params[-1] - syn_lr * grad.detach())
-                del student_params[1:-1]
+                target_params_temp = student_params[-1].detach() - syn_lr * grad.detach()
+                # del student_params[:-1]
+                # student_params.clear()
+                del student_params
+                student_params = []
+                student_params.append(target_params_temp)
+                # student_params[-1].requires_grad = False
             else:
                 student_params.append(student_params[-1] - syn_lr * grad)
 

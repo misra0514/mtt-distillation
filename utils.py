@@ -491,6 +491,8 @@ def get_eval_pool(eval_mode, model, model_eval):
         model_eval_pool = [model[:model.index('BN')]] if 'BN' in model else [model]
     elif eval_mode == 'C':
         model_eval_pool = [model, 'ConvNet']
+    elif eval_mode == 'TM':
+        model_eval_pool = [ 'ConvNet', 'ResNet18' ]
     else:
         model_eval_pool = [model_eval]
     return model_eval_pool
