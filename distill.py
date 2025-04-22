@@ -10,6 +10,7 @@ from utils import get_dataset, get_network, get_eval_pool, evaluate_synset, get_
 import wandb
 import copy
 import random
+import gc
 from reparam_module import ReparamModule
 
 import time
@@ -22,7 +23,7 @@ def local_loss_backward(student_params, target_params,starting_params, x , lr):
     param_loss = torch.tensor(0.0).to(args.device)
     param_dist = torch.tensor(0.0).to(args.device)
 
-    param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
+    param_loss += torch.nn.functional.mse_loss(student_params, target_params, reduction="sum")
     param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
 
     param_loss /= param_dist
@@ -30,7 +31,11 @@ def local_loss_backward(student_params, target_params,starting_params, x , lr):
     grand_loss = param_loss
     # 因为这个用来做梯度累计，所以置零0，不更新
     grand_loss.backward()
-    # x.grad.data = x.grad.data * -lr
+    # temp_grad = torch.autograd.grad(grand_loss,x, retain_graph=True )[0]
+    # if not (x.grad):
+    #     x.grad = temp_grad 
+    # else:
+    #     x.grad.data -= temp_grad * lr
 
 def main(args):
 
@@ -178,7 +183,6 @@ def main(args):
             n += 1
         if n == 0:
             raise AssertionError("No buffers detected at {}".format(expert_dir))
-
     else:
         expert_files = []
         n = 0
@@ -330,6 +334,7 @@ def main(args):
         if args.load_all:
             expert_trajectory = buffer[np.random.randint(0, len(buffer))]
         else:
+            # 每次从10个 buffer expert_trajectory里面选一个。下面的if 相当于是重做一遍上面的。
             expert_trajectory = buffer[expert_idx]
             expert_idx += 1
             if expert_idx == len(buffer):
@@ -349,7 +354,7 @@ def main(args):
         start_epoch = np.random.randint(0, args.max_start_epoch)
         starting_params = expert_trajectory[start_epoch]
 
-        # 这里要改，相当于要从expert_trajectory 里面把每一个需要的取出来，然后再reshape
+        # expert_trajectory 是顺序的吗？expert_epochs=3
         target_params = expert_trajectory[start_epoch+args.expert_epochs]
         target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
 
@@ -394,21 +399,31 @@ def main(args):
 
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
-            if(step % args.trunkSize ==0):
+            if(step % args.trunkSize ==0 and step !=0 ):
                 # 1 backward && count local grad
-                target_params_temp = expert_trajectory[start_epoch+step]
+                # TODO: 对expert_trajectory的理解似乎有点问题，这个玩意没有preload。
+                # 而且由于M不一定等于N，所以不是所有的exp traj都有对应, 所以。。。
+                # 像目前exp traj是3， 那就是固定和 N+3的地方比较。
+                # 因此应该计算一下：
+                targetIndex = int(step/args.trunkSize)
+                target_params_temp = expert_trajectory[start_epoch+targetIndex]
                 target_params_temp = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params_temp], 0)
-                local_loss_backward(student_params, target_params_temp, starting_params,syn_images , syn_lr)
-                if(step !=0):
-                    syn_images.grad.data = syn_images.grad*syn_lr
+                stu_params_temp = student_params[-1]- syn_lr * grad
+                local_loss_backward(stu_params_temp, target_params_temp, starting_params,x , syn_lr)
+                # if( step!= args.syn_steps):
+                #     syn_images.grad.data = syn_images.grad*syn_lr
                 # 2 pruning
-                target_params_temp = student_params[-1].detach() - syn_lr * grad.detach()
                 # del student_params[:-1]
                 # student_params.clear()
-                del student_params
+                stu_params_temp = stu_params_temp.detach().clone().requires_grad_()
+                for _ in  student_params:
+                    del _
+                gc.collect()
                 student_params = []
-                student_params.append(target_params_temp)
+                student_params.append(stu_params_temp)
                 # student_params[-1].requires_grad = False
+            # if(step < args.detachNum):
+            #     student_params.append(student_params[-1] - syn_lr * grad.detach())
             else:
                 student_params.append(student_params[-1] - syn_lr * grad)
 
@@ -431,13 +446,16 @@ def main(args):
 
         grand_loss = param_loss
 
-        optimizer_img.zero_grad()
-        optimizer_lr.zero_grad()
+
 
         grand_loss.backward()
 
         optimizer_img.step()
         optimizer_lr.step()
+
+        # TODO: 改成梯度累计之后从这里backward
+        optimizer_img.zero_grad()
+        optimizer_lr.zero_grad()
 
         iter_end = time.time()
         syn_time = syn_end-syn_start
