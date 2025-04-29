@@ -1,39 +1,69 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-from networks_stacked_basic import LinearStacked, LinearStacked_2
+from networks_stacked_basic import LinearStacked, LinearStacked_2 , Conv2d_Stacked
 
 class ConvNetStacked(nn.Module):
     def __init__(self, channel, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, im_size = (32,32),stack_size=2):
         super(ConvNetStacked, self).__init__()
 
         self.stack_size = stack_size
-        self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
-        num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
-        self.num_feat = num_feat
-        self.classifierStacked = LinearStacked(num_feat,num_classes, stack_size)
-        # self.classifier = nn.Linear(num_feat, num_classes)
+        self.l = "BS" # BS : Batch*2 *rest. group conv
+        if(self.l=="BS"):
+            self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
+            num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
+            self.num_feat = num_feat
+            self.classifierStacked2 = LinearStacked_2(num_feat,num_classes, stack_size)
+        else:
+            self.features2, shape_feat2 = self._make_layers_2(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
+            num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
+            self.num_feat = num_feat
+            self.classifierStacked = LinearStacked(num_feat,num_classes, stack_size)
 
-        # self.features2, shape_feat2 = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
-        # num_feat2 = shape_feat2[0]*shape_feat2[1]*shape_feat2[2]
-        # self.classifier2 = nn.Linear(num_feat, num_classes)
+
+        # self.stack_size = stack_size
+        # self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
+        # num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
+        # self.num_feat = num_feat
+        # self.classifierStacked = LinearStacked(num_feat,num_classes, stack_size)
+
+
 
 
     def forward(self, x):
-        # TODO: 额外的输入可以以channel的形式直接cat在新的维度上，这样子group conv可能比较好做，linear还需要在变换一下
-        out = self.features(x)
-        out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
+        # # 额外的输入可以以channel的形式直接cat在新的维度上，这样子group conv可能比较好做，linear还需要在变换一下
+        # out = self.features(x)
+        # out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
 
-        # TODO: 两张图片在channel 维度cat 转为0维（转置）
-        # 20, 2048
-        out = out.view(self.stack_size, -1, self.num_feat )
-        out = out.permute(1,0,2).contiguous()
-        # out = torch.cat(torch.chunk(out, self.stack_size, dim=1), 0).contiguous()
+        # # 两张图片在channel 维度cat 转为0维（转置）
+        # # 20, 2048
+        # out = out.view(self.stack_size, -1, self.num_feat )
+        # out = out.permute(1,0,2).contiguous()
+        # # out = torch.cat(torch.chunk(out, self.stack_size, dim=1), 0).contiguous()
         
-        out = self.classifierStacked(out)
-        out = torch.unbind(out, dim=0)# 如果是走的linear2需要在dim1上unbind
+        # out = self.classifierStacked(out)
+        # out = torch.unbind(out, dim=0)# 如果是走的linear2需要在dim1上unbind
+        # return out
 
-        return out
+
+        # TODO: 现在是 groupconv+ bmm。中间做了一个contiguous。 下面用branch 重新写两种Dayout
+        if(self.l=="BS"): # B,S, else
+            out = self.features(x)
+            out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
+            # 20, 2048
+            # out = out.view(-1, self.stack_size, self.num_feat )
+            out = self.classifierStacked2(out)
+            out = torch.unbind(out, dim=0)# 如果是走的linear2需要在dim1上unbind
+            return out
+        else: # Stk, Batch ,esle 
+            out = self.features2(x)
+            out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
+            # 20, 2048
+            out = self.classifierStacked(out)
+            out = torch.unbind(out, dim=0)# 如果是走的linear2需要在dim1上unbind
+            return out
+
+
 
     def _get_activation(self, net_act):
         if net_act == 'sigmoid':
@@ -91,3 +121,26 @@ class ConvNetStacked(nn.Module):
                 shape_feat[1] //= 2
                 shape_feat[2] //= 2
         return nn.Sequential(*layers), shape_feat
+
+    # Used to gen by conv2
+    def _make_layers_2(self, channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size):
+        layers = []
+        in_channels = channel
+        if im_size[0] == 28:
+            im_size = (32, 32)
+        shape_feat = [in_channels, im_size[0], im_size[1]]
+        stak_num = self.stack_size
+        for d in range(net_depth):
+            # FIXED: 把去全部conv2d改成带group即可（注意in，out channel 也要翻倍）
+            layers += [Conv2d_Stacked(in_channels*stak_num, net_width*stak_num , kernel_size=3, padding=3 if channel == 1 and d == 0 else 1, stackSize=stak_num)]
+            shape_feat[0] = net_width
+            if net_norm != 'none':
+                layers += [self._get_normlayer(net_norm, shape_feat)]
+            layers += [self._get_activation(net_act)]
+            in_channels = net_width
+            if net_pooling != 'none':
+                layers += [self._get_pooling(net_pooling)]
+                shape_feat[1] //= 2
+                shape_feat[2] //= 2
+        return nn.Sequential(*layers), shape_feat
+
