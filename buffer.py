@@ -67,6 +67,7 @@ def main(args):
     for it in range(0, args.num_experts):
 
         ''' Train synthetic data '''
+        # TODO: 这里是 10 * 10 * 50 * model的大循环。从这里可以看到10*10个group全部是以随机值作为起点，训练50次得到的。这也解释了为什么散点图里面的分布这么有规律。
         teacher_net = get_network(args.model, channel, num_classes, im_size).to(args.device) # get a random model
         teacher_net.train()
         lr = args.lr_teacher

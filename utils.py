@@ -76,7 +76,7 @@ def get_dataset(dataset, data_path, batch_size=1, subset="imagenette", args=None
         else:
             transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)])
         dst_train = datasets.ImageFolder(os.path.join(data_path, "train"), transform=transform) # no augmentation
-        dst_test = datasets.ImageFolder(os.path.join(data_path, "val", "images"), transform=transform)
+        dst_test = datasets.ImageFolder(os.path.join(data_path, "val"), transform=transform)
         class_names = dst_train.classes
         class_map = {x:x for x in range(num_classes)}
 
