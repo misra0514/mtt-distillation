@@ -1,6 +1,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+
+# from utils import computeExpo
 # Acknowledgement to
 # https://github.com/kuangliu/pytorch-cifar,
 # https://github.com/BIGBALLON/CIFAR-ZOO,
@@ -38,7 +40,7 @@ class ConvNet(nn.Module):
         # print("MODEL DATA ON: ", x.get_device(), "MODEL PARAMS ON: ", self.classifier.weight.data.get_device())
         out = self.features(x)
         out = out.view(out.size(0), -1)
-        out = self.classifier(out)
+        # out = self.classifier(out)
         return out
 
     def _get_activation(self, net_act):

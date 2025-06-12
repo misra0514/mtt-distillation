@@ -674,3 +674,46 @@ AUGMENT_FNS = {
     'scale': [rand_scale],
     'rotate': [rand_rotate],
 }
+
+
+def computeExpo(ta, tb):
+    # 先导0数量 的list
+    a_bits = ta.view(torch.int32).flatten().tolist()
+    b_bits = tb.view(torch.int32).flatten().tolist()
+    
+    def count_leading_zeros(diff: int, bit_length: int = 32) -> int:
+        # 限制为无符号32位数（模拟补码）
+        diff &= (1 << bit_length) - 1
+        bin_str = bin(diff)[2:].zfill(bit_length)
+        leading_zeros = len(bin_str) - len(bin_str.lstrip('0'))
+        return leading_zeros
+    def compute_difference_and_leading_zeros(a: int, b: int):
+        diff = abs(a - b)
+        lz = count_leading_zeros(diff)
+        return lz
+    def list_to_freq_dict(input_list):
+        freq_dict = {}
+        for item in input_list:
+            if item in freq_dict:
+                freq_dict[item] += 1
+            else:
+                freq_dict[item] = 1
+        return freq_dict
+
+    for i in range(len(a_bits)):
+        a_bits[i] = compute_difference_and_leading_zeros(a_bits[i], b_bits[i])
+    return list_to_freq_dict(a_bits)
+
+def MakeOrder(buffer):
+    temp = [i[0] for i in buffer] # i 10*14*buffer
+    # temp = [  for i in temp for item in i]
+    newlist = []
+    for i in temp:
+        sum = 0
+        for j in i:
+            sum+=j.sum().item()
+        newlist.append(sum)
+    sorted_indices = np.argsort(newlist)[::-1]  # 从大
+    buffer = [buffer[i] for i in sorted_indices]
+
+    return buffer

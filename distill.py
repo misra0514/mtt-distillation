@@ -6,15 +6,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.utils
 from tqdm import tqdm
-from utils import get_dataset, get_network, get_eval_pool, evaluate_synset, get_time, DiffAugment, ParamDiffAug
+from utils import get_dataset, get_network, get_eval_pool, evaluate_synset, get_time, DiffAugment, ParamDiffAug, MakeOrder, computeExpo
 import wandb
 import copy
 import random
 from reparam_module import ReparamModule
 
+
 import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+
+        
+
 
 def main(args):
 
@@ -181,6 +186,7 @@ def main(args):
         if args.max_experts is not None:
             buffer = buffer[:args.max_experts]
         random.shuffle(buffer)
+        # buffer = MakeOrder(buffer)
 
     best_acc = {m: 0 for m in model_eval_pool}
 
@@ -329,6 +335,8 @@ def main(args):
                 if args.max_experts is not None:
                     buffer = buffer[:args.max_experts]
                 random.shuffle(buffer)
+                # buffer = MakeOrder(buffer)
+
 
         start_epoch = np.random.randint(0, args.max_start_epoch)
         starting_params = expert_trajectory[start_epoch]
