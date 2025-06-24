@@ -1,0 +1,39 @@
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+initialize synthetic data from random real images
+[2025-06-23 05:09:59] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
+-------------LOSS-------------
+3.4673307709454093e-06
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_2.pt
+-------------LOSS-------------
+3.4500451420171885e-06
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_3.pt
+-------------LOSS-------------
+3.6048918445885647e-06
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_4.pt
+-------------LOSS-------------
+3.5055718399235047e-06
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_5.pt
+-------------LOSS-------------
+3.5177572499378584e-06
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_6.pt
+-------------LOSS-------------
+3.5573780223785434e-06
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_7.pt
+-------------LOSS-------------
+3.5185728393116733e-06
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_8.pt
+-------------LOSS-------------
+3.478945245660725e-06
+------------FIN TIME-------------
+4.850247383117676
+当前显存使用: 2022.0 MB
+峰值显存使用: 1830.13671875 MB

@@ -146,26 +146,22 @@ class ReparamModule(nn.Module):
         with self.unflattened_param(flat_param):
             return self.module(*inputs, **kwinputs)
 
-    def _forward_with_param_ckpt(self, flat_param,input):
-        with self.unflattened_param(flat_param):
-            return self.module(input)
-    
-    def _forward_with_param_and_target(self, flat_param,input, target):
+    def _forward_with_param_for_checkpoint(self, flat_param, input, target):
         with self.unflattened_param(flat_param):
             return self.module(input, target)
 
-    def forward(self, input ,target=None, criterion = None, flat_param=None, buffers=None, **kwinputs):
-        flat_param = torch.squeeze(flat_param)
-        # print("PARAMS ON DEVICE: ", flat_param.get_device())
-        # print("DATA ON DEVICE: ", inputs[0].get_device())
-        # flat_param.to("cuda:{}".format(inputs[0].get_device()))
-        # self.module.to("cuda:{}".format(inputs[0].get_device()))
+    def forward(self, inputs, target=None, flat_param=None, buffers=None, student_params=[],syn_lr=None,syn_steps=20,criterion=None):
         if flat_param is None:
             flat_param = self.flat_param
-        # if buffers is None:
-        if target is None:
-            return self._forward_with_param_ckpt(flat_param, input)
-        else:
-            return self._forward_with_param_and_target(flat_param, input , target)
-        # else:
-        #     return self._forward_with_param_and_buffers(flat_param, tuple(buffers), *inputs, **kwinputs)
+        def make_forward_warp():
+            def forward_warp(p, input, target):
+                return self._forward_with_param_for_checkpoint(p, input, target)
+            return forward_warp
+
+        for i in range(syn_steps):
+            flat_param = torch.squeeze(student_params[-1])
+            forward_warp = make_forward_warp()
+            grad = checkpoint(forward_warp, flat_param,  inputs, target,use_reentrant=False)
+            # grad = self._forward_with_param_for_checkpoint(flat_param,  inputs, target)
+            student_params.append(student_params[-1] - syn_lr * grad)
+        return student_params

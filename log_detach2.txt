@@ -1,0 +1,624 @@
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 1, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 3, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7fa0031a2c40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:46:37] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:46:40] Evaluate_00: epoch = 1000 train time = 3 s train loss = 0.000038 train acc = 1.0000, test acc = 0.1101
+[2025-02-01 14:46:43] Evaluate_01: epoch = 1000 train time = 3 s train loss = 0.000030 train acc = 1.0000, test acc = 0.1012
+[2025-02-01 14:46:47] Evaluate_02: epoch = 1000 train time = 3 s train loss = 0.000020 train acc = 1.0000, test acc = 0.1019
+[2025-02-01 14:46:52] Evaluate_03: epoch = 1000 train time = 5 s train loss = 0.000012 train acc = 1.0000, test acc = 0.0966
+[2025-02-01 14:46:56] Evaluate_04: epoch = 1000 train time = 3 s train loss = 0.000049 train acc = 1.0000, test acc = 0.1083
+Evaluate 5 random ConvNet, mean = 0.1036 std = 0.0049
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 3
+0.9999986129735519
+----FULL-----
+3.0326757431030273
+[2025-02-01 14:47:00] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 2, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 4, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f32a536ac40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:47:14] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:47:18] Evaluate_00: epoch = 1000 train time = 4 s train loss = 0.000685 train acc = 1.0000, test acc = 0.1106
+[2025-02-01 14:47:21] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.000137 train acc = 1.0000, test acc = 0.1090
+[2025-02-01 14:47:25] Evaluate_02: epoch = 1000 train time = 3 s train loss = 0.001867 train acc = 1.0000, test acc = 0.1143
+[2025-02-01 14:47:30] Evaluate_03: epoch = 1000 train time = 5 s train loss = 0.000057 train acc = 1.0000, test acc = 0.1121
+[2025-02-01 14:47:34] Evaluate_04: epoch = 1000 train time = 3 s train loss = 0.000045 train acc = 1.0000, test acc = 0.1003
+Evaluate 5 random ConvNet, mean = 0.1093 std = 0.0048
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 4
+0.9996936278814176
+----FULL-----
+3.040242910385132
+[2025-02-01 14:47:38] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 3, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 5, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f2fb9c2fc40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:47:53] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:47:57] Evaluate_00: epoch = 1000 train time = 4 s train loss = 0.001518 train acc = 1.0000, test acc = 0.1096
+[2025-02-01 14:48:00] Evaluate_01: epoch = 1000 train time = 3 s train loss = 0.015457 train acc = 1.0000, test acc = 0.0985
+[2025-02-01 14:48:04] Evaluate_02: epoch = 1000 train time = 3 s train loss = 0.000090 train acc = 1.0000, test acc = 0.1041
+[2025-02-01 14:48:09] Evaluate_03: epoch = 1000 train time = 5 s train loss = 0.000012 train acc = 1.0000, test acc = 0.1013
+[2025-02-01 14:48:13] Evaluate_04: epoch = 1000 train time = 3 s train loss = 0.000019 train acc = 1.0000, test acc = 0.1051
+Evaluate 5 random ConvNet, mean = 0.1037 std = 0.0037
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 5
+0.9993500905650131
+----FULL-----
+3.0645015239715576
+[2025-02-01 14:48:17] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 4, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 6, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7fb61bec9c40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:48:31] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:48:35] Evaluate_00: epoch = 1000 train time = 3 s train loss = 0.000606 train acc = 1.0000, test acc = 0.1022
+[2025-02-01 14:48:38] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.000041 train acc = 1.0000, test acc = 0.1055
+[2025-02-01 14:48:41] Evaluate_02: epoch = 1000 train time = 3 s train loss = 0.000007 train acc = 1.0000, test acc = 0.1010
+[2025-02-01 14:48:44] Evaluate_03: epoch = 1000 train time = 3 s train loss = 0.000710 train acc = 1.0000, test acc = 0.0984
+[2025-02-01 14:48:48] Evaluate_04: epoch = 1000 train time = 3 s train loss = 0.000163 train acc = 1.0000, test acc = 0.1045
+Evaluate 5 random ConvNet, mean = 0.1023 std = 0.0025
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 6
+0.9999377617950067
+----FULL-----
+3.045806407928467
+[2025-02-01 14:48:51] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 5, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 7, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7fadc9b60c40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:49:05] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:49:09] Evaluate_00: epoch = 1000 train time = 4 s train loss = 0.000145 train acc = 1.0000, test acc = 0.0991
+[2025-02-01 14:49:11] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.000201 train acc = 1.0000, test acc = 0.1095
+[2025-02-01 14:49:15] Evaluate_02: epoch = 1000 train time = 3 s train loss = 0.000044 train acc = 1.0000, test acc = 0.0982
+[2025-02-01 14:49:18] Evaluate_03: epoch = 1000 train time = 3 s train loss = 0.000030 train acc = 1.0000, test acc = 0.1073
+[2025-02-01 14:49:21] Evaluate_04: epoch = 1000 train time = 3 s train loss = 0.000027 train acc = 1.0000, test acc = 0.1064
+Evaluate 5 random ConvNet, mean = 0.1041 std = 0.0046
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 7
+0.9999948235270171
+----FULL-----
+3.049903631210327
+[2025-02-01 14:49:25] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 6, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 8, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f0d5122fc40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:49:38] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:49:43] Evaluate_00: epoch = 1000 train time = 4 s train loss = 0.002693 train acc = 1.0000, test acc = 0.1013
+[2025-02-01 14:49:45] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.000036 train acc = 1.0000, test acc = 0.1036
+[2025-02-01 14:49:49] Evaluate_02: epoch = 1000 train time = 3 s train loss = 0.001509 train acc = 1.0000, test acc = 0.1053
+[2025-02-01 14:49:52] Evaluate_03: epoch = 1000 train time = 3 s train loss = 0.000016 train acc = 1.0000, test acc = 0.0962
+[2025-02-01 14:49:55] Evaluate_04: epoch = 1000 train time = 3 s train loss = 0.000034 train acc = 1.0000, test acc = 0.1026
+Evaluate 5 random ConvNet, mean = 0.1018 std = 0.0031
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 8
+0.9997950519005757
+----FULL-----
+3.047473192214966
+[2025-02-01 14:49:59] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 7, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 9, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f72cc16ac40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:50:12] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:50:16] Evaluate_00: epoch = 1000 train time = 4 s train loss = 0.000046 train acc = 1.0000, test acc = 0.1119
+[2025-02-01 14:50:19] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.000577 train acc = 1.0000, test acc = 0.0979
+[2025-02-01 14:50:22] Evaluate_02: epoch = 1000 train time = 3 s train loss = 0.001390 train acc = 1.0000, test acc = 0.1137
+[2025-02-01 14:50:25] Evaluate_03: epoch = 1000 train time = 3 s train loss = 0.002135 train acc = 1.0000, test acc = 0.1030
+[2025-02-01 14:50:29] Evaluate_04: epoch = 1000 train time = 3 s train loss = 0.000009 train acc = 1.0000, test acc = 0.1062
+Evaluate 5 random ConvNet, mean = 0.1065 std = 0.0058
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 9
+0.9999027436370088
+----FULL-----
+3.0556206703186035
+[2025-02-01 14:50:32] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 8, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 10, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f356376ac40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:50:46] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:50:48] Evaluate_00: epoch = 1000 train time = 2 s train loss = 0.000893 train acc = 1.0000, test acc = 0.1051
+[2025-02-01 14:50:50] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.000120 train acc = 1.0000, test acc = 0.1060
+[2025-02-01 14:50:53] Evaluate_02: epoch = 1000 train time = 2 s train loss = 0.000156 train acc = 1.0000, test acc = 0.0995
+[2025-02-01 14:50:55] Evaluate_03: epoch = 1000 train time = 2 s train loss = 0.001313 train acc = 1.0000, test acc = 0.1104
+[2025-02-01 14:50:57] Evaluate_04: epoch = 1000 train time = 2 s train loss = 0.000172 train acc = 1.0000, test acc = 0.1083
+Evaluate 5 random ConvNet, mean = 0.1059 std = 0.0037
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 10
+0.9999404943375931
+----FULL-----
+3.0572052001953125
+[2025-02-01 14:51:01] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 9, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 11, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f36a525ac40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:51:14] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:51:16] Evaluate_00: epoch = 1000 train time = 2 s train loss = 0.000083 train acc = 1.0000, test acc = 0.1003
+[2025-02-01 14:51:18] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.000208 train acc = 1.0000, test acc = 0.1058
+[2025-02-01 14:51:21] Evaluate_02: epoch = 1000 train time = 2 s train loss = 0.000022 train acc = 1.0000, test acc = 0.1022
+[2025-02-01 14:51:23] Evaluate_03: epoch = 1000 train time = 2 s train loss = 0.000034 train acc = 1.0000, test acc = 0.1026
+[2025-02-01 14:51:25] Evaluate_04: epoch = 1000 train time = 2 s train loss = 0.000907 train acc = 1.0000, test acc = 0.1062
+Evaluate 5 random ConvNet, mean = 0.1034 std = 0.0022
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 11
+0.9999531328829802
+----FULL-----
+3.0567145347595215
+[2025-02-01 14:51:29] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 10, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 12, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f1276dafc40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:51:42] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:51:44] Evaluate_00: epoch = 1000 train time = 2 s train loss = 0.000035 train acc = 1.0000, test acc = 0.1089
+[2025-02-01 14:51:46] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.001735 train acc = 1.0000, test acc = 0.1076
+[2025-02-01 14:51:49] Evaluate_02: epoch = 1000 train time = 2 s train loss = 0.000158 train acc = 1.0000, test acc = 0.0970
+[2025-02-01 14:51:51] Evaluate_03: epoch = 1000 train time = 2 s train loss = 0.000134 train acc = 1.0000, test acc = 0.1161
+[2025-02-01 14:51:53] Evaluate_04: epoch = 1000 train time = 2 s train loss = 0.000142 train acc = 1.0000, test acc = 0.1156
+Evaluate 5 random ConvNet, mean = 0.1090 std = 0.0069
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 12
+0.9999420948367455
+----FULL-----
+3.0636789798736572
+[2025-02-01 14:51:57] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 11, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 13, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f13cd22fc40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:52:10] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:52:12] Evaluate_00: epoch = 1000 train time = 2 s train loss = 0.000022 train acc = 1.0000, test acc = 0.1082
+[2025-02-01 14:52:14] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.001245 train acc = 1.0000, test acc = 0.1060
+[2025-02-01 14:52:17] Evaluate_02: epoch = 1000 train time = 2 s train loss = 0.000019 train acc = 1.0000, test acc = 0.0990
+[2025-02-01 14:52:19] Evaluate_03: epoch = 1000 train time = 2 s train loss = 0.000837 train acc = 1.0000, test acc = 0.0976
+[2025-02-01 14:52:21] Evaluate_04: epoch = 1000 train time = 2 s train loss = 0.004772 train acc = 1.0000, test acc = 0.0949
+Evaluate 5 random ConvNet, mean = 0.1011 std = 0.0051
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 13
+0.9994767026424711
+----FULL-----
+3.070740222930908
+[2025-02-01 14:52:25] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 12, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 14, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7ff88262fc40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:52:38] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:52:40] Evaluate_00: epoch = 1000 train time = 2 s train loss = 0.000140 train acc = 1.0000, test acc = 0.1003
+[2025-02-01 14:52:42] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.002043 train acc = 1.0000, test acc = 0.1124
+[2025-02-01 14:52:45] Evaluate_02: epoch = 1000 train time = 2 s train loss = 0.000031 train acc = 1.0000, test acc = 0.1000
+[2025-02-01 14:52:47] Evaluate_03: epoch = 1000 train time = 2 s train loss = 0.000225 train acc = 1.0000, test acc = 0.0965
+[2025-02-01 14:52:49] Evaluate_04: epoch = 1000 train time = 2 s train loss = 0.009375 train acc = 1.0000, test acc = 0.1057
+Evaluate 5 random ConvNet, mean = 0.1030 std = 0.0056
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 14
+0.9999592408216594
+----FULL-----
+3.0635251998901367
+[2025-02-01 14:52:53] iter = 0000, loss = 0.0000
+CUDNN STATUS: True
+Files already downloaded and verified
+Files already downloaded and verified
+Train ZCA
+Test ZCA
+Hyper-parameters: 
+ {'detachNum': 13, 'dataset': 'CIFAR10', 'subset': 'imagenette', 'model': 'ConvNet', 'res': 128, 'ipc': 1, 'eval_mode': 'S', 'num_eval': 5, 'eval_it': 100, 'epoch_eval_train': 1000, 'Iteration': 0, 'lr_img': 1000.0, 'lr_lr': 1e-05, 'lr_teacher': 0.01, 'lr_init': 0.01, 'batch_real': 256, 'batch_syn': 10, 'batch_train': 256, 'pix_init': 'real', 'dsa': True, 'dsa_strategy': 'color_crop_cutout_flip_scale_rotate', 'data_path': './dataset', 'buffer_path': './buffer', 'expert_epochs': 1, 'syn_steps': 15, 'max_start_epoch': 1, 'zca': True, 'load_all': False, 'no_aug': False, 'texture': False, 'canvas_size': 2, 'canvas_samples': 1, 'max_files': None, 'max_experts': 1, 'force_save': False, 'device': 'cuda', 'zca_trans': ZCAWhitening(), 'im_size': [32, 32], 'dc_aug_param': None, 'dsa_param': <utils.ParamDiffAug object at 0x7f078252ac40>, '_wandb': {}, 'distributed': False}
+Evaluation model pool:  ['ConvNet']
+BUILDING DATASET
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = 0.0000, std = 0.2681
+real images channel 1, mean = 0.0000, std = 0.2532
+real images channel 2, mean = -0.0000, std = 0.2617
+initialize synthetic data from random real images
+[2025-02-01 14:53:05] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+['./buffer/CIFAR10/ConvNet/replay_buffer_0.pt', './buffer/CIFAR10/ConvNet/replay_buffer_1.pt']
+-------------------------
+Evaluation
+model_train = ConvNet, model_eval = ConvNet, iteration = 0
+DSA augmentation strategy: 
+ color_crop_cutout_flip_scale_rotate
+DSA augmentation parameters: 
+ {'aug_mode': 'S', 'prob_flip': 0.5, 'ratio_scale': 1.2, 'ratio_rotate': 15.0, 'ratio_crop_pad': 0.125, 'ratio_cutout': 0.5, 'ratio_noise': 0.05, 'brightness': 1.0, 'saturation': 2.0, 'contrast': 0.5}
+[2025-02-01 14:53:08] Evaluate_00: epoch = 1000 train time = 2 s train loss = 0.001693 train acc = 1.0000, test acc = 0.1024
+[2025-02-01 14:53:10] Evaluate_01: epoch = 1000 train time = 2 s train loss = 0.000027 train acc = 1.0000, test acc = 0.1062
+[2025-02-01 14:53:12] Evaluate_02: epoch = 1000 train time = 2 s train loss = 0.000101 train acc = 1.0000, test acc = 0.1051
+[2025-02-01 14:53:14] Evaluate_03: epoch = 1000 train time = 2 s train loss = 0.001020 train acc = 1.0000, test acc = 0.1061
+[2025-02-01 14:53:17] Evaluate_04: epoch = 1000 train time = 2 s train loss = 0.000041 train acc = 1.0000, test acc = 0.1076
+Evaluate 5 random ConvNet, mean = 0.1055 std = 0.0017
+-------------------------
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_1.pt
++++RES+++
+STEPS : 15
+0.999650820760983
+----FULL-----
+3.0816030502319336
+[2025-02-01 14:53:20] iter = 0000, loss = 0.0000

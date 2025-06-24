@@ -13,7 +13,7 @@ from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 from scipy.ndimage.interpolation import rotate as scipyrotate
 from networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP
-
+from networks_unfold import ConvNet as ConvNet_unfold
 class Config:
     imagenette = [0, 217, 482, 491, 497, 566, 569, 571, 574, 701]
 

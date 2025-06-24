@@ -10,7 +10,8 @@ from utils import get_dataset, get_network, get_eval_pool, evaluate_synset, get_
 import wandb
 import copy
 import random
-from reparam_module import ReparamModule
+from reparam_module_forcompile import ReparamModule
+import torch.profiler
 
 import time
 import warnings
@@ -27,6 +28,8 @@ def set_random_seed(seed=42):
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
 
 set_random_seed(42)
+# torch.cuda.reset_peak_memory_stats()
+# torch.cuda.empty_cache()
 
 def main(args):
 
@@ -118,11 +121,9 @@ def main(args):
     # for ch in range(channel):
     #     print('real images channel %d, mean = %.4f, std = %.4f'%(ch, torch.mean(images_all[:, ch]), torch.std(images_all[:, ch])))
 
-
     def get_images(c, n):  # get random n images from class c
         idx_shuffle = np.random.permutation(indices_class[c])[:n]
         return images_all[idx_shuffle]
-
 
     ''' initialize the synthetic data '''
     label_syn = torch.tensor([np.ones(args.ipc,dtype=np.int_)*i for i in range(num_classes)], dtype=torch.long, requires_grad=False, device=args.device).view(-1) # [0,0,0, 1,1,1, ..., 9,9,9]
@@ -131,7 +132,6 @@ def main(args):
         image_syn = torch.randn(size=(num_classes * args.ipc, channel, im_size[0]*args.canvas_size, im_size[1]*args.canvas_size), dtype=torch.float)
     else:
         image_syn = torch.randn(size=(num_classes * args.ipc, channel, im_size[0], im_size[1]), dtype=torch.float)
-
     syn_lr = torch.tensor(args.lr_teacher).to(args.device)
 
     if args.pix_init == 'real':
@@ -199,135 +199,63 @@ def main(args):
         # random.shuffle(buffer) # TODO: 为了测精度把随机输入全去掉了
 
     best_acc = {m: 0 for m in model_eval_pool}
-
     best_std = {m: 0 for m in model_eval_pool}
-
     student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
-
     student_net = ReparamModule(student_net)
-
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
 
+    # TODO: Compile && Warm up
+    # student_net = torch.compile(student_net, mode="reduce-overhead")
+    # syn_images = image_syn
+    # y_hat = label_syn.to(args.device)
+    # expert_trajectory = buffer[expert_idx]
+    # expert_idx += 1
+    # if expert_idx == len(buffer):
+    #     expert_idx = 0
+    #     file_idx += 1
+    #     if file_idx == len(expert_files):
+    #         file_idx = 0
+    #         # random.shuffle(expert_files)
+    #     print("loading file {}".format(expert_files[file_idx]))
+    #     if args.max_files != 1:
+    #         del buffer
+    #         buffer = torch.load(expert_files[file_idx])
+    #     if args.max_experts is not None:
+    #         buffer = buffer[:args.max_experts]
+    # start_epoch = 0
+    # starting_params = expert_trajectory[start_epoch]
+    # target_params = expert_trajectory[start_epoch+args.expert_epochs]
+    # target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
+    # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
+    # starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
+    # num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
+    # indices = torch.arange(len(syn_images))
+    # indices_chunks = list(torch.split(indices, args.batch_syn))
+    # these_indices = indices_chunks.pop()
+    # x = syn_images[these_indices]
+    # this_y = y_hat[these_indices]
+    # # with torch.no_grad():
+    # student_net(x,target =this_y, criterion=criterion, flat_param=student_params[-1], student_params=student_params, syn_lr=syn_lr,syn_steps=args.syn_steps )
+    # param_loss = torch.tensor(0.0).to(args.device)
+    # param_dist = torch.tensor(0.0).to(args.device)
+    # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
+    # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+    # param_loss /= num_params
+    # param_dist /= num_params
+    # grand_loss = param_loss
+    # optimizer_img.zero_grad()
+    # optimizer_lr.zero_grad()
+    # grand_loss.backward()
 
+    torch.cuda.reset_peak_memory_stats()
+    torch.cuda.empty_cache()
     pre_end = time.time()
 
     for it in range(0, args.Iteration+1):
-         
         start = time.time()
-
-        save_this_it = False
-
-        # writer.add_scalar('Progress', it, it)
-        # wandb.log({"Progress": it}, step=it)
-        ''' Evaluate synthetic data '''
-        # if it in eval_it_pool:
-        #     for model_eval in model_eval_pool:
-        #         print('-------------------------\nEvaluation\nmodel_train = %s, model_eval = %s, iteration = %d'%(args.model, model_eval, it))
-        #         if args.dsa:
-        #             print('DSA augmentation strategy: \n', args.dsa_strategy)
-        #             print('DSA augmentation parameters: \n', args.dsa_param.__dict__)
-        #         else:
-        #             print('DC augmentation parameters: \n', args.dc_aug_param)
-
-        #         accs_test = []
-        #         accs_train = []
-        #         for it_eval in range(args.num_eval):
-        #             net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
-
-        #             eval_labs = label_syn
-        #             with torch.no_grad():
-        #                 image_save = image_syn
-        #             image_syn_eval, label_syn_eval = copy.deepcopy(image_save.detach()), copy.deepcopy(eval_labs.detach()) # avoid any unaware modification
-
-        #             args.lr_net = syn_lr.item()
-        #             _, acc_train, acc_test = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args, texture=args.texture)
-        #             accs_test.append(acc_test)
-        #             accs_train.append(acc_train)
-        #         accs_test = np.array(accs_test)
-        #         accs_train = np.array(accs_train)
-        #         acc_test_mean = np.mean(accs_test)
-        #         acc_test_std = np.std(accs_test)
-        #         if acc_test_mean > best_acc[model_eval]:
-        #             best_acc[model_eval] = acc_test_mean
-        #             best_std[model_eval] = acc_test_std
-        #             save_this_it = True
-        #         print('Evaluate %d random %s, mean = %.4f std = %.4f\n-------------------------'%(len(accs_test), model_eval, acc_test_mean, acc_test_std))
-        #         wandb.log({'Accuracy/{}'.format(model_eval): acc_test_mean}, step=it)
-        #         wandb.log({'Max_Accuracy/{}'.format(model_eval): best_acc[model_eval]}, step=it)
-        #         wandb.log({'Std/{}'.format(model_eval): acc_test_std}, step=it)
-        #         wandb.log({'Max_Std/{}'.format(model_eval): best_std[model_eval]}, step=it)
-
-
-        # if it in eval_it_pool and (save_this_it or it % 1000 == 0):
-        #     with torch.no_grad():
-        #         image_save = image_syn.cuda()
-
-        #         save_dir = os.path.join(".", "logged_files", args.dataset, wandb.run.name)
-
-        #         if not os.path.exists(save_dir):
-        #             os.makedirs(save_dir)
-
-        #         torch.save(image_save.cpu(), os.path.join(save_dir, "images_{}.pt".format(it)))
-        #         torch.save(label_syn.cpu(), os.path.join(save_dir, "labels_{}.pt".format(it)))
-
-        #         if save_this_it:
-        #             torch.save(image_save.cpu(), os.path.join(save_dir, "images_best.pt".format(it)))
-        #             torch.save(label_syn.cpu(), os.path.join(save_dir, "labels_best.pt".format(it)))
-
-        #         wandb.log({"Pixels": wandb.Histogram(torch.nan_to_num(image_syn.detach().cpu()))}, step=it)
-
-        #         if args.ipc < 50 or args.force_save:
-        #             upsampled = image_save
-        #             if args.dataset != "ImageNet":
-        #                 upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
-        #                 upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
-        #             grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
-        #             wandb.log({"Synthetic_Images": wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
-        #             wandb.log({'Synthetic_Pixels': wandb.Histogram(torch.nan_to_num(image_save.detach().cpu()))}, step=it)
-
-        #             for clip_val in [2.5]:
-        #                 std = torch.std(image_save)
-        #                 mean = torch.mean(image_save)
-        #                 upsampled = torch.clip(image_save, min=mean-clip_val*std, max=mean+clip_val*std)
-        #                 if args.dataset != "ImageNet":
-        #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
-        #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
-        #                 grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
-        #                 wandb.log({"Clipped_Synthetic_Images/std_{}".format(clip_val): wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
-
-        #             if args.zca:
-        #                 image_save = image_save.to(args.device)
-        #                 image_save = args.zca_trans.inverse_transform(image_save)
-        #                 image_save.cpu()
-
-        #                 torch.save(image_save.cpu(), os.path.join(save_dir, "images_zca_{}.pt".format(it)))
-
-        #                 upsampled = image_save
-        #                 if args.dataset != "ImageNet":
-        #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
-        #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
-        #                 grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
-        #                 wandb.log({"Reconstructed_Images": wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
-        #                 wandb.log({'Reconstructed_Pixels': wandb.Histogram(torch.nan_to_num(image_save.detach().cpu()))}, step=it)
-
-        #                 for clip_val in [2.5]:
-        #                     std = torch.std(image_save)
-        #                     mean = torch.mean(image_save)
-        #                     upsampled = torch.clip(image_save, min=mean - clip_val * std, max=mean + clip_val * std)
-        #                     if args.dataset != "ImageNet":
-        #                         upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
-        #                         upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
-        #                     grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
-        #                     wandb.log({"Clipped_Reconstructed_Images/std_{}".format(clip_val): wandb.Image(
-        #                         torch.nan_to_num(grid.detach().cpu()))}, step=it)
-
-        # wandb.log({"Synthetic_LR": syn_lr.detach().cpu()}, step=it)
-
         student_net.train()
-
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
-
         if args.load_all:
             expert_trajectory = buffer[np.random.randint(0, len(buffer))]
         else:
@@ -350,95 +278,60 @@ def main(args):
         # start_epoch = np.random.randint(0, args.max_start_epoch)
         start_epoch = 0
         starting_params = expert_trajectory[start_epoch]
-
         target_params = expert_trajectory[start_epoch+args.expert_epochs]
         target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
-
         student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
-
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
 
         syn_images = image_syn
-
         y_hat = label_syn.to(args.device)
-
         param_loss_list = []
         param_dist_list = []
         indices_chunks = []
-
         # torch.save(student_params[-1], "./script/a.pt")
 
         syn_start = time.time()
-        for step in range(args.syn_steps):
-
+        with torch.profiler.profile(
+        activities=[torch.profiler.ProfilerActivity.CUDA],profile_memory=True,record_shapes=True,with_stack=True) as prof:
+ 
             if not indices_chunks:
                 # indices = torch.randperm(len(syn_images))
                 indices = torch.arange(len(syn_images))
                 indices_chunks = list(torch.split(indices, args.batch_syn))
-
             these_indices = indices_chunks.pop()
-
-
             x = syn_images[these_indices]
             this_y = y_hat[these_indices]
 
-            if args.texture:
-                x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
-                this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
+            student_params = student_net(x,target=this_y, student_params=student_params, syn_lr=syn_lr,syn_steps=args.syn_steps )
+        # param_loss = torch.tensor(0.0).to(args.device))
+        # print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
 
-            if args.dsa and (not args.no_aug):
-                x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
-
-            if args.distributed:
-                forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
-            else:
-                forward_params = student_params[-1]
-            x = student_net(x, flat_param=forward_params)
-            ce_loss = criterion(x, this_y)
-
-            grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-            # print("GRAD")
-            # print(ce_loss.item())
-            # torch.save(x, "./script/b.pt")
-            # student_params.append(student_params[-1] - syn_lr * grad.detach())
-            if(step < args.detachNum):
-                student_params.append(student_params[-1] - syn_lr * grad.detach())
-            else:
-                student_params.append(student_params[-1] - syn_lr * grad)
-            # # TODO: Pruning here
-            # if (len(student_params) > 2 ):  
-            #     # print("DETACH")
-            #     student_params[-3] = student_params[-3].detach()
-
-        syn_end = time.time()
-
+            syn_end = time.time()
+        print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
-
         param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
         param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
-
         param_loss_list.append(param_loss)
         param_dist_list.append(param_dist)
-
-
         param_loss /= num_params
         param_dist /= num_params
-
         # param_loss /= param_dist
-
         grand_loss = param_loss
-
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
         print("-------------LOSS-------------")
         print(grand_loss.item())
         grand_loss.backward()
+        # 或生成 memory timeline：
+        # prof.export_memory_timeline("mem.prof", device="cuda:0")
 
         optimizer_img.step()
         optimizer_lr.step()
-
+        print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+        print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
+        
         iter_end = time.time()
         syn_time = syn_end-syn_start
         iter_time = iter_end-syn_start
@@ -460,6 +353,7 @@ def main(args):
     iter_end = time.time()
     print("------------FIN TIME-------------")
     print(iter_end - pre_end)
+
 
     wandb.finish()
 
