@@ -28,11 +28,10 @@ def set_random_seed(seed=42):
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
 
 set_random_seed(42)
-# torch.cuda.reset_peak_memory_stats()
-# torch.cuda.empty_cache()
+torch.cuda.reset_peak_memory_stats()
+torch.cuda.empty_cache()
 
 def main(args):
-
     pre_start = time.time()
 
     if args.zca and args.texture:
@@ -76,16 +75,16 @@ def main(args):
     else:
         zca_trans = None
 
-    wandb.init(sync_tensorboard=False,
-               project="DatasetDistillation",
-               job_type="CleanRepo",
-               config=args,
-               )
+    # wandb.init(sync_tensorboard=False,
+    #            project="DatasetDistillation",
+    #            job_type="CleanRepo",
+    #            config=args,
+    #            )
 
-    args = type('', (), {})()
+    # args = type('', (), {})()
 
-    for key in wandb.config._items:
-        setattr(args, key, wandb.config._items[key])
+    # for key in wandb.config._items:
+    #     setattr(args, key, wandb.config._items[key])
 
     args.dsa_param = dsa_params
     args.zca_trans = zca_trans
@@ -148,7 +147,7 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    image_syn = torch.load("./script/in.pt")
+    # image_syn = torch.load("./script/in.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
@@ -158,7 +157,6 @@ def main(args):
     optimizer_img = torch.optim.SGD([image_syn], lr=args.lr_img)
     optimizer_lr = torch.optim.SGD([syn_lr], lr=args.lr_lr)
     optimizer_img.zero_grad()
-
     criterion = nn.CrossEntropyLoss().to(args.device)
     print('%s training begins'%get_time())
 
@@ -209,11 +207,11 @@ def main(args):
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
 
-    # print("当前显存使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-    # print("峰值显存使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
+    # print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+    # print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
     # exit()
-    torch.cuda.reset_peak_memory_stats()
-    torch.cuda.empty_cache()
+    # torch.cuda.reset_peak_memory_stats()
+    # torch.cuda.empty_cache()
 
     pre_end = time.time()
 
@@ -270,49 +268,46 @@ def main(args):
         # with torch.profiler.profile(
         # activities=[torch.profiler.ProfilerActivity.CUDA],profile_memory=True,record_shapes=True,with_stack=True) as prof:
         syn_start = time.time()
-        with torch.profiler.profile(
-        activities=[torch.profiler.ProfilerActivity.CUDA],profile_memory=True,record_shapes=True,with_stack=True) as prof:
-            for step in range(args.syn_steps):
-                if not indices_chunks:
-                    # indices = torch.randperm(len(syn_images))
-                    indices = torch.arange(len(syn_images))
-                    indices_chunks = list(torch.split(indices, args.batch_syn))
+        # with torch.profiler.profile(
+        # activities=[torch.profiler.ProfilerActivity.CUDA],profile_memory=True,record_shapes=True,with_stack=True) as prof:
+        for step in range(args.syn_steps):
+            if not indices_chunks:
+                # indices = torch.randperm(len(syn_images))
+                indices = torch.arange(len(syn_images))
+                indices_chunks = list(torch.split(indices, args.batch_syn))
 
-                these_indices = indices_chunks.pop()
-
-
-                x = syn_images[these_indices]
-                this_y = y_hat[these_indices]
-
-                if args.texture:
-                    x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
-                    this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
-
-                if args.dsa and (not args.no_aug):
-                    x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
-
-                if args.distributed:
-                    forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
-                else:
-                    forward_params = student_params[-1]
-                x = student_net(x, flat_param=forward_params)
-                ce_loss = criterion(x, this_y)
-
-                grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-                # print("GRAD")
-                # print(ce_loss.item())
-                # torch.save(x, "./script/b.pt")
-                # student_params.append(student_params[-1] - syn_lr * grad.detach())
-                if(step < args.detachNum):
-                    student_params.append(student_params[-1] - syn_lr * grad.detach())
-                else:
-                    student_params.append(student_params[-1] - syn_lr * grad)
+            these_indices = indices_chunks.pop()
 
 
-            # print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
+            x = syn_images[these_indices]
+            this_y = y_hat[these_indices]
 
-            syn_end = time.time()
-        print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
+            if args.texture:
+                x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
+                this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
+
+            if args.dsa and (not args.no_aug):
+                x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
+
+            if args.distributed:
+                forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
+            else:
+                forward_params = student_params[-1]
+            out = student_net(x, flat_param=forward_params)
+            ce_loss = criterion(out, this_y)
+
+            grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+            # print(ce_loss.item())
+            # torch.save(x, "./script/b.pt")
+            # student_params.append(student_params[-1] - syn_lr * grad.detach())
+
+            student_params.append(student_params[-1] - syn_lr * grad)
+
+
+        # print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
+
+        syn_end = time.time()
+        # print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
         param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
@@ -321,14 +316,17 @@ def main(args):
         param_dist_list.append(param_dist)
         param_loss /= num_params
         param_dist /= num_params
-        # param_loss /= param_dist
+        param_loss /= param_dist
         grand_loss = param_loss
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
-        print("-------------LOSS-------------")
-        print(grand_loss.item())
         grand_loss.backward()
+
+        # print("-------------GRADX-------------")
+        # print( syn_images.grad.sum().item())
+        # print(image_syn.sum().item())
+
 
         optimizer_img.step()
         optimizer_lr.step()
@@ -355,10 +353,10 @@ def main(args):
     print("------------FIN TIME-------------")
     print(iter_end - pre_end)
 
-    print("当前显存使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-    print("峰值显存使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
+    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
 
-    wandb.finish()
+    # wandb.finish()
 
 
 if __name__ == '__main__':

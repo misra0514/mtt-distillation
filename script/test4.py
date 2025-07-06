@@ -24,90 +24,6 @@ def set_seed(seed: int = 42):
     import os
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"  # For CUDA reproducibility
 
-
-
-class MyConv(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv = nn.Conv2d(3, 256, kernel_size=3, padding=1)
-        self.norm = nn.InstanceNorm2d(256, affine=True)
-        self.relu = nn.ReLU(inplace=True)
-        self.pool = nn.AvgPool2d(kernel_size=2, stride=2)
-        self.fc2 = nn.Linear(256 * 16 * 16, 10)
-    def forward(self, x3, target):
-        x2 = self.conv(x3)
-        x1 = self.norm(x2)
-        x = self.relu(x1)
-        x = self.pool(x)
-        t1 = x.view(x.size(0), -1) 
-        logits = self.fc2(t1)
-        # prop back
-        # grad_output = self.crossEntropy_backward(logits, target)
-        grad_output = criterion(logits, target)
-        grad_output = torch.autograd.grad( grad_output,logits, create_graph=True)[0]
-
-        dfc2b = grad_output.sum(dim=0)  
-        dfc2w = grad_output.t()@t1
-        grad_output = grad_output@self.fc2.weight
-        grad_output = grad_output.view(x2.shape[0], 256, 16, 16)
-
-        # x_grad = self.convLayer_backward(grad_output, relu_in=x1, norm_in=x2, conv_in=x3)[2]
-        grad_output = F.interpolate(grad_output, scale_factor=2, mode='nearest') / 4
-        relu_grad = (x1 > 0).float()
-        grad_output = grad_output * relu_grad
-        grad_output,d_gamma,d_beta = self.instanceNorm_backward(x2, self.norm.weight, grad_output)
-        x_grad= d_beta
-
-        return x_grad
-
-    def crossEntropy_backward(self, logits, target):
-        N = target.shape[0]
-        softmax = F.softmax(logits, dim=1)
-        one_hot = torch.zeros_like(logits)
-        one_hot[range(N), target] = 1.0
-        grad_output = (softmax - one_hot) / N
-        return grad_output
-    
-    def instanceNorm_backward(self, x, gamma, grad_output, eps=1e-5):
-        N, C, H, W = x.shape
-        M = H * W
-        x_reshaped = x.view(N, C, M)
-        grad_output_reshaped = grad_output.view(N, C, M)
-        mean = x_reshaped.mean(dim=2, keepdim=True)  # (N, C, 1)
-        var = x_reshaped.var(dim=2, unbiased=False, keepdim=True)  # (N, C, 1)
-        std = torch.sqrt(var + eps)  # (N, C, 1)
-        x_hat = (x_reshaped - mean) / std  # (N, C, M)
-        grad_output_hat = grad_output_reshaped * gamma.view(1, C, 1)  # (N, C, M)
-        dx = (1. / M) / std * (
-            M * grad_output_hat
-            - grad_output_hat.sum(dim=2, keepdim=True)
-            - x_hat * (grad_output_hat * x_hat).sum(dim=2, keepdim=True)
-        )  # (N, C, M)
-        grad_gamma = (grad_output_reshaped * x_hat).sum(dim=(0, 2))  # (C,)
-        grad_beta = grad_output_reshaped.sum(dim=(0, 2))             # (C,)
-        return dx.view(N, C, H, W), grad_gamma, grad_beta
-
-    def convLayer_backward(self, grad_output, relu_in, norm_in,conv_in ):
-        grad_output = F.interpolate(grad_output, scale_factor=2, mode='nearest') / 4
-        relu_grad = (relu_in > 0).float()
-        grad_output = grad_output * relu_grad
-        grad_output,d_gamma,d_beta = self.instanceNorm_backward(norm_in, self.norm.weight, grad_output)
-        # TODO: 目前conv层的结果还是有点问题。不知道是累积误差导致的还是什么，结果会差几位
-        db = grad_output.sum(dim=(0, 2, 3))
-        dw = torch.nn.grad.conv2d_weight(conv_in, self.conv.weight.shape, grad_output, stride=1, padding=1)
-        # dx = torch.nn.grad.conv2d_input(input_size=conv_in.shape, weight=self.conv.weight, grad_output=grad_output, stride=1, padding=1)
-        dx = F.conv_transpose2d(grad_output, self.conv.weight, stride=1, padding=1)
-
-        # x_unf = torch.nn.functional.unfold(x, kernel_size=3, padding=1, stride=1)
-        # # x_unf shape: (N, C_in*K_h*K_w, L)  where L = H_out * W_out
-        # dy_reshaped = dy.reshape(N, C_out, -1)  # shape: (N, C_out, L)
-        # # 用 einsum 来实现 batch 矩阵乘积，然后对 batch 求和
-        # dw = torch.einsum('ncl,nkl->ck', dy_reshaped, x_unf)  # shape: (C_out, C_in*K_h*K_w)
-        # dw = dw.view(C_out, C_in, K_h, K_w)
-
-        return [dx, dw, db, d_gamma, d_beta]
-
-
 class Conv(nn.Module):
     def __init__(self):
         super().__init__()
@@ -124,6 +40,164 @@ class Conv(nn.Module):
         x = x.view(x.size(0), -1) 
         logits = self.fc2(x)
         return logits
+
+class MyConv(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv2d(3, 256, kernel_size=3, padding=1)
+        self.norm = nn.InstanceNorm2d(256, affine=True)
+        self.relu = nn.ReLU(inplace=True)
+        self.pool = nn.AvgPool2d(kernel_size=2, stride=2)
+        self.fc2 = nn.Linear(256 * 16 * 16, 10)
+    def forward(self, x3, target):
+        x2 = self.conv(x3)
+        x1 = self.norm(x2)
+        x_poolin = self.relu(x1)
+        x = self.pool(x_poolin)
+        t1 = x.view(x.size(0), -1) 
+        logits = self.fc2(t1)
+        # prop back
+        grad_output = self.crossEntropy_backward(logits, target)
+        # grad_output = criterion(logits, target)
+        # grad_output = torch.autograd.grad( grad_output,logits, create_graph=True)[0]
+
+        # return grad_output
+
+        dfc2b = grad_output.sum(dim=0)  
+        dfc2w = grad_output.t()@t1
+        grad_output = grad_output@self.fc2.weight
+        grad_output = grad_output.view(x2.shape[0], 256, 16, 16)
+
+        grad_output = F.interpolate(grad_output, scale_factor=2, mode='nearest') / 4
+        # grad_output = self.avg_pool2d_backward(grad_output, x1.shape, 2,2)
+
+        # TODO:  relu out似乎必须得是》=才能结果对的上。下一步 dx1是8817，但是d norm。bias是8845。现在instanceNorm_backward 显然做的不对。
+        relu_grad = (x1 >= 0).float()
+        grad_output = grad_output * relu_grad
+
+
+        # grad_output = torch.autograd.grad( logits,x1 , create_graph=True,grad_outputs=grad_output)[0]
+        # return grad_output
+
+
+        grad_output,d_gamma,d_beta = self.instance_norm2d_backward(x2, self.norm.weight, grad_output)
+        # grad_output,d_gamma,d_beta = self.instanceNorm_backward(x2, self.norm.weight, grad_output)
+        x_grad= grad_output
+        # x_grad = self.convLayer_backward(grad_output, relu_in=x1, norm_in=x2, conv_in=x3)[2]
+
+        return grad_output
+    
+    def crossEntropy_back(self, logits, target):
+        N = target.shape[0]
+        softmax = F.softmax(logits, dim=1)
+        one_hot = torch.zeros_like(logits)
+        one_hot[range(N), target] = 1.0
+        grad_output = (softmax - one_hot) / N
+        return grad_output
+
+    def avg_pool2d_backward(self, dy, input_shape, kernel_size=2, stride=2):
+        N, C, H, W = input_shape
+        kH, kW = kernel_size, kernel_size
+        sH, sW = stride, stride
+        # 初始化输入梯度
+        dx = torch.zeros(input_shape).to('cuda')
+        H_out = dy.shape[2]
+        W_out = dy.shape[3]
+        for n in range(N):
+            for c in range(C):
+                for i in range(H_out):
+                    for j in range(W_out):
+                        h_start = i * sH
+                        h_end = h_start + kH
+                        w_start = j * sW
+                        w_end = w_start + kW
+                        dx[n, c, h_start:h_end, w_start:w_end] += dy[n, c, i, j] / (kH * kW)
+        return dx 
+    
+    def crossEntropy_backward(self, logits, targets):
+        N, C = logits.shape
+        # 1. Compute log_softmax
+        log_probs = F.log_softmax(logits, dim=1)
+        # 2. Compute grad of NLLLoss (mean reduction)
+        grad = torch.exp(log_probs)  # shape: (N, C)
+        grad[range(N), targets] -= 1
+        grad = grad / N
+
+        return grad
+    
+    def instanceNorm_backward(self, x, gamma, grad_output, eps=1e-5):
+        N, C, H, W = x.shape
+        M = H * W
+        x_reshaped = x.view(N, C, M)
+        grad_output_reshaped = grad_output.view(N, C, M)
+        grad_beta = grad_output_reshaped.sum(dim=(0, 2))             # (C,)
+        mean = x_reshaped.mean(dim=2, keepdim=True)  # (N, C, 1)
+        var = x_reshaped.var(dim=2, unbiased=False, keepdim=True)  # (N, C, 1)
+        std = torch.sqrt(var + eps)  # (N, C, 1)
+        x_hat = (x_reshaped - mean) / std  # (N, C, M)
+        grad_output_hat = grad_output_reshaped * gamma.view(1, C, 1)  # (N, C, M)
+        dx = (1. / M) / std * (
+            M * grad_output_hat
+            - grad_output_hat.sum(dim=2, keepdim=True)
+            - x_hat * (grad_output_hat * x_hat).sum(dim=2, keepdim=True)
+        )  # (N, C, M)
+        grad_gamma = (grad_output_reshaped * x_hat).sum(dim=(0, 2))  # (C,)
+        return dx.view(N, C, H, W), grad_gamma, grad_beta
+
+    def instance_norm2d_backward(self, x, gamma, grad_output, eps=1e-5):
+        N, C, H, W = x.shape
+        x_reshaped = x.view(N, C, -1)  # (N, C, H*W)
+        dy = grad_output.view(N, C, -1)  # same shape
+
+        # Compute mean and variance
+        mean = x_reshaped.mean(dim=2, keepdim=True)
+        var = x_reshaped.var(dim=2, unbiased=False, keepdim=True)
+        std = torch.sqrt(var + eps)
+
+        x_hat = (x_reshaped - mean) / std  # (N, C, H*W)
+
+        # Compute dgamma and dbeta
+        d_gamma = torch.sum(dy * x_hat, dim=(0, 2))  # (C,)
+        d_beta  = torch.sum(dy, dim=(0, 2))          # ✅ 正确做法
+
+        # dx_hat
+        dx_hat = dy * gamma.view(1, C, 1)
+
+        # Backprop through normalization
+        HW = H * W
+        dx = (1. / HW) / std * (
+            HW * dx_hat
+            - dx_hat.sum(dim=2, keepdim=True)
+            - x_hat * torch.sum(dx_hat * x_hat, dim=2, keepdim=True)
+        )
+        dx = dx.view(N, C, H, W)
+        return dx, d_gamma, d_beta
+
+    def convLayer_backward(self, grad_output, relu_in, norm_in,conv_in, norm, conv, stride=1, padding=1 ):
+        grad_output = F.interpolate(grad_output, scale_factor=2, mode='nearest') / 4
+        relu_grad = (relu_in > 0).float()
+        grad_output = grad_output * relu_grad
+        grad_output,d_gamma,d_beta = self.instanceNorm_backward(norm_in, norm.weight, grad_output)
+        # TODO: 目前conv层的结果还是有点问题。不知道是累积误差导致的还是什么，结果会差几位
+        db = grad_output.sum(dim=(0, 2, 3))
+        dw = torch.nn.grad.conv2d_weight(conv_in, conv.weight.shape, grad_output, stride=stride, padding=padding)
+        # dw = self.conv2d_weight_grad(conv_in, conv.weight.shape, grad_output, stride=stride, padding=padding)
+        dx = torch.nn.grad.conv2d_input(input_size=conv_in.shape, weight=self.conv.weight, grad_output=grad_output, stride=1, padding=1)
+        # dx = F.conv_transpose2d(grad_output, conv.weight, stride=stride, padding=padding)         # only when stride == padding
+        return [dx, dw, db, d_gamma, d_beta]
+    def conv2d_weight_grad(self, input, weight_shape, grad_output, stride=1, padding=0, dilation=1, groups=1):
+        N = input.shape[0]
+        C_out, C_in_per_group, kH, kW = weight_shape
+        # unfold input to im2col
+        input_unf = F.unfold(input, kernel_size=(kH, kW), dilation=dilation, padding=padding, stride=stride)
+        # shape: (N, C_in * kH * kW, L), where L is number of sliding positions
+        grad_output_reshaped = grad_output.reshape(N, C_out, -1)  # (N, C_out, L)
+        # 使用 einsum 来做 batch 矩阵乘法 + 求和
+        grad_weight = torch.einsum('ncl,nkl->ck', grad_output_reshaped, input_unf)  # (C_out, C_in * kH * kW)
+        return grad_weight.view(weight_shape)  # reshape 成权重形式
+
+
+
 
 set_seed(0)
 torch.cuda.reset_peak_memory_stats()

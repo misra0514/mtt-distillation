@@ -15,7 +15,7 @@
                 "--dataset", "CIFAR10",
                 "--pix_init", "real",
                 "--ipc", "1",
-                "--syn_steps", "20",
+                "--syn_steps", "3",
                 "--max_experts", "1",
                 "--expert_epochs", "1",
                 "--max_start_epoch", "1",

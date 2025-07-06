@@ -148,7 +148,7 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    image_syn = torch.load("./script/in.pt")
+    # image_syn = torch.load("./script/in.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
@@ -291,23 +291,21 @@ def main(args):
         # torch.save(student_params[-1], "./script/a.pt")
 
         syn_start = time.time()
-        with torch.profiler.profile(
-        activities=[torch.profiler.ProfilerActivity.CUDA],profile_memory=True,record_shapes=True,with_stack=True) as prof:
+        # with torch.profiler.profile(
+        # activities=[torch.profiler.ProfilerActivity.CUDA],profile_memory=True,record_shapes=True,with_stack=True) as prof:
  
-            if not indices_chunks:
-                # indices = torch.randperm(len(syn_images))
-                indices = torch.arange(len(syn_images))
-                indices_chunks = list(torch.split(indices, args.batch_syn))
-            these_indices = indices_chunks.pop()
-            x = syn_images[these_indices]
-            this_y = y_hat[these_indices]
+        if not indices_chunks:
+            # indices = torch.randperm(len(syn_images))
+            indices = torch.arange(len(syn_images))
+            indices_chunks = list(torch.split(indices, args.batch_syn))
+        these_indices = indices_chunks.pop()
+        x = syn_images[these_indices]
+        this_y = y_hat[these_indices]
 
-            student_params = student_net(x,target=this_y, student_params=student_params, syn_lr=syn_lr,syn_steps=args.syn_steps )
-        # param_loss = torch.tensor(0.0).to(args.device))
+        student_params = student_net(x,target=this_y, student_params=student_params, syn_lr=syn_lr,syn_steps=args.syn_steps )
+
+        syn_end = time.time()
         # print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
-
-            syn_end = time.time()
-        print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
         param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
@@ -321,16 +319,16 @@ def main(args):
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
-        print("-------------LOSS-------------")
-        print(grand_loss.item())
+        # print("-------------LOSS-------------")
+        # print(grand_loss.item())
         grand_loss.backward()
         # 或生成 memory timeline：
         # prof.export_memory_timeline("mem.prof", device="cuda:0")
 
         optimizer_img.step()
         optimizer_lr.step()
-        print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-        print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
+        # print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+        # print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
         
         iter_end = time.time()
         syn_time = syn_end-syn_start

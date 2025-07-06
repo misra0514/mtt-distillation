@@ -30,15 +30,58 @@ class ConvNet(nn.Module):
     def __init__(self, channel, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, im_size = (32,32)):
         super(ConvNet, self).__init__()
 
-        self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
-        num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
+        if im_size[0] == 28:
+            im_size = (32, 32)
+        self.shape_feat = [net_width, im_size[0], im_size[1]]
+
+        # --- Layer 1 ---
+        padding = 3 if channel == 1 else 1
+        self.conv1 = nn.Conv2d(channel, net_width, kernel_size=3, padding=padding)
+        self.norm1 = self._get_normlayer(net_norm, [net_width, im_size[0], im_size[1]]) if net_norm != 'none' else nn.Identity()
+        self.act1 = self._get_activation(net_act)
+        self.pool1 = self._get_pooling(net_pooling) if net_pooling != 'none' else nn.Identity()
+        if net_pooling != 'none':
+            self.shape_feat[1] //= 2
+            self.shape_feat[2] //= 2
+
+        # --- Layer 2 ---
+        self.conv2 = nn.Conv2d(net_width, net_width, kernel_size=3, padding=1)
+        self.norm2 = self._get_normlayer(net_norm, [net_width , self.shape_feat[1], self.shape_feat[2]]) if net_norm != 'none' else nn.Identity()
+        # self.act2 = self._get_activation(net_act)
+        self.pool2 = self._get_pooling(net_pooling) if net_pooling != 'none' else nn.Identity()
+        if net_pooling != 'none':
+            self.shape_feat[1] //= 2
+            self.shape_feat[2] //= 2
+
+        # --- Layer 3 ---
+        self.conv3 = nn.Conv2d(net_width, net_width, kernel_size=3, padding=1)
+        self.norm3 = self._get_normlayer(net_norm, [net_width, self.shape_feat[1], self.shape_feat[2]]) if net_norm != 'none' else nn.Identity()
+        # self.act3 = self._get_activation(net_act)
+        self.pool3 = self._get_pooling(net_pooling) if net_pooling != 'none' else nn.Identity()
+        if net_pooling != 'none':
+            self.shape_feat[1] //= 2
+            self.shape_feat[2] //= 2
+        num_feat = self.shape_feat[0]*self.shape_feat[1]*self.shape_feat[2]
         self.classifier = nn.Linear(num_feat, num_classes)
 
     def forward(self, x):
         # print("MODEL DATA ON: ", x.get_device(), "MODEL PARAMS ON: ", self.classifier.weight.data.get_device())
-        out = self.features(x)
-        out = out.view(out.size(0), -1)
-        out = self.classifier(out)
+        x = self.conv1(x)
+        x = self.norm1(x)
+        x = nn.functional.relu(x)
+        x = self.pool1(x)
+
+        x = self.conv2(x)
+        x = self.norm2(x)
+        x = nn.functional.relu(x)
+        x = self.pool2(x)
+
+        x = self.conv3(x)
+        x = self.norm3(x)
+        x = nn.functional.relu(x)
+        x = self.pool3(x)
+        x = x.view(x.size(0), -1)
+        out = self.classifier(x)
         return out
 
     def _get_activation(self, net_act):

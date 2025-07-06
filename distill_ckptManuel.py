@@ -12,6 +12,7 @@ import copy
 import random
 from reparam_module import ReparamModule
 import torch.profiler
+import warnings
 
 import time
 import warnings
@@ -27,12 +28,37 @@ def set_random_seed(seed=42):
     torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
 
+def crossEntropy_backward(logits, target):
+    N, C = logits.shape
+    # 用 log_softmax 保障数值稳定
+    log_probs = F.log_softmax(logits, dim=1)
+    probs = torch.exp(log_probs)  # softmax
+    one_hot = F.one_hot(target, num_classes=C).to(logits.dtype)
+    # gradient = (softmax - one_hot)/N
+    return (probs - one_hot) / N
+    
+def backward_block(x,this_y, student_params, index,grad_output , student_net, criterion, syn_lr):
+    forward_params = student_params[index].detach().requires_grad_()
+    # TODO: 这里可以不做criterion，直接算反向吗？ 主要是当前的crossEntropy_backward 误差太大了
+    out = student_net(x, flat_param=forward_params)
+    ce_loss = criterion(out, this_y)
+    grad = torch.autograd.grad(ce_loss, forward_params, create_graph=True)[0]
+    # dout = crossEntropy_backward(out, this_y)
+    # grad = torch.autograd.grad(out, forward_params, create_graph=True, grad_outputs = dout)[0]
+    final_param = forward_params - syn_lr * grad
+    if(index>0):
+        return  torch.torch.autograd.grad(final_param, [x, syn_lr, forward_params], grad_outputs=grad_output)
+    else:
+        return  torch.torch.autograd.grad(final_param, [x, syn_lr], grad_outputs=grad_output)
+
+
+
 set_random_seed(42)
 torch.cuda.reset_peak_memory_stats()
 torch.cuda.empty_cache()
+warnings.filterwarnings("ignore")
 
 def main(args):
-
     pre_start = time.time()
 
     if args.zca and args.texture:
@@ -44,7 +70,7 @@ def main(args):
     if args.max_experts is not None and args.max_files is not None:
         args.total_experts = args.max_experts * args.max_files
 
-    print("CUDNN STATUS: {}".format(torch.backends.cudnn.enabled))
+    # print("CUDNN STATUS: {}".format(torch.backends.cudnn.enabled))
 
     args.dsa = True if args.dsa == 'True' else False
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -76,16 +102,16 @@ def main(args):
     else:
         zca_trans = None
 
-    wandb.init(sync_tensorboard=False,
-               project="DatasetDistillation",
-               job_type="CleanRepo",
-               config=args,
-               )
+    # wandb.init(sync_tensorboard=False,
+    #            project="DatasetDistillation",
+    #            job_type="CleanRepo",
+    #            config=args,
+    #            )
 
-    args = type('', (), {})()
+    # args = type('', (), {})()
 
-    for key in wandb.config._items:
-        setattr(args, key, wandb.config._items[key])
+    # for key in wandb.config._items:
+    #     setattr(args, key, wandb.config._items[key])
 
     args.dsa_param = dsa_params
     args.zca_trans = zca_trans
@@ -97,13 +123,13 @@ def main(args):
 
 
     # print('Hyper-parameters: \n', args.__dict__)
-    print('Evaluation model pool: ', model_eval_pool)
+    # print('Evaluation model pool: ', model_eval_pool)
 
     ''' organize the real dataset '''
     images_all = []
     labels_all = []
     indices_class = [[] for c in range(num_classes)]
-    print("BUILDING DATASET")
+    # print("BUILDING DATASET")
     for i in tqdm(range(len(dst_train))):
         sample = dst_train[i]
         images_all.append(torch.unsqueeze(sample[0], dim=0))
@@ -148,7 +174,7 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    image_syn = torch.load("./script/in.pt")
+    # image_syn = torch.load("./script/in.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
@@ -158,7 +184,6 @@ def main(args):
     optimizer_img = torch.optim.SGD([image_syn], lr=args.lr_img)
     optimizer_lr = torch.optim.SGD([syn_lr], lr=args.lr_lr)
     optimizer_img.zero_grad()
-
     criterion = nn.CrossEntropyLoss().to(args.device)
     print('%s training begins'%get_time())
 
@@ -167,6 +192,7 @@ def main(args):
         expert_dir = os.path.join(expert_dir, args.subset, str(args.res))
     if args.dataset in ["CIFAR10", "CIFAR100"] and not args.zca:
         expert_dir += "_NO_ZCA"
+        # expert_dir += ""
     expert_dir = os.path.join(expert_dir, args.model)
     print("Expert Dir: {}".format(expert_dir))
 
@@ -199,24 +225,35 @@ def main(args):
         # random.shuffle(buffer) # TODO: 为了测精度把随机输入全去掉了
 
     best_acc = {m: 0 for m in model_eval_pool}
+
     best_std = {m: 0 for m in model_eval_pool}
+
     student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+
     student_net = ReparamModule(student_net)
+
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
 
-    # student_net = torch.compile(student_net)
-    # TODO:  加了compile 之后，自动释放了一些变量，导致backward跑不了了
-    # print("当前显存使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-    # print("峰值显存使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
+    # print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+    # print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
     # exit()
+    # torch.cuda.reset_peak_memory_stats()
+    # torch.cuda.empty_cache()
+
     pre_end = time.time()
 
     for it in range(0, args.Iteration+1):
+         
         start = time.time()
+
         save_this_it = False
+
+
         student_net.train()
+
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
+
         if args.load_all:
             expert_trajectory = buffer[np.random.randint(0, len(buffer))]
         else:
@@ -239,41 +276,63 @@ def main(args):
         # start_epoch = np.random.randint(0, args.max_start_epoch)
         start_epoch = 0
         starting_params = expert_trajectory[start_epoch]
+
         target_params = expert_trajectory[start_epoch+args.expert_epochs]
         target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
+
         student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
+
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
+
         syn_images = image_syn
+
         y_hat = label_syn.to(args.device)
 
         param_loss_list = []
         param_dist_list = []
         indices_chunks = []
 
+
         # with torch.profiler.profile(
         # activities=[torch.profiler.ProfilerActivity.CUDA],profile_memory=True,record_shapes=True,with_stack=True) as prof:
         syn_start = time.time()
+        # with torch.profiler.profile(
+        # activities=[torch.profiler.ProfilerActivity.CUDA],profile_memory=True,record_shapes=True,with_stack=True) as prof:
         for step in range(args.syn_steps):
             if not indices_chunks:
                 # indices = torch.randperm(len(syn_images))
                 indices = torch.arange(len(syn_images))
                 indices_chunks = list(torch.split(indices, args.batch_syn))
+
             these_indices = indices_chunks.pop()
+            # x = syn_images[these_indices].detach().requires_grad_()
             x = syn_images[these_indices]
             this_y = y_hat[these_indices]
+            # img_list.append(x)
+
             if args.texture:
                 x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
                 this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
+
             if args.dsa and (not args.no_aug):
                 x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
+
             if args.distributed:
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
                 forward_params = student_params[-1]
-            # with torch.no_grad():
-            grad = student_net(x,target =this_y, criterion=criterion, flat_param=forward_params)
-            # TODO: 这里debug了一下。发现每次append的量也是requires_grad 的。所以就不知道哪里有可能导致计算图没连上
-            student_params.append(student_params[-1] - syn_lr * grad)
+            out = student_net(x, flat_param=forward_params)
+            ce_loss = criterion(out, this_y)
+
+            # grad_list.append(grad)
+            # student_params.append(student_params[-1] - syn_lr * grad.detach())
+            grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+            if(step < args.syn_steps-1 ):
+                # grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=False)[0]
+                student_params.append(student_params[-1] - syn_lr.detach() * grad.detach())
+            else:
+                # grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+                student_params.append(student_params[-1] - syn_lr * grad)
 
         # print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
 
@@ -287,19 +346,37 @@ def main(args):
         param_dist_list.append(param_dist)
         param_loss /= num_params
         param_dist /= num_params
-        # param_loss /= param_dist
+        param_loss /= param_dist
         grand_loss = param_loss
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
+        # print("-------------GRADX-------------")
+        # grand_loss.backward()
+        # Fixed: 手动实现反向, 最外层不需要重新做一遍
+        grad_sum, grad_output, grad_lr = torch.torch.autograd.grad(grand_loss, [image_syn, student_params[-2], syn_lr])
+        # this_y = y_hat[these_indices]
+        # grad_lr = torch.zeros([]).to('cuda')
 
-        print("-------------LOSS-------------")
-        print(grand_loss.item())
-        grand_loss.backward()
+        this_y = y_hat
+        x = image_syn
+        for i in range(args.syn_steps-1):
+            index = args.syn_steps-2-i
+            x = x.detach().requires_grad_()
+            g = backward_block(x, this_y,student_params, index , grad_output, student_net, criterion, syn_lr.detach().requires_grad_())
+            grad_sum +=g[0]
+            grad_lr +=g[1]
+            if(index != 0):
+                grad_output = g[2]
+
+        # print(image_syn.sum().item())
+        # print(grad_sum.sum().item())
+        image_syn.grad = grad_sum.detach()
+        syn_lr.grad = grad_lr.detach()
 
         optimizer_img.step()
         optimizer_lr.step()
-        print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-        print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
+        # image_syn.data -= args.lr_img*grad_sum[these_indices] * 100100000000
+        # syn_lr.data -= args.lr_lr * syn_lr
 
         iter_end = time.time()
         syn_time = syn_end-syn_start
@@ -316,12 +393,17 @@ def main(args):
         for _ in student_params:
             del _
 
+        # if it%10 == 0:
+        #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+
     iter_end = time.time()
     print("------------FIN TIME-------------")
     print(iter_end - pre_end)
 
+    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
 
-    wandb.finish()
+    # wandb.finish()
 
 
 if __name__ == '__main__':

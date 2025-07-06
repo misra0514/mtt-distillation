@@ -112,12 +112,14 @@ class ConvNet(nn.Module):
 
 
     def crossEntropy_backward(self, logits, target):
-        N = target.shape[0]
-        softmax = F.softmax(logits, dim=1)
-        one_hot = torch.zeros_like(logits)
-        one_hot[range(N), target] = 1.0
-        grad_output = (softmax - one_hot) / N
-        return grad_output
+        N, C = logits.shape
+        # 1. Compute log_softmax
+        log_probs = F.log_softmax(logits, dim=1)
+        # 2. Compute grad of NLLLoss (mean reduction)
+        grad = torch.exp(log_probs)  # shape: (N, C)
+        grad[range(N), target] -= 1
+        grad = grad / N
+        return grad
     
     def instanceNorm_backward(self, x, gamma, grad_output, eps=1e-5):
         N, C, H, W = x.shape
