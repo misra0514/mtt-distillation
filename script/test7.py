@@ -1,18 +1,11 @@
-# 同test5. 但是转移到conv。为了测试真正的场景。
-# 现在的问题是，如果把pooling + linear 合并，实际上的空间消耗还增加了。（ autograd 还偏偏不会记录
+# 同test6，但是主要测试ckpt在二阶导数的场景下怎么实现。
+# 用一个大的torch.autograd.Function 把relu、pool、linear包起来。
+# 在自己定义的反向里面 再嵌套二阶导数的 autograd.Function 通过这个方法把模型中间敲空
+
+# 如果希望ckpt的效果，在二阶导数里需要做forward、create graph、backward
+# 如果希望做delta encode， 那就手动写两阶导数。
 
 
-# UPDATE: 用with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook 接口之后感觉还不错。但是不知道为什么好像只对norm有效果。（norm 也够了！）
-# 然后测试了一下 二阶导数。 发现在换成计算二阶导数的时候pack失效了。Unpacking 还是正常调用，但是内存消耗没有变少。只能理解成norm. backward 在调用的时候引用了和 forward一样的变量，导致本来也没有额外开销。
-
-# 实验结果是，对于Linear、conv这种函数来说，完全没有效果。 目前原因不明。
-# 猜测：在packing之后，torch还是需要正常计算linear。此时linear的输入如果free掉了，将无法计算linear。这个似乎是个计算顺序的问题。
-
-# 一阶543.10009765625， 二阶之后暴涨到1596.2626953125。 加入retain graph之后大概多了两倍的消耗
-
-# 有一个神奇的现象，在换到二阶导数之后，linear又突然能够带来一些 性能提升。
-
-# 用with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook) 包裹一阶、二阶的结果分别是：1565、1585。 原始1595
 
 import torch 
 import torch.nn as nn
@@ -21,54 +14,50 @@ import torchvision
 import math
 import torchvision.transforms as transforms
 
-class MyLinearFunction(torch.autograd.Function):
+class Snd_Order_MyLinearFunction(torch.autograd.Function):
+    '''2 forward: relu+pool+linear.backward '''
+    # TODO: 如果做ckpt，那么记得保证forward可以在算完之后全释放掉。 然后backward再重新算一遍。
+    # 现在也没有做save ctx，为啥内存消耗还是1483？
     @staticmethod
-    def forward(ctx, input, weight, bias):
-        input = F.avg_pool2d(input,2)
-        input = input.view(input.size(0), -1)
-        ctx.save_for_backward(input, weight)
-        return input @ weight.t() + bias
+    def forward(ctx, grad_output, input, weight, relu_in):
+        dw =   grad_output.t() @ input
+        db =   grad_output.sum(0)         
+        grad_output = grad_output @ weight 
+        grad_output = grad_output.view(grad_output.size(0), -1, 8,8)
+        grad_output = F.interpolate(grad_output, scale_factor=2, mode='nearest') / 4
+        grad_output = grad_output * relu_in
+        return grad_output, dw, db
+    @staticmethod
+    def backward(ctx, grad_grad_input, grad_grad_w, grad_grad_b):
+        return None, None, None, None
+
+class MyLinearFunction(torch.autograd.Function):
+    '''forward: relu+pool+linear '''
+    @staticmethod
+    def forward(ctx, relu_in, weight, bias):
+        input = F.relu(relu_in)
+        relu_in = (relu_in > 0).float()
+        input = F.avg_pool2d(input,2 )
+        input = input.view(input.size(0), -1) # Flatten to N x (net_width*16*16)
+        ctx.save_for_backward( input, weight,relu_in )
+        out = F.linear(input, weight, bias)
+        return  out
     @staticmethod
     def backward(ctx, grad_output):
-        input1, weight = ctx.saved_tensors
-        grad_weight = grad_output.t() @ input1 
-        grad_bias = grad_output.sum(0)         
-        grad_output = grad_output @ weight   
-        grad_output = grad_output.view(grad_output.size(0), -1, 16,16)
-        grad_output = F.interpolate(grad_output, scale_factor=2, mode='nearest') / 4
-        return grad_output ,grad_weight, grad_bias
+        input, weight, relu_in = ctx.saved_tensors
+        return Snd_Order_MyLinearFunction.apply(grad_output,input, weight, relu_in)
+
 
 class MyLinearLayer(nn.Module):
-    def __init__(self, in_features,  out_features):
+    def __init__(self, in_features, mid):
         super().__init__()
-        self.weight = nn.Parameter(torch.randn(out_features, in_features))
-        self.bias = nn.Parameter(torch.randn(out_features))
-
+        self.weight = nn.Parameter(torch.randn(mid, in_features))
+        self.bias = nn.Parameter(torch.randn(mid))
     def forward(self, input):
         # print(self.weight1.sum())
         # print(self.bias1.sum())
-        out = MyLinearFunction.apply(input, self.weight,self.bias)
+        out = MyLinearFunction.apply(input, self.weight, self.bias)
         return out
-
-class MyNormrSimple(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, input):
-        ctx.save_for_backward(input)
-        normed = F.instance_norm(input)
-        return normed
-    @staticmethod
-    def backward(ctx, grad_output):
-        return None
-
-class Mynorm(nn.Module):
-    def __init__(self, in_features):
-        super().__init__()
-        # self.weight = nn.Parameter(torch.randn(out_features, in_features))
-        # self.bias = nn.Parameter(torch.randn(out_features))
-    def forward(self, input):
-        out = MyNormrSimple.apply(input)
-        return out
-
 
 def pack_hook(x):
     print("Packing", x.shape)
@@ -78,7 +67,7 @@ def pack_hook(x):
     # return shape
 
 def unpack_hook(x):
-    print("Unpacking", x.shape)
+    print("Unpacking", x.sum().item())
     return x.to('cuda')
     # x = torch.ones(x).to('cuda')
     # return x
@@ -86,33 +75,29 @@ def unpack_hook(x):
 class Myconv(nn.Module):
     def __init__(self, net_width):
         super(Myconv, self).__init__()
-        self.conv = nn.Conv2d(in_channels=3, out_channels=net_width, kernel_size=3, padding=1)
-        # self.norm = Mynorm(net_width)
-        self.norm = nn.InstanceNorm2d(net_width)
-        # self.poolfier = MyLinearLayer(net_width * 16 * 16, 10)
-        self.pool = nn.AvgPool2d(kernel_size=2)
-        self.classifier = nn.Linear(net_width * 16 * 16, 10)
-        # self.classifier2 = nn.Linear(10, 10000)
-        # self.classifier3 = nn.Linear( 10000, 10)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=net_width, kernel_size=3, padding=1)
+        self.norm1 = nn.InstanceNorm2d(net_width)
+        self.pool1 = nn.AvgPool2d(kernel_size=2)
+        self.conv2 = nn.Conv2d(in_channels=net_width, out_channels=net_width, kernel_size=3, padding=1)
+        self.norm2 = nn.InstanceNorm2d(net_width)
+        # self.pool2 = nn.AvgPool2d(kernel_size=2)
+        # self.classifier = nn.Linear(net_width * 8 * 8, 10)
+        self.poolfier = MyLinearLayer(net_width * 8 * 8, 10)
 
     def forward(self, input):
         # with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
-        x = self.conv(input)          # N x net_width x 32 x 32
+        x = self.conv1(input)          # N x net_width x 32 x 32
         # del input
-        x = self.norm(x)          # N x net_width x 32 x 32
+        x = self.norm1(x)          # N x net_width x 32 x 32
         x = F.relu(x)             # N x net_width x 32 x 32
-        x = self.pool(x)          # N x net_width x 16 x 16
-        x = x.view(x.size(0), -1) # Flatten to N x (net_width*16*16)
-        out = self.classifier(x)    # N x 10
-            # x= x.cpu()
-            # del x
-        # with torch.autograd.graph.save_on_cpu(pin_memory=True):
-            # x = torch.matmul(x,self.classifier.weight.t()) + self.classifier.bias
-            # x = self.classifier(x)    # N x 10
-            # x = x@self.classifier.weight.t() + self.classifier.bias
-        # x = self.poolfier(x)
-        # out = self.classifier2(out)
-        # out = self.classifier3(out)
+        x = self.pool1(x)          # N x net_width x 16 x 16
+        x = self.conv2(x)          # N x net_width x 32 x 32
+        x = self.norm2(x)          # N x net_width x 32 x 32
+        # x = F.relu(x)             # N x net_width x 32 x 32
+        # x = self.pool2(x)          # N x net_width x 16 x 16
+        # x = x.view(x.size(0), -1) # Flatten to N x (net_width*16*16)
+        # out = self.classifier(x)    # N x 10
+        out = self.poolfier(x)
         return out
     
 class ConvNet(nn.Module):
@@ -151,10 +136,10 @@ model1 = ConvNet(32).to("cuda")
 model2 = Myconv(32).to("cuda")
 model = model2
 
-# torch.save(model.state_dict(), 'model_test5.pt')
+# torch.save(model.state_dict(), 'model_test7.pt')
 # model.load_state_dict(torch.load('model_test5.pt'), strict = False)
 
-pretrained_dict = torch.load("model_test5.pt")
+pretrained_dict = torch.load("model_test7.pt")
 load_state_dict_by_position(model, pretrained_dict)
 
 # print(model.fc2.weight.sum())
@@ -175,7 +160,7 @@ target = torch.tensor([label] * batch_size, device="cuda")  # shape: [batch_size
 # target = torch.randint(0, 10, (batch_size,))
 # target = torch.tensor([0, 1, 2, 3])[:batch_size].to("cuda")
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=1e-1)
+optimizer = torch.optim.SGD([x], lr=1e-1)
 # for param in model.parameters():
 #     param.requires_grad = False
 
@@ -193,15 +178,13 @@ for step in range(1):
     # with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
     output = model(x)  # forward
     loss = criterion(output, target)  # compute loss
+    # print(loss.item())
     # with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
-    params = list(model.parameters())
-    params.append(x)
-    dw = torch.torch.autograd.grad(loss, params, create_graph=True)
-    # dw = dw[:-1]
+    dw = torch.torch.autograd.grad(loss, list(model.parameters()), create_graph=True)
     weight = list(model.parameters()) 
-    weight = [(1- p + g).sum() for p, g in zip(weight, dw[:-1])]
+    weight = [(1- p + g).sum() for p, g in zip(weight, dw)]
     grad_loss = sum(weight)
-    # # # plan a: 0.-3.188770294189453
+    # plan a: 0.-3.188770294189453
     # grad_loss.backward()  
 
     # # plan b: 
@@ -221,18 +204,17 @@ for step in range(1):
     # dx = torch.torch.autograd.grad(weight, x, grad_outputs=d1w)[0]
     # x.grad = dx
 
-    # plan c: 只是调整顺序。
-    # ins = list(dw)
-    # d1w = torch.torch.autograd.grad(grad_loss, weight)
-    grads = torch.torch.autograd.grad(grad_loss, dw[:-1])
-    # dw.append(x)
-    grads=list(grads)
-    grads.append(torch.zeros_like(x).cuda())
+    # # plan c: 只是调整顺序。
+    # ins = list(dw) + weight
+    # # d1w = torch.torch.autograd.grad(grad_loss, weight)
+    # outs = torch.torch.autograd.grad(grad_loss, ins)
+    # # grads =  list(ddw) + list(d1w)[::-1]
+    # # source = list(dw) + list(weight)[::-1] 
+    # # grads = 
+    # dx = torch.torch.autograd.grad(ins[::-1], x, grad_outputs=outs[::-1])[0]
+    # x.grad = dx
 
-    dx = torch.torch.autograd.grad(dw[::-1], x, grad_outputs=grads[::-1])[0]
-    x.grad = dx
-
-    print(x.grad.sum().item())
+    # print(x.grad.sum().item())
     optimizer.step()  # update x
 
     # if step % 10 == 0:

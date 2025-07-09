@@ -1,0 +1,86 @@
+> python script/test6.py
+Files already downloaded and verified
+Packing torch.Size([1024, 3, 32, 32])
+Packing torch.Size([32, 3, 3, 3])
+Packing torch.Size([1, 32768, 32, 32])
+Packing torch.Size([32768])
+Packing torch.Size([32768])
+Packing torch.Size([1024, 32, 32, 32])
+Packing torch.Size([1024, 32, 32, 32])
+Packing torch.Size([1024, 8192])
+Packing torch.Size([8192, 10])
+Packing torch.Size([1024, 10])
+Packing torch.Size([10, 10000])
+Packing torch.Size([1024, 10000])
+Packing torch.Size([10000, 10])
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Step 0, Loss: 2.2472
+当前显存使用: 42.853515625 MB
+峰值显存使用: 415.10009765625 MB
+> python script/test6.py
+Files already downloaded and verified
+Packing torch.Size([1024])
+Packing torch.Size([1024, 10])
+Packing torch.Size([1024, 10])
+Packing torch.Size([10, 10000])
+Packing torch.Size([1024, 10])
+Packing torch.Size([1024, 10000])
+Packing torch.Size([10, 1024])
+Packing torch.Size([10000, 10])
+Packing torch.Size([1024, 10000])
+Packing torch.Size([1024, 10])
+Packing torch.Size([10000, 1024])
+Packing torch.Size([10, 8192])
+Packing torch.Size([1024, 10])
+Packing torch.Size([1024, 8192])
+Packing torch.Size([10, 1024])
+Packing torch.Size([1024, 32, 32, 32])
+Packing torch.Size([1, 32768, 32, 32])
+Packing torch.Size([1, 32768, 32, 32])
+Packing torch.Size([32768])
+Packing torch.Size([32768])
+Packing torch.Size([1024, 32, 32, 32])
+Packing torch.Size([1024, 3, 32, 32])
+Packing torch.Size([32, 3, 3, 3])
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Unpacking
+Step 0, Loss: 2.3225
+当前显存使用: 44.01708984375 MB
+峰值显存使用: 1685.3330078125 MB
+
+
+12->22
+由于create graph 大小是 forward的两倍，所以两次的packing应该是可以重复的
