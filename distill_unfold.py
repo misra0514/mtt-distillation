@@ -148,7 +148,7 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    image_syn = torch.load("./script/in.pt")
+    # image_syn = torch.load("./script/in.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
@@ -287,14 +287,17 @@ def main(args):
         param_dist_list.append(param_dist)
         param_loss /= num_params
         param_dist /= num_params
-        # param_loss /= param_dist
+        param_loss /= param_dist
         grand_loss = param_loss
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
 
-        print("-------------LOSS-------------")
-        print(grand_loss.item())
+        # print("-------------LOSS-------------")
+        # print(grand_loss.item())
         grand_loss.backward()
+
+        print("-------------GRADX-------------")
+        print( syn_images.grad.sum().item())
 
         optimizer_img.step()
         optimizer_lr.step()

@@ -20,6 +20,8 @@ import torch.nn.functional as F
 import torchvision
 import math
 import torchvision.transforms as transforms
+import gc
+import os
 
 class MyLinearFunction(torch.autograd.Function):
     @staticmethod
@@ -72,16 +74,18 @@ class Mynorm(nn.Module):
 
 def pack_hook(x):
     print("Packing", x.shape)
-    return x.to('cpu')
-    # shape = x.shape
-    # # x.data=torch.rand([1]).to('cuda')
-    # return shape
+    # x = x.to('cpu')
+    # return x
+    shape = x.shape
+    os.remove(x)
+    return shape
 
 def unpack_hook(x):
-    print("Unpacking", x.shape)
-    return x.to('cuda')
-    # x = torch.ones(x).to('cuda')
+    # print("Unpacking", x.shape)
+    # x = x.to('cuda')
     # return x
+    x = torch.ones_like(x).to('cuda')
+    return x
 
 class Myconv(nn.Module):
     def __init__(self, net_width):
@@ -96,14 +100,14 @@ class Myconv(nn.Module):
         # self.classifier3 = nn.Linear( 10000, 10)
 
     def forward(self, input):
-        # with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
-        x = self.conv(input)          # N x net_width x 32 x 32
-        # del input
-        x = self.norm(x)          # N x net_width x 32 x 32
-        x = F.relu(x)             # N x net_width x 32 x 32
-        x = self.pool(x)          # N x net_width x 16 x 16
-        x = x.view(x.size(0), -1) # Flatten to N x (net_width*16*16)
-        out = self.classifier(x)    # N x 10
+        with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
+            x = self.conv(input)          # N x net_width x 32 x 32
+            # del input
+            x = self.norm(x)          # N x net_width x 32 x 32
+            x = F.relu(x)             # N x net_width x 32 x 32
+            x = self.pool(x)          # N x net_width x 16 x 16
+            x = x.view(x.size(0), -1) # Flatten to N x (net_width*16*16)
+            out = self.classifier(x)    # N x 10
             # x= x.cpu()
             # del x
         # with torch.autograd.graph.save_on_cpu(pin_memory=True):
@@ -191,18 +195,22 @@ torch.cuda.empty_cache()
 for step in range(1):
     optimizer.zero_grad()
     # with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
+    # with torch.autograd.graph.save_on_cpu():
     output = model(x)  # forward
     loss = criterion(output, target)  # compute loss
     # with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
-    params = list(model.parameters())
-    params.append(x)
-    dw = torch.torch.autograd.grad(loss, params, create_graph=True)
-    # dw = dw[:-1]
-    weight = list(model.parameters()) 
-    weight = [(1- p + g).sum() for p, g in zip(weight, dw[:-1])]
-    grad_loss = sum(weight)
-    # # # plan a: 0.-3.188770294189453
-    # grad_loss.backward()  
+    # params = list(model.parameters())
+    # params.append(x)
+    # dw = torch.torch.autograd.grad(loss, params, create_graph=True)
+    # # dw = dw[:-1]
+    # weight = list(model.parameters()) 
+    # weight = [(1- p + g).sum() for p, g in zip(weight, dw[:-1])]
+    # grad_loss = sum(weight)
+
+    # # plan a: 0.-3.188770294189453
+    gc.collect()
+    loss.backward()  
+    gc.collect()
 
     # # plan b: 
     # # dw对input 也有梯度，但是没办法把反向分成两半去算。
@@ -221,16 +229,16 @@ for step in range(1):
     # dx = torch.torch.autograd.grad(weight, x, grad_outputs=d1w)[0]
     # x.grad = dx
 
-    # plan c: 只是调整顺序。
-    # ins = list(dw)
-    # d1w = torch.torch.autograd.grad(grad_loss, weight)
-    grads = torch.torch.autograd.grad(grad_loss, dw[:-1])
-    # dw.append(x)
-    grads=list(grads)
-    grads.append(torch.zeros_like(x).cuda())
+    # # plan c: 只是调整顺序。
+    # # ins = list(dw)
+    # # d1w = torch.torch.autograd.grad(grad_loss, weight)
+    # grads = torch.torch.autograd.grad(grad_loss, dw[:-1])
+    # # dw.append(x)
+    # grads=list(grads)
+    # grads.append(torch.zeros_like(x).cuda())
 
-    dx = torch.torch.autograd.grad(dw[::-1], x, grad_outputs=grads[::-1])[0]
-    x.grad = dx
+    # dx = torch.torch.autograd.grad(dw[::-1], x, grad_outputs=grads[::-1])[0]
+    # x.grad = dx
 
     print(x.grad.sum().item())
     optimizer.step()  # update x
@@ -238,5 +246,5 @@ for step in range(1):
     # if step % 10 == 0:
     #     print(f"Step {step}, Loss: {loss.item():.4f}")
 
-print("当前显存使用:", torch.cuda.memory_allocated() / 1024**2, "MB")
+print("当前显存使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
 print("峰值显存使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")

@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+from torch.utils.checkpoint import checkpoint
 
 
 # 手写反向传播的版本
@@ -88,38 +89,70 @@ class ConvNet(nn.Module):
 
         x_norm3 = self.conv3(x_conv3)
         x_relu3 = self.norm3(x_norm3)
-        x = self.act3(x_relu3)
-        x = self.pool3(x)
-        x = x.view(x.size(0), -1)
+        x3 = self.act3(x_relu3)
+        x3 = self.pool3(x3)
+
+        x = x3.view(x3.size(0), -1)
         logits = self.classifier(x)
-        
+
         # Backprop
+        # grad_output = self.crossEntropy_backward(logits, target)
+        # loss = nn.CrossEntropyLoss()(logits, target)
+        # TODO: 为了做局部的ckpt，哪怕都用autograd也可以
+        # def custom_forward(target, logits):
+            # # grad_output = torch.torch.autograd.grad(loss, logits, create_graph=True)[0]
         grad_output = self.crossEntropy_backward(logits, target)
+
         dfcb = grad_output.sum(dim=0)  
         dfcw = grad_output.t()@x
         grad_output = grad_output@self.classifier.weight
-
         grad_output = grad_output.view(x_conv1.shape[0], self.shape_feat[0], self.shape_feat[1], self.shape_feat[2])
-        grad_output, dw3, db3, d_gamma3, d_beta3 = self.convLayer_backward(grad_output,x_relu3, x_norm3, x_conv3, self.norm3, self.conv3 )
-        grad_output, dw2, db2, d_gamma2, d_beta2 = self.convLayer_backward(grad_output,x_relu2, x_norm2, x_conv2, self.norm2, self.conv2 )
-        _, dw, db, d_gamma, d_beta = self.convLayer_backward(grad_output,x_relu1, x_norm1, x_conv1, self.norm1, self.conv1 )
+        #     return grad_output,dfcw, dfcb
+        # grad_output,dfcw, dfcb = checkpoint(custom_forward, target, logits)
+
+        grad_output, dw3, db3, d_gamma3, d_beta3 = torch.torch.autograd.grad(x3, [x_conv3,self.conv3.weight, self.conv3.bias, self.norm3.weight, self.norm3.bias], grad_outputs=grad_output, create_graph=True )
+        grad_output, dw2, db2, d_gamma2, d_beta2 = torch.torch.autograd.grad(x_conv3, [x_conv2,self.conv2.weight, self.conv2.bias, self.norm2.weight, self.norm2.bias], grad_outputs=grad_output, create_graph=True )
+        # dfcw = self.classifier.weight
+        # dfcb = self.classifier.bias
+        # dw3=self.conv3.weight
+        # db3=self.conv3.bias
+        # d_gamma3=self.norm3.weight
+        # d_beta3=self.norm3.bias
+        # dw2=self.conv3.weight
+        # db2=self.conv3.bias
+        # d_gamma2=self.norm3.weight
+        # d_beta2=self.norm3.bias
+        # grad_output=torch.zeros_like(x_conv2).cuda()
+        _, dw, db, d_gamma, d_beta = torch.torch.autograd.grad(x_conv2, [x_conv1,self.conv1.weight, self.conv1.bias, self.norm1.weight, self.norm1.bias], grad_outputs=grad_output, create_graph=True )
+        # dw=torch.ones_like(self.conv1.weight)
+        # db=torch.ones_like(self.conv1.bias)
+        # d_gamma=torch.ones_like(self.norm1.weight)
+        # d_beta=torch.ones_like(self.norm1.bias)
+        # grad_output, dw3, db3, d_gamma3, d_beta3 = self.convLayer_backward(grad_output,x_relu3, x_norm3, x_conv3, self.norm3, self.conv3 )
+        # grad_output, dw2, db2, d_gamma2, d_beta2 = self.convLayer_backward(grad_output,x_relu2, x_norm2, x_conv2, self.norm2, self.conv2 )
+        # _, dw, db, d_gamma, d_beta = self.convLayer_backward(grad_output,x_relu1, x_norm1, x_conv1, self.norm1, self.conv1 )
 
         l= [dw,db,d_gamma,d_beta,dw2,db2,d_gamma2,d_beta2,dw3,db3,d_gamma3,d_beta3,dfcw,dfcb]
         grad = torch.cat([p.reshape(-1) for p in l], 0)
-        # student_params = torch.cat([dw,db,d_gamma,d_beta,dw2,db2,d_gamma2,d_beta2,dw3,db3,d_gamma3,d_beta3,dfcw,dfcb])
 
         return grad
 
 
     def crossEntropy_backward(self, logits, target):
-        N, C = logits.shape
-        # 1. Compute log_softmax
-        log_probs = F.log_softmax(logits, dim=1)
-        # 2. Compute grad of NLLLoss (mean reduction)
-        grad = torch.exp(log_probs)  # shape: (N, C)
-        grad[range(N), target] -= 1
-        grad = grad / N
-        return grad
+        N = target.shape[0]
+        softmax = F.softmax(logits, dim=1)
+        one_hot = torch.zeros_like(logits)
+        one_hot[range(N), target] = 1.0
+        grad_output = (softmax - one_hot) / N
+        return grad_output
+        # N, C = logits.shape
+        # # 1. Compute log_softmax
+        # log_probs = F.log_softmax(logits, dim=1)
+        # # 2. Compute grad of NLLLoss (mean reduction)
+        # grad = torch.exp(log_probs)  # shape: (N, C)
+        # grad[range(N), target] -= 1
+        # grad = grad / N
+        # return grad
     
     def instanceNorm_backward(self, x, gamma, grad_output, eps=1e-5):
         N, C, H, W = x.shape

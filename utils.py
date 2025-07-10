@@ -198,7 +198,7 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True):
     if model == 'MLP':
         net = MLP(channel=channel, num_classes=num_classes)
     elif model == 'ConvNet':
-        net = ConvNet(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
+        net = ConvNet_unfold(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
     elif model == 'LeNet':
         net = LeNet(channel=channel, num_classes=num_classes)
     elif model == 'AlexNet':
