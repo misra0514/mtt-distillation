@@ -20,6 +20,7 @@ class Snd_Order_MyLinearFunction(torch.autograd.Function):
     # 现在也没有做save ctx，为啥内存消耗还是1483？
     @staticmethod
     def forward(ctx, grad_output, input, weight, relu_in):
+        ctx.save_for_backward( weight,relu_in )
         dw =   grad_output.t() @ input
         db =   grad_output.sum(0)         
         grad_output = grad_output @ weight 
@@ -29,6 +30,15 @@ class Snd_Order_MyLinearFunction(torch.autograd.Function):
         return grad_output, dw, db
     @staticmethod
     def backward(ctx, grad_grad_input, grad_grad_w, grad_grad_b):
+        weight, relu_in = ctx.saved_tensors
+        input = F.relu(relu_in)
+        relu_in = (relu_in > 0).float()
+        input = F.avg_pool2d(input,2 )
+        input = input.view(input.size(0), -1) # Flatten to N x (net_width*16*16)
+        ctx.save_for_backward( input, weight,relu_in )
+        out = F.linear(input, weight)
+        din, dw = torch.torch.autograd.grad()
+
         return None, None, None, None
 
 class MyLinearFunction(torch.autograd.Function):
@@ -185,7 +195,7 @@ for step in range(1):
     weight = [(1- p + g).sum() for p, g in zip(weight, dw)]
     grad_loss = sum(weight)
     # plan a: 0.-3.188770294189453
-    # grad_loss.backward()  
+    grad_loss.backward()  
 
     # # plan b: 
     # # dw对input 也有梯度，但是没办法把反向分成两半去算。
@@ -214,7 +224,7 @@ for step in range(1):
     # dx = torch.torch.autograd.grad(ins[::-1], x, grad_outputs=outs[::-1])[0]
     # x.grad = dx
 
-    # print(x.grad.sum().item())
+    print(x.grad.sum().item())
     optimizer.step()  # update x
 
     # if step % 10 == 0:
