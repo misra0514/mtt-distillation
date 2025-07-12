@@ -17,6 +17,9 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 def main(args):
+  
+    torch.cuda.reset_peak_memory_stats()
+    torch.cuda.empty_cache()
 
     pre_start = time.time()
 
@@ -410,7 +413,11 @@ def main(args):
             # 因为group conv的原因，最开始应该在Channel 维度做cat
             # x = student_net(x, flat_param=forward_params.repeat(2))
             # x = torch.cat([x,x],1)
+            # TODO: 这个repeat_interleavez在第一维上复制一遍，正确性可能还需要再检查
             x = x.repeat_interleave(int(args.Constk),dim =1)
+            # x = x.unsqueeze(0).repeat(int(args.Constk), 1, 1, 1, 1)
+            # x = x.view(-1,3,32,32)
+
             x = student_net(x, flat_param=forward_params)
             # ce_loss = criterion(x, this_y)
             ce_loss = 0
@@ -423,10 +430,10 @@ def main(args):
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
-            if(step < args.detachNum):
-                student_params.append(student_params[-1] - syn_lr * grad.detach())
-            else:
-                student_params.append(student_params[-1] - syn_lr * grad)
+            # if(step < args.detachNum):
+            #     student_params.append(student_params[-1] - syn_lr * grad.detach())
+            # else:
+            student_params.append(student_params[-1] - syn_lr * grad)
             # # TODO: Pruning here
             # if (len(student_params) > 2 ):  
             #     # print("DETACH")
@@ -474,14 +481,14 @@ def main(args):
         optimizer_img.step()
         optimizer_lr.step()
 
-        iter_end = time.time()
-        syn_time = syn_end-syn_start
-        iter_time = iter_end-syn_start
-        print("--TIME---")
-        print("prepare time (", args.syn_steps ,"): ", syn_start- start)
-        print("syn_time     (", args.syn_steps ,"): ", syn_time)
-        print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
-        print("sum time (", args.syn_steps ,"): ", iter_end- start)
+        # iter_end = time.time()
+        # syn_time = syn_end-syn_start
+        # iter_time = iter_end-syn_start
+        # print("--TIME---")
+        # print("prepare time (", args.syn_steps ,"): ", syn_start- start)
+        # print("syn_time     (", args.syn_steps ,"): ", syn_time)
+        # print("backward_time(", args.syn_steps ,"): ", iter_time-syn_time)
+        # print("sum time (", args.syn_steps ,"): ", iter_end- start)
 
         wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
                    "Start_Epoch": start_epoch})
@@ -495,6 +502,8 @@ def main(args):
     iter_end = time.time()
     print("------------FIN TIME-------------")
     print(iter_end - pre_end)
+    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
 
     wandb.finish()
 

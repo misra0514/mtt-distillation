@@ -25,7 +25,8 @@
                 "--lr_lr=1e-05",
                 "--lr_teacher=0.01",
                 "--buffer_path=./buffer",
-                "--data_path=./dataset"
+                "--data_path=./dataset",
+                "--Constk=2"
             ]
         }
     ]

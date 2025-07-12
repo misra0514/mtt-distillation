@@ -4,19 +4,19 @@ import torch
 from networks_stacked_basic import LinearStacked, LinearStacked_2 , Conv2d_Stacked
 
 class ConvNetStacked(nn.Module):
-    def __init__(self, channel, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, im_size = (32,32),stack_size=2):
+    def __init__(self, channel, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, im_size = (32,32),stack_size=None):
         super(ConvNetStacked, self).__init__()
 
         self.stack_size = stack_size
-        self.l = "BS" # BS : Batch*2 *rest. group conv
-        if(self.l=="BS"):
+        self.l = "BS"
+        if(self.l=="BS"): # BS : Batch* fusionsize *rest,  group conv + einsum
             self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
             num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
             self.num_feat = num_feat
             self.classifierStacked2 = LinearStacked_2(num_feat,num_classes, stack_size)
-        else:
+        else: # based on torch.bmm (conv & linear)
             self.features2, shape_feat2 = self._make_layers_2(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
-            num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
+            num_feat = shape_feat2[0]*shape_feat2[1]*shape_feat2[2]
             self.num_feat = num_feat
             self.classifierStacked = LinearStacked(num_feat,num_classes, stack_size)
 
@@ -53,7 +53,8 @@ class ConvNetStacked(nn.Module):
             # 20, 2048
             # out = out.view(-1, self.stack_size, self.num_feat )
             out = self.classifierStacked2(out)
-            out = torch.unbind(out, dim=0)# 如果是走的linear2需要在dim1上unbind
+            out = torch.unbind(out, dim=1)# 如果是走的linear2需要在dim1上unbind
+            # out 10 * 4 *10
             return out
         else: # Stk, Batch ,esle 
             out = self.features2(x)
@@ -131,10 +132,11 @@ class ConvNetStacked(nn.Module):
         shape_feat = [in_channels, im_size[0], im_size[1]]
         stak_num = self.stack_size
         for d in range(net_depth):
-            # FIXED: 把去全部conv2d改成带group即可（注意in，out channel 也要翻倍）
-            layers += [Conv2d_Stacked(in_channels*stak_num, net_width*stak_num , kernel_size=3, padding=3 if channel == 1 and d == 0 else 1, stackSize=stak_num)]
+            # 用了自己写的conv
+            layers += [Conv2d_Stacked(in_channels, net_width , kernel_size=3, padding=3 if channel == 1 and d == 0 else 1, stackSize=stak_num)]
             shape_feat[0] = net_width
             if net_norm != 'none':
+            # TODO: 在F,B,C格式下
                 layers += [self._get_normlayer(net_norm, shape_feat)]
             layers += [self._get_activation(net_act)]
             in_channels = net_width
