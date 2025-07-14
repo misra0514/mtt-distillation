@@ -96,22 +96,34 @@ class ConvNet(nn.Module):
         logits = self.classifier(x)
 
         # Backprop
-        # grad_output = self.crossEntropy_backward(logits, target)
         # loss = nn.CrossEntropyLoss()(logits, target)
-        # TODO: 为了做局部的ckpt，哪怕都用autograd也可以
-        # def custom_forward(target, logits):
-            # # grad_output = torch.torch.autograd.grad(loss, logits, create_graph=True)[0]
         grad_output = self.crossEntropy_backward(logits, target)
-
         dfcb = grad_output.sum(dim=0)  
         dfcw = grad_output.t()@x
         grad_output = grad_output@self.classifier.weight
         grad_output = grad_output.view(x_conv1.shape[0], self.shape_feat[0], self.shape_feat[1], self.shape_feat[2])
-        #     return grad_output,dfcw, dfcb
-        # grad_output,dfcw, dfcb = checkpoint(custom_forward, target, logits)
+        # # TODO: 为了做局部的ckpt，哪怕都用autograd也可以
+        # def custom_forward(x_conv3, target):
+            # # grad_output = torch.torch.autograd.grad(loss, logits, create_graph=True)[0]
+            # x_norm3 = self.conv3(x_conv3)
+            # x_relu3 = self.norm3(x_norm3)
+            # x3 = self.act3(x_relu3)
+            # x3 = self.pool3(x3)
+            # x3 = x3.view(x3.size(0), -1)
+            # logits = self.classifier(x3)
+            # grad_output = self.crossEntropy_backward(logits, target)
 
-        grad_output, dw3, db3, d_gamma3, d_beta3 = torch.torch.autograd.grad(x3, [x_conv3,self.conv3.weight, self.conv3.bias, self.norm3.weight, self.norm3.bias], grad_outputs=grad_output, create_graph=True )
-        grad_output, dw2, db2, d_gamma2, d_beta2 = torch.torch.autograd.grad(x_conv3, [x_conv2,self.conv2.weight, self.conv2.bias, self.norm2.weight, self.norm2.bias], grad_outputs=grad_output, create_graph=True )
+            # dfcb = grad_output.sum(dim=0)  
+            # dfcw = grad_output.t()@x3
+            # grad_output = grad_output@self.classifier.weight
+            # grad_output = grad_output.view(x_conv1.shape[0], self.shape_feat[0], self.shape_feat[1], self.shape_feat[2])
+            # grad_output, dw3, db3, d_gamma3, d_beta3 = self.convLayer_backward(grad_output,x_relu3, x_norm3, x_conv3, self.norm3, self.conv3 )
+
+        #     return grad_output, dw3, db3, d_gamma3, d_beta3,dfcw, dfcb
+        # grad_output, dw3, db3, d_gamma3, d_beta3,dfcw, dfcb = checkpoint(custom_forward, x_conv3, target)
+
+        # grad_output, dw3, db3, d_gamma3, d_beta3 = torch.torch.autograd.grad(x3, [x_conv3,self.conv3.weight, self.conv3.bias, self.norm3.weight, self.norm3.bias], grad_outputs=grad_output, create_graph=True )
+        # grad_output, dw2, db2, d_gamma2, d_beta2 = torch.torch.autograd.grad(x_conv3, [x_conv2,self.conv2.weight, self.conv2.bias, self.norm2.weight, self.norm2.bias], grad_outputs=grad_output, create_graph=True )
         # dfcw = self.classifier.weight
         # dfcb = self.classifier.bias
         # dw3=self.conv3.weight
@@ -123,14 +135,14 @@ class ConvNet(nn.Module):
         # d_gamma2=self.norm3.weight
         # d_beta2=self.norm3.bias
         # grad_output=torch.zeros_like(x_conv2).cuda()
-        _, dw, db, d_gamma, d_beta = torch.torch.autograd.grad(x_conv2, [x_conv1,self.conv1.weight, self.conv1.bias, self.norm1.weight, self.norm1.bias], grad_outputs=grad_output, create_graph=True )
+        # _, dw, db, d_gamma, d_beta = torch.torch.autograd.grad(x_conv2, [x_conv1,self.conv1.weight, self.conv1.bias, self.norm1.weight, self.norm1.bias], grad_outputs=grad_output, create_graph=True )
         # dw=torch.ones_like(self.conv1.weight)
         # db=torch.ones_like(self.conv1.bias)
         # d_gamma=torch.ones_like(self.norm1.weight)
         # d_beta=torch.ones_like(self.norm1.bias)
-        # grad_output, dw3, db3, d_gamma3, d_beta3 = self.convLayer_backward(grad_output,x_relu3, x_norm3, x_conv3, self.norm3, self.conv3 )
-        # grad_output, dw2, db2, d_gamma2, d_beta2 = self.convLayer_backward(grad_output,x_relu2, x_norm2, x_conv2, self.norm2, self.conv2 )
-        # _, dw, db, d_gamma, d_beta = self.convLayer_backward(grad_output,x_relu1, x_norm1, x_conv1, self.norm1, self.conv1 )
+        grad_output, dw3, db3, d_gamma3, d_beta3 = self.convLayer_backward(grad_output,x_relu3, x_norm3, x_conv3, self.norm3, self.conv3 )
+        grad_output, dw2, db2, d_gamma2, d_beta2 = self.convLayer_backward(grad_output,x_relu2, x_norm2, x_conv2, self.norm2, self.conv2 )
+        _, dw, db, d_gamma, d_beta = self.convLayer_backward(grad_output,x_relu1, x_norm1, x_conv1, self.norm1, self.conv1 )
 
         l= [dw,db,d_gamma,d_beta,dw2,db2,d_gamma2,d_beta2,dw3,db3,d_gamma3,d_beta3,dfcw,dfcb]
         grad = torch.cat([p.reshape(-1) for p in l], 0)
@@ -180,8 +192,8 @@ class ConvNet(nn.Module):
         grad_output,d_gamma,d_beta = self.instanceNorm_backward(norm_in, norm.weight, grad_output)
         # TODO: 目前conv层的结果还是有点问题。不知道是累积误差导致的还是什么，结果会差几位
         db = grad_output.sum(dim=(0, 2, 3))
-        dw = torch.nn.grad.conv2d_weight(conv_in, conv.weight.shape, grad_output, stride=stride, padding=padding)
-        # dw = self.conv2d_weight_grad(conv_in, conv.weight.shape, grad_output, stride=stride, padding=padding)
+        # dw = torch.nn.grad.conv2d_weight(conv_in, conv.weight.shape, grad_output, stride=stride, padding=padding)
+        dw = self.conv2d_weight_grad(conv_in, conv.weight.shape, grad_output, stride=stride, padding=padding)
         # dx = torch.nn.grad.conv2d_input(input_size=conv_in.shape, weight=self.conv.weight, grad_output=grad_output, stride=1, padding=1)
         dx = F.conv_transpose2d(grad_output, conv.weight, stride=stride, padding=padding)         # only when stride == padding
         return [dx, dw, db, d_gamma, d_beta]

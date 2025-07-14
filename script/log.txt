@@ -84,3 +84,12 @@ Step 0, Loss: 2.3225
 
 12->22
 由于create graph 大小是 forward的两倍，所以两次的packing应该是可以重复的
+
+
+x = self.conv1(x)
+x = self.norm1(x)
+grad_output = nn.cross_Entropy()(x,target)
+grad_output = self.norm_backward(grad_output)
+grad_output = self.conv_backward(grad_output)
+...
+loss.backward()

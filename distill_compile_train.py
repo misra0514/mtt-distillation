@@ -1,3 +1,5 @@
+# 一个最早尝试训练的版本。但是不知道什么原因没有成功，梯度不下降。
+
 import os
 import argparse
 import numpy as np

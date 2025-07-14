@@ -111,8 +111,9 @@ def main(args):
 
     for i, lab in tqdm(enumerate(labels_all)):
         indices_class[lab].append(i)
-    # images_all = torch.cat(images_all, dim=0).to("cpu")
-    images_all = torch.cat(images_all, dim=0).to(args.device)
+    # TODO: IMages_all 占用了大约600M（batch100）
+    images_all = torch.cat(images_all, dim=0).to("cpu")
+    # images_all = torch.cat(images_all, dim=0).to(args.device)
     # labels_all = torch.tensor(labels_all, dtype=torch.long, device="cpu")
 
     # for c in range(num_classes):
@@ -148,7 +149,7 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    # image_syn = torch.load("./script/in.pt")
+    image_syn = torch.load("./script/in.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
@@ -200,7 +201,7 @@ def main(args):
 
     best_acc = {m: 0 for m in model_eval_pool}
     best_std = {m: 0 for m in model_eval_pool}
-    student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+    student_net = get_network('ConvNet_unfold', channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
     student_net = ReparamModule(student_net)
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
@@ -235,7 +236,6 @@ def main(args):
                 if args.max_experts is not None:
                     buffer = buffer[:args.max_experts]
                 # random.shuffle(buffer)
-
         # start_epoch = np.random.randint(0, args.max_start_epoch)
         start_epoch = 0
         starting_params = expert_trajectory[start_epoch]
@@ -294,14 +294,14 @@ def main(args):
 
         # print("-------------LOSS-------------")
         # print(grand_loss.item())
-        grand_loss.backward()
+        grand_loss.backward(retain_graph=False)
 
         print("-------------GRADX-------------")
         print( syn_images.grad.sum().item())
 
         optimizer_img.step()
         optimizer_lr.step()
-        print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+        print("峰值cache使用:(nvidia-smi)", torch.cuda.max_memory_reserved() / 1024**2, "MB")
         print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
 
         iter_end = time.time()
