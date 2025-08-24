@@ -1,0 +1,52 @@
+Files already downloaded and verified
+1.893741488456726
+Packing torch.Size([1024])
+Packing torch.Size([1024, 10])
+Packing torch.Size([1024, 10])
+Packing torch.Size([10, 2048])
+Packing torch.Size([1024, 10])
+Packing torch.Size([1024, 2048])
+Packing torch.Size([10, 1024])
+Packing torch.Size([1024, 32, 16, 16])
+Packing torch.Size([1, 32768, 16, 16])
+Packing torch.Size([1, 32768, 16, 16])
+Packing torch.Size([0])
+Packing torch.Size([32768])
+Packing torch.Size([32768])
+Packing torch.Size([32768])
+Packing torch.Size([1024, 32, 16, 16])
+Packing torch.Size([1024, 32, 16, 16])
+Packing torch.Size([32, 32, 3, 3])
+Packing torch.Size([1024, 32, 32, 32])
+Packing torch.Size([1, 32768, 32, 32])
+Packing torch.Size([1, 32768, 32, 32])
+Packing torch.Size([0])
+Packing torch.Size([32768])
+Packing torch.Size([32768])
+Packing torch.Size([32768])
+Packing torch.Size([1024, 32, 32, 32])
+Packing torch.Size([1024, 3, 32, 32])
+Packing torch.Size([32, 3, 3, 3])
+----GRAD-----
+当前显存使用: 709.65380859375 MB
+峰值显存使用: 709.89453125 MB
+
+
+
+
+一阶：
+Files already downloaded and verified
+Packing torch.Size([1, 32768, 32, 32])
+Packing torch.Size([32768])
+Packing torch.Size([32768])
+Packing torch.Size([32768])
+Packing torch.Size([0])
+1.893741488456726
+Unpacking torch.Size([1, 32768, 32, 32])
+Unpacking torch.Size([32768])
+Unpacking torch.Size([32768])
+Unpacking torch.Size([32768])
+Unpacking torch.Size([0])
+----GRAD-----
+当前显存使用: 709.65380859375 MB
+峰值显存使用: 709.89453125 MB

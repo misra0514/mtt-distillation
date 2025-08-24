@@ -147,7 +147,7 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    image_syn = torch.load("./script/in.pt")
+    # image_syn = torch.load("./script/in.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)

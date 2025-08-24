@@ -12,8 +12,12 @@ import tqdm
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 from scipy.ndimage.interpolation import rotate as scipyrotate
-from networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP
+from networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP, ResNet50
+# from networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP
+# from networks_exptended import ViT, ResNet50_CIFAR as ResNet50
+from networks_exptended import ViT
 from networks_unfold import ConvNet as ConvNet_unfold
+
 class Config:
     imagenette = [0, 217, 482, 491, 497, 566, 569, 571, 574, 701]
 
@@ -215,6 +219,11 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True):
         net = ResNet18BN_AP(channel=channel, num_classes=num_classes)
     elif model == 'ResNet18_AP':
         net = ResNet18_AP(channel=channel, num_classes=num_classes)
+    elif model == 'ResNet50':
+        net = ResNet50( channel=channel ,num_classes=num_classes)
+
+    elif model == 'ViT':
+        net = ViT( num_classes = num_classes)
 
     elif model == 'ConvNetD1':
         net = ConvNet(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=1, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)

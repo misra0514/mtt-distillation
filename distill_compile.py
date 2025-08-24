@@ -111,8 +111,8 @@ def main(args):
 
     for i, lab in tqdm(enumerate(labels_all)):
         indices_class[lab].append(i)
-    # images_all = torch.cat(images_all, dim=0).to("cpu")
-    images_all = torch.cat(images_all, dim=0).to(args.device)
+    images_all = torch.cat(images_all, dim=0).to("cpu")
+    # images_all = torch.cat(images_all, dim=0).to(args.device)
     # labels_all = torch.tensor(labels_all, dtype=torch.long, device="cpu")
 
     # for c in range(num_classes):
@@ -148,7 +148,7 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    image_syn = torch.load("./script/in.pt")
+    # image_syn = torch.load("./script/in.pt")
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
@@ -206,47 +206,47 @@ def main(args):
         student_net = torch.nn.DataParallel(student_net)
 
     # TODO: Compile && Warm up
-    # student_net = torch.compile(student_net, mode="reduce-overhead")
-    # syn_images = image_syn
-    # y_hat = label_syn.to(args.device)
-    # expert_trajectory = buffer[expert_idx]
-    # expert_idx += 1
-    # if expert_idx == len(buffer):
-    #     expert_idx = 0
-    #     file_idx += 1
-    #     if file_idx == len(expert_files):
-    #         file_idx = 0
-    #         # random.shuffle(expert_files)
-    #     print("loading file {}".format(expert_files[file_idx]))
-    #     if args.max_files != 1:
-    #         del buffer
-    #         buffer = torch.load(expert_files[file_idx])
-    #     if args.max_experts is not None:
-    #         buffer = buffer[:args.max_experts]
-    # start_epoch = 0
-    # starting_params = expert_trajectory[start_epoch]
-    # target_params = expert_trajectory[start_epoch+args.expert_epochs]
-    # target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
-    # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
-    # starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
-    # num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
-    # indices = torch.arange(len(syn_images))
-    # indices_chunks = list(torch.split(indices, args.batch_syn))
-    # these_indices = indices_chunks.pop()
-    # x = syn_images[these_indices]
-    # this_y = y_hat[these_indices]
-    # # with torch.no_grad():
-    # student_net(x,target =this_y, criterion=criterion, flat_param=student_params[-1], student_params=student_params, syn_lr=syn_lr,syn_steps=args.syn_steps )
-    # param_loss = torch.tensor(0.0).to(args.device)
-    # param_dist = torch.tensor(0.0).to(args.device)
-    # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
-    # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
-    # param_loss /= num_params
-    # param_dist /= num_params
-    # grand_loss = param_loss
-    # optimizer_img.zero_grad()
-    # optimizer_lr.zero_grad()
-    # grand_loss.backward()
+    student_net = torch.compile(student_net, mode="reduce-overhead")
+    syn_images = image_syn
+    y_hat = label_syn.to(args.device)
+    expert_trajectory = buffer[expert_idx]
+    expert_idx += 1
+    if expert_idx == len(buffer):
+        expert_idx = 0
+        file_idx += 1
+        if file_idx == len(expert_files):
+            file_idx = 0
+            # random.shuffle(expert_files)
+        print("loading file {}".format(expert_files[file_idx]))
+        if args.max_files != 1:
+            del buffer
+            buffer = torch.load(expert_files[file_idx])
+        if args.max_experts is not None:
+            buffer = buffer[:args.max_experts]
+    start_epoch = 0
+    starting_params = expert_trajectory[start_epoch]
+    target_params = expert_trajectory[start_epoch+args.expert_epochs]
+    target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
+    student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
+    starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
+    num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
+    indices = torch.arange(len(syn_images))
+    indices_chunks = list(torch.split(indices, args.batch_syn))
+    these_indices = indices_chunks.pop()
+    x = syn_images[these_indices]
+    this_y = y_hat[these_indices]
+    # with torch.no_grad():
+    student_params = student_net(x,target =this_y, criterion=criterion, flat_param=student_params[-1], student_params=student_params, syn_lr=syn_lr,syn_steps=args.syn_steps )
+    param_loss = torch.tensor(0.0).to(args.device)
+    param_dist = torch.tensor(0.0).to(args.device)
+    param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
+    param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+    param_loss /= num_params
+    param_dist /= num_params
+    grand_loss = param_loss
+    optimizer_img.zero_grad()
+    optimizer_lr.zero_grad()
+    grand_loss.backward()
 
     torch.cuda.reset_peak_memory_stats()
     torch.cuda.empty_cache()
@@ -329,8 +329,8 @@ def main(args):
 
         optimizer_img.step()
         optimizer_lr.step()
-        # print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-        # print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
+        print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+        print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
         
         iter_end = time.time()
         syn_time = syn_end-syn_start

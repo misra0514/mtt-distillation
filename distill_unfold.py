@@ -206,11 +206,46 @@ def main(args):
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
 
-    # student_net = torch.compile(student_net)
-    # TODO:  加了compile 之后，自动释放了一些变量，导致backward跑不了了
+
+    # TODO:  compile
+    # student_net = torch.compile(student_net, mode="reduce-overhead")
+
+    
+    # syn_images = image_syn.detach().requires_grad_(True)
+    # y_hat = label_syn.to(args.device).detach()
+    # expert_trajectory = buffer[expert_idx]
+    # starting_params = expert_trajectory[0]
+    # target_params = expert_trajectory[args.expert_epochs]
+    # target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
+    # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
+    # starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
+    # num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
+    # indices = torch.arange(len(syn_images))
+    # indices_chunks = list(torch.split(indices, args.batch_syn))
+    # these_indices = indices_chunks.pop()
+    # x = syn_images[these_indices]
+    # this_y = y_hat[these_indices]
+    # forward_paramst = student_params[-1].detach().requires_grad_(True)
+    # criteriont=nn.CrossEntropyLoss().to(args.device)
+    # grad = student_net(x,target =this_y, criterion=criteriont, flat_param=forward_paramst)
+    # param_loss = torch.tensor(0.0).to(args.device)
+    # param_dist = torch.tensor(0.0).to(args.device)
+    # param_loss += torch.nn.functional.mse_loss(forward_paramst+grad, target_params, reduction="sum")
+    # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+    # param_loss /= num_params
+    # param_dist /= num_params
+    # grand_loss = param_loss
+    # optimizer_img.zero_grad()
+    # optimizer_lr.zero_grad()
+    # grand_loss.backward()
+    # optimizer_img.step()
+    # optimizer_lr.step()
     # print("当前显存使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
     # print("峰值显存使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
     # exit()
+    torch.cuda.reset_peak_memory_stats()
+    torch.cuda.empty_cache()
+
     pre_end = time.time()
 
     for it in range(0, args.Iteration+1):
@@ -294,7 +329,7 @@ def main(args):
 
         # print("-------------LOSS-------------")
         # print(grand_loss.item())
-        grand_loss.backward(retain_graph=False)
+        grand_loss.backward()
 
         print("-------------GRADX-------------")
         print( syn_images.grad.sum().item())

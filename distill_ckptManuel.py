@@ -43,17 +43,17 @@ def backward_block(x,this_y, student_params, index,grad_output , student_net, cr
     out = student_net(x, flat_param=forward_params)
     ce_loss = criterion(out, this_y)
     grad = torch.autograd.grad(ce_loss, forward_params, create_graph=True)[0]
-    # dout = crossEntropy_backward(out, this_y)
-    # grad = torch.autograd.grad(out, forward_params, create_graph=True, grad_outputs = dout)[0]
     final_param = forward_params - syn_lr * grad
     if(index>0):
         return  torch.torch.autograd.grad(final_param, [x, syn_lr, forward_params], grad_outputs=grad_output)
     else:
+        # forward_params.requires_grad=False
         return  torch.torch.autograd.grad(final_param, [x, syn_lr], grad_outputs=grad_output)
 
 
 
-set_random_seed(42)
+# TODO: 这个会降低性能。如果测时间记得关掉。
+# set_random_seed(42)
 torch.cuda.reset_peak_memory_stats()
 torch.cuda.empty_cache()
 warnings.filterwarnings("ignore")
@@ -137,8 +137,8 @@ def main(args):
 
     for i, lab in tqdm(enumerate(labels_all)):
         indices_class[lab].append(i)
-    # images_all = torch.cat(images_all, dim=0).to("cpu")
-    images_all = torch.cat(images_all, dim=0).to(args.device)
+    images_all = torch.cat(images_all, dim=0).to("cpu")
+    # images_all = torch.cat(images_all, dim=0).to(args.device)
     # labels_all = torch.tensor(labels_all, dtype=torch.long, device="cpu")
 
     # for c in range(num_classes):
@@ -192,7 +192,6 @@ def main(args):
         expert_dir = os.path.join(expert_dir, args.subset, str(args.res))
     if args.dataset in ["CIFAR10", "CIFAR100"] and not args.zca:
         expert_dir += "_NO_ZCA"
-        # expert_dir += ""
     expert_dir = os.path.join(expert_dir, args.model)
     print("Expert Dir: {}".format(expert_dir))
 
@@ -244,6 +243,9 @@ def main(args):
     pre_end = time.time()
 
     for it in range(0, args.Iteration+1):
+
+        if(it ==4 ):    
+            pre_end = time.time()
          
         start = time.time()
 
@@ -254,24 +256,25 @@ def main(args):
 
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
 
-        if args.load_all:
-            expert_trajectory = buffer[np.random.randint(0, len(buffer))]
-        else:
-            expert_trajectory = buffer[expert_idx]
-            expert_idx += 1
-            if expert_idx == len(buffer):
-                expert_idx = 0
-                file_idx += 1
-                if file_idx == len(expert_files):
-                    file_idx = 0
-                    # random.shuffle(expert_files)
-                print("loading file {}".format(expert_files[file_idx]))
-                if args.max_files != 1:
-                    del buffer
-                    buffer = torch.load(expert_files[file_idx])
-                if args.max_experts is not None:
-                    buffer = buffer[:args.max_experts]
-                # random.shuffle(buffer)
+        # if(it == 0):
+        # if args.load_all:
+        # expert_trajectory = buffer[np.random.randint(0, len(buffer))]
+        # else:
+        expert_trajectory = buffer[expert_idx]
+        #     expert_idx += 1
+        #     if expert_idx == len(buffer):
+        #         expert_idx = 0
+        #         file_idx += 1
+        #         if file_idx == len(expert_files):
+        #             file_idx = 0
+        #             # random.shuffle(expert_files)
+        #         print("loading file {}".format(expert_files[file_idx]))
+        #         if args.max_files != 1:
+        #             del buffer
+        #             buffer = torch.load(expert_files[file_idx])
+        #         if args.max_experts is not None:
+        #             buffer = buffer[:args.max_experts]
+        #         # random.shuffle(buffer)
 
         # start_epoch = np.random.randint(0, args.max_start_epoch)
         start_epoch = 0
@@ -291,6 +294,7 @@ def main(args):
         param_loss_list = []
         param_dist_list = []
         indices_chunks = []
+        img_list = []
 
 
         # with torch.profiler.profile(
@@ -305,10 +309,10 @@ def main(args):
                 indices_chunks = list(torch.split(indices, args.batch_syn))
 
             these_indices = indices_chunks.pop()
-            # x = syn_images[these_indices].detach().requires_grad_()
-            x = syn_images[these_indices]
-            this_y = y_hat[these_indices]
+            x = syn_images[these_indices].detach().requires_grad_()
             # img_list.append(x)
+            # x = syn_images[these_indices]
+            this_y = y_hat[these_indices]
 
             if args.texture:
                 x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
@@ -323,15 +327,17 @@ def main(args):
                 forward_params = student_params[-1]
             out = student_net(x, flat_param=forward_params)
             ce_loss = criterion(out, this_y)
+            # print(ce_loss.sum().item())
 
             # grad_list.append(grad)
-            # student_params.append(student_params[-1] - syn_lr * grad.detach())
-            grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+            # grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+            # student_params.append(student_params[-1] - syn_lr * grad)
             if(step < args.syn_steps-1 ):
-                # grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=False)[0]
-                student_params.append(student_params[-1] - syn_lr.detach() * grad.detach())
+                grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=False)[0]
+                # print(grad.sum().item())
+                student_params.append((student_params[-1] - syn_lr * grad).detach().requires_grad_() )
             else:
-                # grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+                grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
                 student_params.append(student_params[-1] - syn_lr * grad)
 
         # print(prof.key_averages().table(sort_by="self_cuda_memory_usage"))
@@ -351,18 +357,26 @@ def main(args):
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
         # print("-------------GRADX-------------")
+
         # grand_loss.backward()
+        # print(image_syn.grad.sum().item())
+        # print(img_list[-1].grad.sum().item())
+        # print(img_list[-2].grad.sum().item())
+
         # Fixed: 手动实现反向, 最外层不需要重新做一遍
-        grad_sum, grad_output, grad_lr = torch.torch.autograd.grad(grand_loss, [image_syn, student_params[-2], syn_lr])
+        grad_sum, grad_output, grad_lr = torch.torch.autograd.grad(grand_loss, [x, student_params[-2], syn_lr])
         # this_y = y_hat[these_indices]
         # grad_lr = torch.zeros([]).to('cuda')
+        # print(grad_sum.sum().item())
+
 
         this_y = y_hat
-        x = image_syn
+        # x = image_syn
         for i in range(args.syn_steps-1):
             index = args.syn_steps-2-i
-            x = x.detach().requires_grad_()
+            x = image_syn.detach().requires_grad_()
             g = backward_block(x, this_y,student_params, index , grad_output, student_net, criterion, syn_lr.detach().requires_grad_())
+            # print(g[0].sum().item())
             grad_sum +=g[0]
             grad_lr +=g[1]
             if(index != 0):
@@ -393,8 +407,8 @@ def main(args):
         for _ in student_params:
             del _
 
-        # if it%10 == 0:
-        #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+        if it%10 == 0:
+            print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
 
     iter_end = time.time()
     print("------------FIN TIME-------------")

@@ -1,6 +1,11 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+# from networks_fused import NormActive # 无fuse
+from networks_fused2 import NormActive # fuse
+# from networks_fused3 import NormActive # fuse+基本优化
+
+
 # Acknowledgement to
 # https://github.com/kuangliu/pytorch-cifar,
 # https://github.com/BIGBALLON/CIFAR-ZOO,
@@ -38,7 +43,8 @@ class ConvNet(nn.Module):
         padding = 3 if channel == 1 else 1
         self.conv1 = nn.Conv2d(channel, net_width, kernel_size=3, padding=padding)
         self.norm1 = self._get_normlayer(net_norm, [net_width, im_size[0], im_size[1]]) if net_norm != 'none' else nn.Identity()
-        self.act1 = self._get_activation(net_act)
+        # self.norm1 = NormActive(net_width)
+        # self.act1 = self._get_activation(net_act)
         self.pool1 = self._get_pooling(net_pooling) if net_pooling != 'none' else nn.Identity()
         if net_pooling != 'none':
             self.shape_feat[1] //= 2
@@ -47,6 +53,7 @@ class ConvNet(nn.Module):
         # --- Layer 2 ---
         self.conv2 = nn.Conv2d(net_width, net_width, kernel_size=3, padding=1)
         self.norm2 = self._get_normlayer(net_norm, [net_width , self.shape_feat[1], self.shape_feat[2]]) if net_norm != 'none' else nn.Identity()
+        # self.norm2 = NormActive(net_width)
         # self.act2 = self._get_activation(net_act)
         self.pool2 = self._get_pooling(net_pooling) if net_pooling != 'none' else nn.Identity()
         if net_pooling != 'none':
@@ -56,6 +63,7 @@ class ConvNet(nn.Module):
         # --- Layer 3 ---
         self.conv3 = nn.Conv2d(net_width, net_width, kernel_size=3, padding=1)
         self.norm3 = self._get_normlayer(net_norm, [net_width, self.shape_feat[1], self.shape_feat[2]]) if net_norm != 'none' else nn.Identity()
+        # self.norm3 = NormActive(net_width)
         # self.act3 = self._get_activation(net_act)
         self.pool3 = self._get_pooling(net_pooling) if net_pooling != 'none' else nn.Identity()
         if net_pooling != 'none':
@@ -459,12 +467,13 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.norm = norm
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
-        self.bn1 = nn.GroupNorm(planes, planes, affine=True) if self.norm == 'instancenorm' else nn.BatchNorm2d(planes)
+        # self.bn1 = nn.GroupNorm(planes, planes, affine=True) if self.norm == 'instancenorm' else nn.BatchNorm2d(planes)
+        self.bn1 = NormActive(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn2 = nn.GroupNorm(planes, planes, affine=True) if self.norm == 'instancenorm' else nn.BatchNorm2d(planes)
+        # self.bn2 = nn.GroupNorm(planes, planes, affine=True) if self.norm == 'instancenorm' else nn.BatchNorm2d(planes)
+        self.bn2 = NormActive(planes)
         self.conv3 = nn.Conv2d(planes, self.expansion*planes, kernel_size=1, bias=False)
         self.bn3 = nn.GroupNorm(self.expansion*planes, self.expansion*planes, affine=True) if self.norm == 'instancenorm' else nn.BatchNorm2d(self.expansion*planes)
-
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != self.expansion*planes:
             self.shortcut = nn.Sequential(
@@ -473,8 +482,10 @@ class Bottleneck(nn.Module):
             )
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = F.relu(self.bn2(self.conv2(out)))
+        # out = F.relu(self.bn1(self.conv1(x)))
+        # out = F.relu(self.bn2(self.conv2(out)))
+        out = self.bn1(self.conv1(x))
+        out = self.bn2(self.conv2(out))
         out = self.bn3(self.conv3(out))
         out += self.shortcut(x)
         out = F.relu(out)

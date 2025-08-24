@@ -153,7 +153,7 @@ class ReparamModule(nn.Module):
     def _forward_with_param_and_target(self, flat_param,input, target):
         with self.unflattened_param(flat_param):
             return self.module(input, target)
-
+    # @torch.compile(fullgraph=False, dynamic=True) # 这个跑不下去，不知道为什么
     def forward(self, input ,target=None, criterion = None, flat_param=None, buffers=None, **kwinputs):
         flat_param = torch.squeeze(flat_param)
         # print("PARAMS ON DEVICE: ", flat_param.get_device())

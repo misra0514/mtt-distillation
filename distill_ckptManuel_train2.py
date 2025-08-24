@@ -11,16 +11,24 @@ import wandb
 import copy
 import random
 from reparam_module import ReparamModule
+from reparam_module_forcompile import ReparamModule as ReparamModule_compile
+
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+# TODO: 前向可以正常算，这里反向的时候换成compile版本？
+# 注意compile 版本是包括了一维导数的
+# 返回值也需要改一下，原来返回的是student_params，一个list
+# 最好直接改rearam model
+# TODO: 然后forward的时候走的还是conv，backward 走unfold，需要两个模型。
+# 目前如果想用unfold的话都需要大改，包括测试用的模型也得是conv。所以需要一个额外参数
 def backward_block(x,this_y, student_params, index,grad_output , student_net, criterion, syn_lr):
     forward_params = student_params[index].detach().requires_grad_()
-    # TODO: 这里可以不做criterion，之际算反向么？
-    out = student_net(x, flat_param=forward_params)
-    ce_loss = criterion(out, this_y)
-    grad = torch.autograd.grad(ce_loss, forward_params, create_graph=True)[0]
+    # out = student_net(x, flat_param=forward_params)
+    # ce_loss = criterion(out, this_y)
+    # grad = torch.autograd.grad(ce_loss, forward_params, create_graph=True)[0]
+    grad = student_net(x,target=this_y, student_params=student_params, syn_lr=syn_lr,syn_steps=1)
     final_param = forward_params - syn_lr * grad
     if(index>0):
         return  torch.torch.autograd.grad(final_param, [x, syn_lr, forward_params], grad_outputs=grad_output)
@@ -193,8 +201,16 @@ def main(args):
         random.shuffle(buffer)
 
     best_acc = {m: 0 for m in model_eval_pool}
-
     best_std = {m: 0 for m in model_eval_pool}
+
+
+    # TODO: Compile && Warm up
+    student_net_compile = get_network("ConvNet_unfold", channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+    student_net_compile = ReparamModule_compile(student_net_compile)
+    student_net_compile.train()
+    student_net_compile = torch.compile(student_net_compile, mode="reduce-overhead")
+    # grad = student_net(x,target=this_y, student_params=student_params, syn_lr=syn_lr,syn_steps=1)
+
 
     for it in range(0, args.Iteration+1):
         save_this_it = False
@@ -379,15 +395,9 @@ def main(args):
             out = student_net(x, flat_param=forward_params)
             ce_loss = criterion(out, this_y)
 
-            if(step < args.syn_steps-1 ):
-                grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=False)[0]
-                student_params.append((student_params[-1] - syn_lr * grad).detach().requires_grad_() )
-            else:
-                grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-                student_params.append(student_params[-1] - syn_lr * grad)
+            grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
 
-            # grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-            # student_params.append(student_params[-1] - syn_lr * grad)
+            student_params.append(student_params[-1] - syn_lr * grad)
 
 
         param_loss = torch.tensor(0.0).to(args.device)
@@ -417,11 +427,12 @@ def main(args):
         grad_sum, grad_output, grad_lr = torch.torch.autograd.grad(grand_loss, [image_syn, student_params[-2], syn_lr],retain_graph=True)
 
         this_y = y_hat
-        # x = image_syn
+        x = image_syn
+
         for i in range(args.syn_steps-1):
             index = args.syn_steps-2-i
-            x = image_syn.detach().requires_grad_()
-            g = backward_block(x, this_y,student_params, index , grad_output, student_net, criterion, syn_lr.detach().requires_grad_())
+            x = x.detach().requires_grad_()
+            g = backward_block(x, this_y,student_params, index , grad_output, student_net_compile, criterion, syn_lr.detach().requires_grad_())
             grad_sum +=g[0]
             grad_lr +=g[1]
             if(index != 0):

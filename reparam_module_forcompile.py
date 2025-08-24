@@ -151,7 +151,7 @@ class ReparamModule(nn.Module):
             return self.module(input, target)
 
     # @torch.compile(fullgraph=False, dynamic=True) # 这个跑不下去，不知道为什么
-    @torch.compile
+    # @torch.compile
     def forward(self, inputs, target=None, flat_param=None, buffers=None, student_params=[],syn_lr=None,syn_steps=20,criterion=None):
         if flat_param is None:
             flat_param = self.flat_param
@@ -162,9 +162,9 @@ class ReparamModule(nn.Module):
 
         for i in range(syn_steps):
             flat_param = torch.squeeze(student_params[-1])
-            forward_warp = make_forward_warp()
+            # forward_warp = make_forward_warp()
             # grad = checkpoint(forward_warp, flat_param,  inputs, target,use_reentrant=False)
             grad = self._forward_with_param_for_checkpoint(flat_param,  inputs, target)
-            # student_params.append(student_params[-1] - syn_lr * grad)
+        #     student_params.append(student_params[-1] - syn_lr * grad)
         # return student_params
         return grad
