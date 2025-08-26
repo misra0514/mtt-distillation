@@ -1,3 +1,8 @@
+# 8.24
+# 在原有代码基础上，改一个linear+ dropout fusion。
+# DP 和relu不同，必须用输入值做反向。如果是这样就很难了，因为必须保存mask
+
+
 
 import torch 
 import torch.nn as nn
@@ -18,6 +23,7 @@ import triton.language as tl
 
 BLOCK_M = 64
 
+torch.manual_seed(42)  # 为了让dropout相同，测试用
 
 def sum_exclude_dim1(to_sum, keepdim=True):
     to_sum = to_sum.sum(dim=0, keepdim=keepdim)
@@ -167,99 +173,140 @@ def batchNorm2d_backward(x, gamma, beta, grad_output, eps=1e-5):
 
     # has_relu: tl.constexpr,       # 新增常量：是否需要做 ReLU 掩码
 
+
+
+
+@triton.autotune(
+    configs=[
+        triton.Config({'BLOCK_SIZE': bs}, num_warps=4, num_stages=2)
+        for bs in [64, 128, 256, 512, 1024]
+    ],
+    key=['HW'],
+)
 @triton.jit
 def _instancenorm_backward_kernel(
-    dY, X, gamma, out_ptr, mean_ptr, rstd_ptr,
-    dX, dgamma, dbeta,
-    stride_n, stride_c, stride_hw,
-    C, HW,
-    BLOCK_SIZE: tl.constexpr
+    dY, X, gamma, out_ptr, 
+    mean_ptr, rstd_ptr, dX, dgamma, dbeta,
+    stride_n, stride_c, C, HW,
+    BLOCK_SIZE: tl.constexpr,
 ):
-    pid = tl.program_id(0)
-    batch_id = pid // C
-    c = pid % C
-    start = batch_id * stride_n + c * stride_c
-    dy  = dY + start
-    x   = X  + start
-    dx  = dX + start
-    out = out_ptr + start
-    mean = tl.load(mean_ptr + pid).to(tl.float32)
-    rstd = tl.load(rstd_ptr + pid).to(tl.float32)
-    # accumulate dgamma, dbeta
-    _dgam = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
-    _dbet = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
+    # program id layout: (N, C)
+    n = tl.program_id(0)        # batch dimension
+    c = tl.program_id(1)        # channel dimension
+    idx_offset = n * stride_n + c * stride_c
+
+    dy_ptr = dY + idx_offset
+    x_ptr = X + idx_offset
+    dx_ptr = dX + idx_offset
+
+    # 缓存通道对应的 gamma, mean, rstd
+    g = tl.load(gamma + c).to(tl.float32)
+    mean_val = tl.load(mean_ptr + (n * C + c)).to(tl.float32)
+    rstd_val = tl.load(rstd_ptr + (n * C + c)).to(tl.float32)
+    N = HW
+
+    # 初始化局部累加器：用于 dgamma/dbeta 和 dX 求和
+    dgam_acc = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
+    dbet_acc = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
+    term1_sum_acc = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
+    term1_xhat_sum_acc = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
+
+    # 第一次遍历：累积 dgamma/dbeta 以及计算 dX 所需的全局求和
     for off in range(0, HW, BLOCK_SIZE):
-        idx  = off + tl.arange(0, BLOCK_SIZE)
+        idx = off + tl.arange(0, BLOCK_SIZE)
         mask = idx < HW
-        x_val  = tl.load(x  + idx, mask=mask, other=0.).to(tl.float32)
-        dy_val = tl.load(dy + idx, mask=mask, other=0.).to(tl.float32)
-        # 如果启用了 ReLU，则根据 out_val 决定 dy_val 是否为 0
-        # if has_relu:
-        # out_val = tl.load(out + idx, mask=mask, other=0.).to(tl.float32)
-        # dy_val = tl.where(out_val <= 0.0, 0.0, dy_val)
-        x_hat = (x_val - mean) * rstd
-        _dgam += dy_val * x_hat
-        _dbet += dy_val
-    # reduce 到通道维度
-    dgam = tl.sum(_dgam, axis=0)
-    dbet = tl.sum(_dbet, axis=0)
+
+        x_val = tl.load(x_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        dy_val = tl.load(dy_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        # out_val = tl.load(out_ptr + idx_offset + idx, mask=mask, other=0.0).to(tl.float32)
+        # out_val = tl.where(out_val <= 0.0, 0.0, 1.0)
+        # dy_val *= out_val
+        
+
+        x_hat = (x_val - mean_val) * rstd_val
+
+        # 累积 dgamma, dbeta
+        dgam_acc += dy_val * x_hat
+        dbet_acc += dy_val
+
+        # 累积计算 dX 时所需的求和：sum_j (g*dy_j) 和 sum_j (g*dy_j * x_hat_j)
+        term1_val = dy_val * g
+        term1_sum_acc += term1_val
+        term1_xhat_sum_acc += term1_val * x_hat
+
+    # 将向量求和 reduce 为标量
+    dgam = tl.sum(dgam_acc, axis=0)
+    dbet = tl.sum(dbet_acc, axis=0)
+    term1_sum = tl.sum(term1_sum_acc, axis=0)
+    term1_xhat_sum = tl.sum(term1_xhat_sum_acc, axis=0)
+
+    # 写回 dgamma, dbeta（每个程序实例写入相同结果，不会产生数据竞争）
     tl.store(dgamma + c, dgam)
     tl.store(dbeta + c, dbet)
 
-    # compute dX per-element
+    # 计算公式中的 1/N 系数
+    term2_global = term1_sum / N            # = mean(g * dy)
+    term3_global = term1_xhat_sum / N       # = mean(g * dy * x_hat)
+
+    # 第二次遍历：根据全局求和结果计算 dX
     for off in range(0, HW, BLOCK_SIZE):
-        idx  = off + tl.arange(0, BLOCK_SIZE)
+        idx = off + tl.arange(0, BLOCK_SIZE)
         mask = idx < HW
-        x_val  = tl.load(x  + idx, mask=mask, other=0.).to(tl.float32)
-        dy_val = tl.load(dy + idx, mask=mask, other=0.).to(tl.float32)
 
-        # if has_relu:                                   # ★ 再做一次 ReLU 屏蔽
-        # out_val = tl.load(out + idx,
-        #                 mask=mask, other=0.).to(tl.float32)
-        # df  = tl.where(out_val > 0,  1.0, 0.0)
-        # dy_val = df *dy_val
-        
-        x_hat = (x_val - mean) * rstd
-        N = HW
-        g = tl.load(gamma + c).to(tl.float32)
-        term1 = dy_val * g
-        term2 = tl.sum(term1, axis=0) / N
-        term3 = tl.sum(term1 * x_hat, axis=0) * x_hat / N
-        dx_hat = rstd * (term1 - term2 - term3)
-        tl.store(dx + idx, dx_hat, mask=mask)
+        x_val = tl.load(x_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        dy_val = tl.load(dy_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        # out_val = tl.load(out_ptr + idx_offset + idx, mask=mask, other=0.0).to(tl.float32)
+        # dy_val = tl.where(out_val <= 0.0, 0.0, dy_val)
+        x_hat = (x_val - mean_val) * rstd_val
+        term1_val = dy_val * g
 
-def instance_norm_backward_triton(x, gamma, grad_output, out, eps=1e-5):
-    # x, grad_output: (N, C, H, W)
+        # 公式：dx_i = rstd * [g*dy_i - term2_global - term3_global * x_hat_i]
+        dx_val = rstd_val * (term1_val - term2_global - term3_global * x_hat)
+        tl.store(dx_ptr + idx, dx_val, mask=mask)
+
+
+def instance_norm_backward_triton(x, gamma, grad_output,out, eps=1e-5):
+    """
+    计算 InstanceNorm 的反向传播 (dX, dgamma, dbeta)。
+    x, grad_output: (N, C, H, W)
+    gamma: (C,)
+    """
     N, C, H, W = x.shape
     HW = H * W
     stride_n = C * HW
     stride_c = HW
-    BLOCK_SIZE = 1024  # 可以调优
-    grad_output[out<=0 ] = 0
-    # relu_grad = (out > 0).float()
-    # grad_output *= relu_grad
 
+    # 展平输入以便在 Triton 内核中按 HW 维度遍历
     x_flat = x.contiguous().view(N, C, HW)
-    out = out.contiguous().view(N, C, HW)
+    out_flat = out.contiguous().view(N, C, HW)
+
     grad_output_flat = grad_output.contiguous().view(N, C, HW)
+    grad_output_flat[out_flat <= 0] = 0
+
     x_buf = x_flat.reshape(-1, HW)
     dy_buf = grad_output_flat.reshape(-1, HW)
+
     dX = torch.empty_like(x_buf)
     dgamma = torch.zeros(C, device=x.device, dtype=torch.float32)
     dbeta = torch.zeros(C, device=x.device, dtype=torch.float32)
-    # 使用 forward 计算 mean 和 rstd（可选提前缓存）
-    mean = x_buf.mean(dim=1, keepdim=False)
+
+    # 预先计算均值和反标准差
+    mean = x_buf.mean(dim=1)
     var = x_buf.var(dim=1, unbiased=False)
     rstd = 1.0 / torch.sqrt(var + eps)
+
     mean_ptr = mean.contiguous()
     rstd_ptr = rstd.contiguous()
-    _instancenorm_backward_kernel[(N * C,)](
-        dy_buf, x_buf, gamma, out,
+
+    # 使用二维 grid 调度 (N, C)
+    grid = (N, C)
+    _instancenorm_backward_kernel[grid](
+        dy_buf, x_buf, gamma, out_flat,
         mean_ptr, rstd_ptr,
         dX, dgamma, dbeta,
-        stride_n, stride_c, HW, C, HW,
-        BLOCK_SIZE=BLOCK_SIZE,
+        stride_n, stride_c, C, HW,
     )
+
     dX = dX.view(N, C, H, W)
     return dX, dgamma, dbeta
 
@@ -573,57 +620,23 @@ def instanceNorm_double_backwards_fn_cln(x, gamma, ggX, ggG, ggB, gO,
     return gX.view(N, C, H, W) if gX is not None else None, gG, ggO.view(N, C, H, W)
 
 
-class Snd_Order_MyLinearFunction(torch.autograd.Function):
-    '''2 forward: relu+pool+linear.backward '''
-    # TODO: 如果做ckpt，那么记得保证forward可以在算完之后全释放掉。 然后backward再重新算一遍。
-    # 现在也没有做save ctx，为啥内存消耗还是1483？
-    @staticmethod
-    def forward(ctx, dLdy, input, weight, out):
-        ctx.save_for_backward( input, weight, dLdy, out )
-        # dLdy[out<=0 ] = 0
-
-        grad_output, dw, db = instance_norm_backward_triton(input, weight, dLdy, out)
-        # grad_output, dw, db,mean, std = instanceNorm_backward(input, weight, dLdy)
-        return grad_output, dw, db
-    @staticmethod
-    def backward(ctx, grad_grad_input, grad_grad_w, grad_grad_b):
-        input, weight, dLdy, out = ctx.saved_tensors
-        gx, gG, ggO = instanceNorm_double_backwards_triton(input, weight, grad_grad_input, grad_grad_w,grad_grad_b, dLdy, out,1e-5)
-        # gx, gG, ggO = instanceNorm_double_backwards_fn_cln(input, weight, grad_grad_input, grad_grad_w,grad_grad_b, dLdy,1e-5,True   )
-        ggO = ggO.view_as(dLdy)
-        # ggO[out <= 0] = 0
-
-        # return None, gx, gG, None
-        return ggO,gx, gG, None
-
-
-class MyLinearFunction(torch.autograd.Function):
-    '''forward: relu+pool+linear '''
-    @staticmethod
-    def forward(ctx, input, weight, bias):
-        out1 = F.instance_norm(input,weight= weight, bias = bias)
-        out = F.relu(out1)
-        ctx.save_for_backward( input, weight ,out)
-        return  out
-    @staticmethod
-    def backward(ctx, dLdy):
-        input, weight, out = ctx.saved_tensors
-        return Snd_Order_MyLinearFunction.apply(dLdy ,input, weight, out)
-        # db = gin.sum(0)
-        # return gin, weight, db
 
 
 
 
-class NormActive(nn.Module):
-    # in_features 应该是1
-    def __init__(self, channel_num):
-        super().__init__()
-        self.weight = nn.Parameter(torch.randn([channel_num]))
-        self.bias = nn.Parameter(torch.randn([channel_num]))
-    def forward(self, input):
-        out = MyLinearFunction.apply(input, self.weight, self.bias)
-        return out
+def pack_hook(x):
+    print("Packing", x.shape)
+    return x
+def unpack_hook(x):
+    print("Unpacking",  x.shape)
+    return x
+
+
+
+
+
+
+
 
 
 
@@ -862,3 +875,185 @@ class GeluDrop(nn.Module):
         # out = F.dropout(out, p=self.p)
         out = Fst_Order_GeluDrop.apply(input,self.p)
         return out
+
+class Fst_Order_FcDrop(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, p):
+        # 生成缩放后掩码：m = mask / (1-p)
+        if p <= 0.0:
+            m = torch.ones_like(x)
+        else:
+            # 为了数值安全，防止 p 接近 1
+            p_clamped = torch.clamp(torch.as_tensor(p, dtype=x.dtype, device=x.device),
+                                    min=0.0, max=1.0 - 1e-6).item()
+            keep_prob = 1.0 - p_clamped
+            mask = (torch.rand_like(x) < keep_prob).to(x.dtype)
+            m = mask / keep_prob
+
+        y_gelu = F.gelu(x)  # 精确 erf 版本
+        y = y_gelu * m
+
+        # 保存必要信息（注意把已缩放的 m 存起来，避免二阶里还要知道 p）
+        ctx.save_for_backward(x, m)
+        return y
+
+    @staticmethod
+    def backward(ctx, dLdy):
+        x, m = ctx.saved_tensors
+        # p = ctx.p
+        return Snd_Order_GeluDrop.apply(dLdy ,x, m)
+
+
+# TODO: Fc drop的实现或许需要先放一放.. 因为linear要改成einsum？？
+class FcDrop(nn.Module):
+    def __init__(self, emb_size, mlp_dim):
+        self.weight = nn.Parameter(torch.randn([emb_size, mlp_dim]))
+        self.bias = nn.Parameter(torch.randn([mlp_dim]))
+        super().__init__()
+    def forward(self, input):
+        # out = F.gelu(input)
+        # out = F.dropout(out, p=self.p)
+        out = Fst_Order_GeluDrop.apply(input,self.weight, self.bias,self.p)
+        return out
+
+
+class Muffn(nn.Module):
+    def __init__(self, emb_size=512, mlp_dim=2048, dropout=0.1, num_classes=10):
+        super().__init__()
+        # (N,3,32,32) -> 展平 3072 -> emb
+        self.project = nn.Linear(3 * 32 * 32, emb_size)
+
+        # 单层 FFN（Pre-Norm + 残差）
+        self.pre_norm = nn.LayerNorm(emb_size)
+        self.fc1 = nn.Linear(emb_size, mlp_dim)
+        # self.act = nn.GELU()
+        # self.drop1 = nn.Dropout(dropout)
+        self.geludp = GeluDrop(dropout)
+        self.fc2 = nn.Linear(mlp_dim, emb_size)
+        self.drop2 = nn.Dropout(dropout)
+
+        # 分类头
+        self.post_norm = nn.LayerNorm(emb_size)
+        self.classifier = nn.Linear(emb_size, num_classes)
+
+    def forward(self, x):
+        n = x.size(0)
+        x = x.view(n, -1)          # (N,3072)
+        x = self.project(x)        # (N,emb)
+        # FFN + 残差
+        residual = x
+        y = self.pre_norm(x)
+        y = self.fc1(y)
+        # y = self.act(y)
+        # y = self.drop1(y)
+        y= self.geludp(y)
+        y = self.fc2(y)
+        y = self.drop2(y)
+        # y = self.fcdrop(y)
+        x = residual + y
+        # 分类头
+        x = self.post_norm(x)
+        return self.classifier(x)  # (N, num_classes)
+    
+class FFN(nn.Module):
+    def __init__(self, emb_size=512, mlp_dim=2048, dropout=0.1, num_classes=10):
+        super().__init__()
+        # (N,3,32,32) -> 展平 3072 -> emb
+        self.project = nn.Linear(3 * 32 * 32, emb_size)
+
+        # 单层 FFN（Pre-Norm + 残差）
+        self.pre_norm = nn.LayerNorm(emb_size)
+        self.fc1 = nn.Linear(emb_size, mlp_dim)
+        self.act = nn.GELU()
+        self.drop1 = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(mlp_dim, emb_size)
+        self.drop2 = nn.Dropout(dropout)
+
+        # 分类头
+        self.post_norm = nn.LayerNorm(emb_size)
+        self.classifier = nn.Linear(emb_size, num_classes)
+
+    def forward(self, x):
+        n = x.size(0)
+        x = x.view(n, -1)          # (N,3072)
+        x = self.project(x)        # (N,emb)
+        # FFN + 残差
+        residual = x
+        y = self.pre_norm(x)
+        y = self.fc1(y)
+        y = self.act(y)
+        y = self.drop1(y)
+        y = self.fc2(y)
+        y = self.drop2(y)
+        x = residual + y
+        # 分类头
+        x = self.post_norm(x)
+        return self.classifier(x)  # (N, num_classes)
+
+def load_state_dict_by_position(model, pretrained_state_dict):
+    model_state_dict = model.state_dict()
+    new_state_dict = {}
+    # 取出当前模型的参数名字和值（有顺序）
+    model_items = list(model_state_dict.items())
+    pretrained_items = list(pretrained_state_dict.items())
+    assert len(model_items) == len(pretrained_items), \
+        f"参数数量不一致：当前模型有 {len(model_items)} 个参数，预训练模型有 {len(pretrained_items)} 个参数"
+
+    for (model_key, _), (_, pretrained_val) in zip(model_items, pretrained_items):
+        new_state_dict[model_key] = pretrained_val
+
+    model.load_state_dict(new_state_dict)
+
+
+if __name__ == "__main__":
+
+    model1 = FFN(32).to("cuda")
+    model2 = Muffn(32).to("cuda")
+    model = model2
+
+    # torch.save(model.state_dict(), 'model_test_linearDropout.pt')
+    # model.load_state_dict(torch.load('model_test5.pt'), strict = False)
+
+    # 7是instance norm 10 是bn
+    pretrained_dict = torch.load("model_test_linearDropout.pt")
+    load_state_dict_by_position(model, pretrained_dict)
+
+
+
+    batch_size = 1024
+    transform = transforms.ToTensor()
+    cifar10 = torchvision.datasets.CIFAR10(root='/scratch/yguo25/files/mtt-distillation/data', train=True, download=True, transform=transform)
+    img, label = cifar10[0]
+    x = img.unsqueeze(0).repeat(batch_size, 1, 1, 1)  # shape: [batch_size, 3, 32, 32]
+    x = x.clone().detach().to("cuda").requires_grad_(True)
+    target = torch.tensor([label] * batch_size, device="cuda")  # shape: [batch_size]
+
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD([x], lr=1e-1)
+
+    torch.cuda.reset_peak_memory_stats()
+    torch.cuda.empty_cache()
+
+    for step in range(1):
+        optimizer.zero_grad()
+        # with torch.autograd.graph.saved_tensors_hooks(pack_hook, unpack_hook):
+        output = model(x)  # forward
+        loss = criterion(output, target)  # compute loss
+        print(loss.item())
+        # loss.backward()
+
+        dw = torch.torch.autograd.grad(loss, list(model.parameters()), create_graph=True)
+        weight = list(model.parameters()) 
+        weight = [(1- p + g).sum() for p, g in zip(weight, dw)]
+        grad_loss = sum(weight)
+
+        grad_loss.backward()  
+
+        print("----GRAD-----")
+        print(x.grad.sum().item())
+        optimizer.step()  # update x
+
+
+    print("当前显存使用:", torch.cuda.memory_allocated() / 1024**2, "MB")
+    print("峰值显存使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")

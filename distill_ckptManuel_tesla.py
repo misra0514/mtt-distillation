@@ -396,8 +396,8 @@ def main(args):
         lr_grad = torch.autograd.grad(grand_loss, syn_lr)[0]
         syn_lr.grad = lr_grad
 
-        print("-------------GRADX-------------")
-        print(syn_images.grad.sum().item())
+        # print("-------------GRADX-------------")
+        # print(syn_images.grad.sum().item())
 
         optimizer_img.step()
         optimizer_lr.step()

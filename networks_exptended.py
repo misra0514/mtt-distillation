@@ -4,7 +4,8 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 # from networks_fused3 import NormActive # fuse+基本优化
-from networks_fused import NormActive # 无fuse
+# from networks_fused import NormActive # 无fuse
+from networks_fused2 import GeluDrop # 无fuse
 
 
 class PatchEmbedding(nn.Module):
@@ -31,8 +32,9 @@ class TransformerEncoder(nn.Module):
 
         self.mlp = nn.Sequential(
             nn.Linear(emb_size, mlp_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
+            # nn.GELU(),
+            # nn.Dropout(dropout),
+            GeluDrop(dropout),
             nn.Linear(mlp_dim, emb_size),
             nn.Dropout(dropout),
         )
