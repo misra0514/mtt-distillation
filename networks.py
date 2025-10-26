@@ -37,8 +37,12 @@ class ConvNet(nn.Module):
     def forward(self, x):
         # print("MODEL DATA ON: ", x.get_device(), "MODEL PARAMS ON: ", self.classifier.weight.data.get_device())
         out = self.features(x)
+        # print("out",out.sum().item())
+
         out = out.view(out.size(0), -1)
         out = self.classifier(out)
+        print("out",out.sum().item()) 
+
         return out
 
     def _get_activation(self, net_act):

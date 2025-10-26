@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-from networks_stacked_basic import LinearStacked, LinearStacked_2 , Conv2d_Stacked
+from networks_stacked_basicblock import LinearStacked, LinearStacked_2 , Conv2d_Stacked
 
 class ConvNetStacked(nn.Module):
     def __init__(self, channel, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, im_size = (32,32),stack_size=None):
@@ -25,7 +25,7 @@ class ConvNetStacked(nn.Module):
         # self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
         # num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
         # self.num_feat = num_feat
-        # self.classifierStacked = LinearStacked(num_feat,num_classes, stack_size)
+        # self.classifier = nn.Linear(num_feat,num_classes, stack_size)
 
 
 
@@ -49,12 +49,16 @@ class ConvNetStacked(nn.Module):
         # TODO: 现在是 groupconv+ bmm。中间做了一个contiguous。 下面用branch 重新写两种Dayout
         if(self.l=="BS"): # B,S, else
             out = self.features(x)
+            print("out1",out.sum().item()) # stk=1这里还一致，后面好像也有点出入
             out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
             # 20, 2048
             # out = out.view(-1, self.stack_size, self.num_feat )
+            # print(out.shape)
             out = self.classifierStacked2(out)
-            out = torch.unbind(out, dim=1)# 如果是走的linear2需要在dim1上unbind
+            # print("out",out.sum().item()) 
+            # out = torch.unbind(out, dim=1)# 如果是走的linear2需要在dim1上unbind
             # out 10 * 4 *10
+            # Update: 不要unbind了，直接和target 做loss，注意stk在一维就可以
             return out
         else: # Stk, Batch ,esle 
             out = self.features2(x)

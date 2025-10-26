@@ -31,7 +31,8 @@ class LinearStacked_2(nn.Module):
         self.stack_size = stack_size
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = torch.nn.Parameter(torch.randn(stack_size, in_features, out_features))
+        # TODO: 在nn实现中，这里是一个转制，也就是说应该是stack_size, out_features, in_features
+        self.weight = torch.nn.Parameter(torch.randn(stack_size, out_features,in_features))
         self.bias = torch.nn.Parameter(torch.randn(self.stack_size, out_features))
 
     def forward(self, x):
@@ -39,8 +40,12 @@ class LinearStacked_2(nn.Module):
         x目前仅支持二维输入： B* STK * In。 B和stk可以view 在一起。 weight  STK*IN*OUT 
         """
         x = x.view(-1,self.stack_size,self.in_features)
-        x = torch.einsum("abc,bcd->abd",x,self.weight) # 10,2,2048 * 2,2048,10
+        x = torch.einsum("abc,bcd->abd",x,self.weight.transpose(-1, -2)) # 10,2,2048 * 2,2048,10
+        # self.weight = self.weight.view(self.out_features, self.in_features)
+        # x = x@self.weight.T
         x = x+self.bias
+        print("out",x.sum().item()) 
+
         return x
 
 class Conv2d_Stacked(nn.Module):
