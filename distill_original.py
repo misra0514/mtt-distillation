@@ -24,7 +24,7 @@ def set_random_seed(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
-set_random_seed(42)
+# set_random_seed(42)
 def main(args):
   
     torch.cuda.reset_peak_memory_stats()
@@ -41,7 +41,7 @@ def main(args):
     if args.max_experts is not None and args.max_files is not None:
         args.total_experts = args.max_experts * args.max_files
 
-    print("CUDNN STATUS: {}".format(torch.backends.cudnn.enabled))
+    # print("CUDNN STATUS: {}".format(torch.backends.cudnn.enabled))
 
     args.dsa = True if args.dsa == 'True' else False
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -133,7 +133,7 @@ def main(args):
     syn_lr = torch.tensor(args.lr_teacher).to(args.device)
 
     if args.pix_init == 'real':
-        print('initialize synthetic data from random real images')
+        # print('initialize synthetic data from random real images')
         if args.texture:
             for c in range(num_classes):
                 for i in range(args.canvas_size):
@@ -157,7 +157,7 @@ def main(args):
     optimizer_img.zero_grad()
 
     criterion = nn.CrossEntropyLoss().to(args.device)
-    print('%s training begins'%get_time())
+    # print('%s training begins'%get_time())
 
     expert_dir = os.path.join(args.buffer_path, args.dataset)
     if args.dataset == "ImageNet":
@@ -165,7 +165,7 @@ def main(args):
     if args.dataset in ["CIFAR10", "CIFAR100"] and not args.zca:
         expert_dir += "_NO_ZCA"
     expert_dir = os.path.join(expert_dir, args.model)
-    print("Expert Dir: {}".format(expert_dir))
+    # print("Expert Dir: {}".format(expert_dir))
 
     if args.load_all:
         buffer = []
@@ -221,9 +221,8 @@ def main(args):
     # bind(0.2 ,0, x)
 
 
-    # TODO: 1 get net  换成自己的参数（args）ReparamModule 可能要改
     student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
-    # student_net = get_network("ConvStacked"+args.Constk, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+    # student_net = get_network("ConvStacked"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
 
     student_net = ReparamModule(student_net)
 
@@ -348,24 +347,24 @@ def main(args):
 
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
 
-        # if args.load_all:
-        #     expert_trajectory = buffer[np.random.randint(0, len(buffer))]
-        # else:
-        expert_trajectory = buffer[expert_idx]
-            # expert_idx += 1
-            # if expert_idx == len(buffer): # expert_idx可能类似一个counter，全部读完之后再load
-            #     expert_idx = 0
-            #     file_idx += 1
-            #     if file_idx == len(expert_files): 
-            #         file_idx = 0
-            #         # random.shuffle(expert_files)
-            #     print("loading file {}".format(expert_files[file_idx]))
-            #     if args.max_files != 1:
-            #         del buffer
-            #         buffer = torch.load(expert_files[file_idx])
-            #     if args.max_experts is not None:
-            #         buffer = buffer[:args.max_experts]
-            #     # random.shuffle(buffer)
+        if args.load_all:
+            expert_trajectory = buffer[np.random.randint(0, len(buffer))]
+        else:
+            expert_trajectory = buffer[expert_idx]
+            expert_idx += 1
+            if expert_idx == len(buffer): # expert_idx可能类似一个counter，全部读完之后再load
+                expert_idx = 0
+                file_idx += 1
+                if file_idx == len(expert_files): 
+                    file_idx = 0
+                    # random.shuffle(expert_files)
+                # print("loading file {}".format(expert_files[file_idx]))
+                if args.max_files != 1:
+                    del buffer
+                    buffer = torch.load(expert_files[file_idx])
+                if args.max_experts is not None:
+                    buffer = buffer[:args.max_experts]
+                # random.shuffle(buffer)
 
         # start_epoch = np.random.randint(0, args.max_start_epoch)
         start_epoch = 0
@@ -381,7 +380,7 @@ def main(args):
         # starting_params   ： 14 * model Params
 
         student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
-        # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params  for _ in range(int(args.Constk))], 0).requires_grad_(True)]
+        # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params  for _ in range(int(args.Fuse))], 0).requires_grad_(True)]
         # student_params = [torch.cat([item.data.to(args.device).reshape(-1) for p in starting_params  for item in (p, p[0]+"1")], 0).requires_grad_(True)]
 
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
@@ -423,13 +422,12 @@ def main(args):
             # x = student_net(x, flat_param=forward_params.repeat(2))
             # x = torch.cat([x,x],1)
             # TODO: 这个repeat_interleavez在第一维上复制一遍，正确性可能还需要再检查
-            # x = x.repeat_interleave(int(args.Constk),dim =1)
-            # x = x.unsqueeze(0).repeat(int(args.Constk), 1, 1, 1, 1)
+            # x = x.repeat_interleave(int(args.Fuse),dim =1)
+            # x = x.unsqueeze(0).repeat(int(args.Fuse), 1, 1, 1, 1)
             # x = x.view(-1,3,32,32)
 
             out = student_net(x, flat_param=forward_params)
             ce_loss = criterion(out, this_y)
-            print("celoss:", ce_loss.sum().item())
 
             # ce_loss = 0
             # # TODO: 4 两个loss。这个地方目前两种model的写法不同，所以y shape 不一样...
@@ -439,7 +437,12 @@ def main(args):
 
             # TODO: 4 这里存疑，到时候student_params 会是两个，那么grad怎么算？因为目前只是同一个grad算两次而已
             grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-            print("cegrad", grad.sum().item())
+            # print("test", grad[:151424].sum().item())
+            # print("test", grad[151424:299264].sum().item())
+            # print("test", grad[:299264].sum().item())
+
+            # print("celoss:", ce_loss.sum().item())
+            # print("cegrad", grad.sum().item())
 
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
             # if(step < args.detachNum):
@@ -457,7 +460,7 @@ def main(args):
         param_dist = torch.tensor(0.0).to(args.device)
 
         # TODO: 6 总的loss需要对两个模型分开计算（毕竟target_params也不一样）
-        # target_params_all = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params  for _ in range(int(args.Constk))], 0)
+        # target_params_all = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params  for _ in range(int(args.Fuse))], 0)
         # target_params_all = torch.rand_like(student_params[-1])
         param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
         # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params reduction="sum")
@@ -489,8 +492,8 @@ def main(args):
         # exit()
 
         grand_loss.backward()
-        print("------GRAD----")
-        print(image_syn.grad.sum().item())
+        # print("--GradLoss--",grand_loss.item())
+        # print("--GRAD--",image_syn.grad.sum().item())
 
         optimizer_img.step()
         optimizer_lr.step()
@@ -510,8 +513,8 @@ def main(args):
         for _ in student_params:
             del _
 
-        if it%10 == 0:
-            print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+        # if it%10 == 0:
+        #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
 
     iter_end = time.time()
     print("------------FIN TIME-------------")
@@ -525,7 +528,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
 
-    parser.add_argument('--Constk', type=str, default="1", help='num of models being stacked')
+    parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
 

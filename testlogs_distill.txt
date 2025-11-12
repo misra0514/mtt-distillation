@@ -1,0 +1,96 @@
+==============================
+BATCH10 , fuse 2 
+CUDNN STATUS: True
+Train ZCA
+Test ZCA
+initialize synthetic data from random real images
+[2025-11-03 23:50:36] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+66.57358837127686
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+CUDNN STATUS: True
+Train ZCA
+Test ZCA
+initialize synthetic data from random real images
+[2025-11-03 23:51:53] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+70.1091742515564
+峰值cache使用: 2098.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH10 , fuse 4 
+CUDNN STATUS: True
+Train ZCA
+Test ZCA
+initialize synthetic data from random real images
+[2025-11-03 23:53:13] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+63.852567195892334
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+CUDNN STATUS: True
+Train ZCA
+Test ZCA
+initialize synthetic data from random real images
+[2025-11-03 23:54:27] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+78.36517524719238
+峰值cache使用: 2690.0 MB
+峰值tensor使用: 2642.8994140625 MB
+==============================
+BATCH10 , fuse 8 
+CUDNN STATUS: True
+Train ZCA
+Test ZCA
+initialize synthetic data from random real images
+[2025-11-03 23:55:56] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+66.67584753036499
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+CUDNN STATUS: True
+Train ZCA
+Test ZCA
+initialize synthetic data from random real images
+[2025-11-03 23:57:13] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+96.31650757789612
+峰值cache使用: 5366.0 MB
+峰值tensor使用: 5196.1953125 MB
+==============================
+BATCH100 , fuse 2 
+CUDNN STATUS: True
+Train ZCA
+Test ZCA
+initialize synthetic data from random real images
+[2025-11-03 23:59:00] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+63.79172611236572
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+CUDNN STATUS: True
+Train ZCA
+Test ZCA
+initialize synthetic data from random real images
+[2025-11-04 00:00:14] training begins
+Expert Dir: ./buffer/CIFAR10/ConvNet
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+70.92346143722534
+峰值cache使用: 2098.0 MB
+峰值tensor使用: 1838.13671875 MB

@@ -342,7 +342,6 @@ def main(args):
         #                         torch.nan_to_num(grid.detach().cpu()))}, step=it)
 
         # wandb.log({"Synthetic_LR": syn_lr.detach().cpu()}, step=it)
-
         student_net.train()
 
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
@@ -406,9 +405,9 @@ def main(args):
             x = syn_images[these_indices]
             this_y = y_hat[these_indices]
 
-            if args.texture:
-                x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
-                this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
+            # if args.texture:
+            #     x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
+            #     this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
 
             # if args.dsa and (not args.no_aug):
             #     x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
@@ -422,7 +421,10 @@ def main(args):
             # x = student_net(x, flat_param=forward_params.repeat(2))
             # x = torch.cat([x,x],1)
             # TODO: 这个repeat_interleavez在第一维上复制一遍，正确性可能还需要再检查
-            x = x.repeat_interleave(int(args.Constk),dim =1)
+            # x = x.repeat_interleave(int(args.Constk),dim =1)
+            # TODO: IMP！！！！！！ 重要！
+            # TODO: repeat_interleave 变成C，G，而不是GC(123--->112233)        x = x.repeat(1, Fuse, 1, 1)才对。
+            x = x.repeat(1, args.Constk, 1, 1).detach().clone().requires_grad_() 
             # x = x.unsqueeze(0).repeat(int(args.Constk), 1, 1, 1, 1)
             # x = x.view(-1,3,32,32)
 
@@ -431,7 +433,7 @@ def main(args):
             ce_loss = 0
             # TODO: 4 两个loss。这个地方目前两种model的写法不同，所以y shape 不一样...
             # print(out.stride())
-            out = out.transpose(0, 1)
+            # out = out.transpose(0, 1) # TODO: 这里不记得为啥本来要transpose了，反正被我注视了11.2·
             out = out.view(-1, num_classes)
             # print(this_y.shape)
             # print(out.shape)

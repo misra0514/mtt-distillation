@@ -8,7 +8,7 @@ class ConvNetStacked(nn.Module):
         super(ConvNetStacked, self).__init__()
 
         self.stack_size = stack_size
-        self.l = "BS"
+        self.l = "BS" # Batch+fuse group conv是N，G，C。G替换成FUse
         if(self.l=="BS"): # BS : Batch* fusionsize *rest,  group conv + einsum
             self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
             num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
@@ -49,7 +49,7 @@ class ConvNetStacked(nn.Module):
         # TODO: 现在是 groupconv+ bmm。中间做了一个contiguous。 下面用branch 重新写两种Dayout
         if(self.l=="BS"): # B,S, else
             out = self.features(x)
-            print("out1",out.sum().item()) # stk=1这里还一致，后面好像也有点出入
+            # print("CKPT",out.sum().item()) # stk=1这里还一致，后面好像也有点出入
             out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
             # 20, 2048
             # out = out.view(-1, self.stack_size, self.num_feat )

@@ -24,29 +24,44 @@ class LinearStacked(nn.Module):
         return x
 
 
+
+
 class LinearStacked_2(nn.Module):
     # batch* fusion * channel * WH。 
-    def __init__(self ,in_features, out_features, stack_size):
+    def __init__(self ,in_features, out_features, Fuse):
         super(LinearStacked_2, self).__init__()
-        self.stack_size = stack_size
+        self.Fuse = Fuse
         self.in_features = in_features
         self.out_features = out_features
-        # TODO: 在nn实现中，这里是一个转制，也就是说应该是stack_size, out_features, in_features
-        self.weight = torch.nn.Parameter(torch.randn(stack_size, out_features,in_features))
-        self.bias = torch.nn.Parameter(torch.randn(self.stack_size, out_features))
+        # TODO: 在nn实现中，这里是一个转制，也就是说应该是Fuse, out_features, in_features
+        self.weight = torch.nn.Parameter(torch.randn(Fuse* out_features,in_features))
+        self.bias = torch.nn.Parameter(torch.randn(self.Fuse* out_features))
 
     def forward(self, x):
         """
         x目前仅支持二维输入： B* STK * In。 B和stk可以view 在一起。 weight  STK*IN*OUT 
         """
-        x = x.view(-1,self.stack_size,self.in_features)
-        x = torch.einsum("abc,bcd->abd",x,self.weight.transpose(-1, -2)) # 10,2,2048 * 2,2048,10
-        # self.weight = self.weight.view(self.out_features, self.in_features)
-        # x = x@self.weight.T
-        x = x+self.bias
-        print("out",x.sum().item()) 
+        # self.weight = self.weight.view(self.Fuse,self.out_features,self.in_features)
+        # self.bias = self.bias.view(self.Fuse, self.out_features)
+
+        x = x.view(-1,self.Fuse, self.in_features)
+        # print(x.is_contiguous())
+
+        # # # # TODO: 这里输入如果是BAD/（而不是ABD）的话，可以得到is_contiguous 的结果。那就很简单只要调整target即可 
+        # x = torch.einsum("abc,bcd->abd",x,self.weight.view(self.Fuse,self.out_features,self.in_features).transpose(-1, -2)) 
+        # x = x+self.bias.view(self.Fuse,self.out_features)
+        # x = x.contiguous()
+
+        # 其实也可以用吧bmm。view一下即可。
+
+        # TODO: 这里输入如果是BAD/（而不是ABD）的话，可以得到is_contiguous 的结果。那就很简单只要调整target即可
+        # 现在是BAD，意味着Fusion，batch的排序，B到了第一位
+        x = torch.einsum("abc,bcd->bad",x,self.weight.view(self.Fuse,self.out_features,self.in_features).transpose(-1, -2)) 
+        x = x+self.bias.view(self.Fuse,1 ,self.out_features)
 
         return x
+
+
 
 class Conv2d_Stacked(nn.Module):
     def __init__(self, in_channels=3, out_channels=128, kernel_size=3, stride=1, padding=1, stackSize=1):

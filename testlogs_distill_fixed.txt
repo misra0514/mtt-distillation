@@ -1,0 +1,321 @@
+==============================
+BATCH10 , BASECODE 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+66.19156980514526
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+62.39381265640259
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH10 , fuse 2 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+70.90811896324158
+峰值cache使用: 2098.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH10 , fuse 4 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+76.81356120109558
+峰值cache使用: 2690.0 MB
+峰值tensor使用: 2642.8994140625 MB
+==============================
+BATCH10 , fuse 6 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+87.23599004745483
+峰值cache使用: 4030.0 MB
+峰值tensor使用: 3915.75 MB
+==============================
+BATCH10 , fuse 8 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+93.42942810058594
+峰值cache使用: 5366.0 MB
+峰值tensor使用: 5196.1953125 MB
+==============================
+BATCH50 , BASECODE
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+66.22673058509827
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+67.32930016517639
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH50 , fuse 2 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+68.40012192726135
+峰值cache使用: 2098.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH50 , fuse 4 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+76.75804042816162
+峰值cache使用: 2690.0 MB
+峰值tensor使用: 2642.8994140625 MB
+==============================
+BATCH50 , fuse 6 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+87.13989973068237
+峰值cache使用: 4030.0 MB
+峰值tensor使用: 3915.75 MB
+==============================
+BATCH50 , fuse 8 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+93.52376627922058
+峰值cache使用: 5366.0 MB
+峰值tensor使用: 5196.1953125 MB
+==============================
+BATCH100 , BASE CODE 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+66.49179244041443
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+65.86409544944763
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH100 , fuse 2 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+70.5353000164032
+峰值cache使用: 2098.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH100 , fuse 4 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+78.2826280593872
+峰值cache使用: 2690.0 MB
+峰值tensor使用: 2642.89990234375 MB
+==============================
+BATCH100 , fuse 6 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+83.68848276138306
+峰值cache使用: 4030.0 MB
+峰值tensor使用: 3915.75048828125 MB
+==============================
+BATCH100 , fuse 8 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+97.11025595664978
+峰值cache使用: 5366.0 MB
+峰值tensor使用: 5196.19580078125 MB
+==============================
+==============================
+==============================
+==============================
+==ITER 1000==
+==============================
+==============================
+==============================
+==============================
+==============================
+BATCH10 , BASECODE 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+655.6875908374786
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+595.6435375213623
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH10 , fuse 2 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+668.9930295944214
+峰值cache使用: 2098.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH10 , fuse 4 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+760.7389922142029
+峰值cache使用: 2690.0 MB
+峰值tensor使用: 2642.8994140625 MB
+==============================
+BATCH10 , fuse 6 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+835.4157607555389
+峰值cache使用: 4030.0 MB
+峰值tensor使用: 3915.75 MB
+==============================
+BATCH10 , fuse 8 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+958.4202439785004
+峰值cache使用: 5366.0 MB
+峰值tensor使用: 5196.1953125 MB
+==============================
+BATCH50 , BASECODE
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+623.0822660923004
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+618.5118250846863
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH50 , fuse 2 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+690.2671751976013
+峰值cache使用: 2098.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH50 , fuse 4 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+768.7348072528839
+峰值cache使用: 2690.0 MB
+峰值tensor使用: 2642.8994140625 MB
+==============================
+BATCH50 , fuse 6 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+850.6383709907532
+峰值cache使用: 4030.0 MB
+峰值tensor使用: 3915.75 MB
+==============================
+BATCH50 , fuse 8 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+962.6464984416962
+峰值cache使用: 5366.0 MB
+峰值tensor使用: 5196.1953125 MB
+==============================
+BATCH100 , BASE CODE 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+649.013167142868
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+639.5543370246887
+峰值cache使用: 2060.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH100 , fuse 2 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+699.9566648006439
+峰值cache使用: 2098.0 MB
+峰值tensor使用: 1838.13671875 MB
+==============================
+BATCH100 , fuse 4 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+721.8861992359161
+峰值cache使用: 2690.0 MB
+峰值tensor使用: 2642.89990234375 MB
+==============================
+BATCH100 , fuse 6 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+821.3963353633881
+峰值cache使用: 4030.0 MB
+峰值tensor使用: 3915.75048828125 MB
+==============================
+BATCH100 , fuse 8 
+Train ZCA
+Test ZCA
+loading file ./buffer/CIFAR10/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+910.5737524032593
+峰值cache使用: 5366.0 MB
+峰值tensor使用: 5196.19580078125 MB
