@@ -60,6 +60,26 @@ class LinearStacked_2(nn.Module):
         x = x+self.bias.view(self.Fuse,1 ,self.out_features)
 
         return x
+    
+class LinearStacked_2_flexFuse(nn.Module):
+    # 从horuzontal fuse 复制来的。用bmm而不是einsum。虽然没啥区别
+    def __init__(self ,in_features, out_features, Fuse):
+        super(LinearStacked_2_flexFuse, self).__init__()
+        self.Fuse = Fuse
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = torch.nn.Parameter(torch.randn(Fuse* out_features,in_features))
+        self.bias = torch.nn.Parameter(torch.randn(self.Fuse* out_features))
+
+    def forward(self, x):
+        """
+        x目前仅支持二维输入： B* STK * In。 B和stk可以view 在一起。 weight  STK*IN*OUT 
+        """
+        x = x.view(-1,self.Fuse, self.in_features).transpose(0,1)
+        x = torch.bmm(x, self.weight.view(self.Fuse, self.out_features, self.in_features).transpose(-1, -2) )
+        x = x+self.bias.view(self.Fuse,1 ,self.out_features)
+
+        return x
 
 
 

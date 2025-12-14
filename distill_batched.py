@@ -24,7 +24,7 @@ def set_random_seed(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
-# set_random_seed(42)
+set_random_seed(42)
 def main(args):
   
     torch.cuda.reset_peak_memory_stats()
@@ -479,7 +479,7 @@ def main(args):
             # print("test", grad[302848:598528].sum().item())
             # print("test", grad[:598528].sum().item())
 
-            # print("celoss:", ce_loss.sum().item())
+            print("celoss:", ce_loss.sum().item())
             # print("cegrad", grad.sum().item())
 
             # student_params.append(student_params[-1] - syn_lr * grad.detach())
@@ -495,6 +495,7 @@ def main(args):
 
 
         syn_end = time.time()
+        print("GRADSUM",grad.sum().item())
 
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
@@ -538,12 +539,12 @@ def main(args):
         # # 计算时间
         # print(f"Total backward time: {start_event.elapsed_time(end_event):.3f} ms")
         # exit()
-        # TODO: Grandloss 也是一个MSE/paramNum的平均值，所以也是乘个Fuse就可以了。
-        grand_loss *= int(args.Fuse)
+        # TODO: Grandloss 也是一个MSE/paramNum的平均值，所以也是乘个Fuse就可以了。 注意这里不需要乘法。
+        # grand_loss *= int(args.Fuse)
 
         grand_loss.backward()
-        # print("--GradLoss--",grand_loss.item())
-        # print("--GRAD--",image_syn.grad.sum().item())
+        print("--GradLoss--",grand_loss.item())
+        print("--GRAD--",image_syn.grad.sum().item())
 
         optimizer_img.step()
         optimizer_lr.step()

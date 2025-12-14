@@ -16,7 +16,7 @@ import time
 import warnings
 from reparam_module import ReparamModule
 
-from networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,conv3_double_bwd,conv3_bwd
+from networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,ConvBlock_bwd1_2,conv3_double_bwd,conv3_bwd
 from networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
@@ -99,6 +99,7 @@ def split_half_second_dim(param_list, fuse_mask_list):
             e = end * block
             # 切分并保证连续（减少显存峰值）
             output.append(p[:, s:e, ...].contiguous())
+            del p
         else:
             # 似乎只有x_out 系列是2维,在第一维切
             c = p.shape[0]
@@ -614,6 +615,8 @@ def main(args):
         indices_chunks = []
 
         syn_start = time.time()
+        conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0],shape_list, Fuse)
+
         for step in range(args.syn_steps):
 
             if not indices_chunks:
@@ -637,41 +640,42 @@ def main(args):
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
                 forward_params = student_params[-1]
-            # TODO: 3 模型load, 输入一直是一个x，输出的x虽然是两个（因为两个loss），但后续x就会被覆盖，所以这里拿list也没毛病
             # 因为group conv的原因，最开始应该在Channel 维度做cat
-            # x = student_net(x, flat_param=forward_params.repeat(2))
-            # x = torch.cat([x,x],1)
-            # TODO: 这个repeat_interleavez在第一维上复制一遍，正确性可能还需要再检查
-            # x = x.repeat_interleave(int(Fuse),dim =1)
             x = x.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
             this_y = this_y.repeat(int(Fuse))
 
             # print("FWD之前峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
             # print("FWD之前峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
-            x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin, x_out  = student_net(x, flat_param=forward_params)
-            x_out = x_out.view(-1,num_classes)
+            with torch.no_grad():
 
-            ce_loss = criterion(x_out, this_y)
-            ce_loss *= int(Fuse)
-            # TODO: 因为criterion 会求平均
-            # grad = torch.autograd.grad(ce_loss, student_params[-1], retain_graph=True)[0]
-            dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
+                x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin, x_out  = student_net(x, flat_param=forward_params)
+                x_out = x_out.view(-1,num_classes)
 
+                ce_loss = criterion(x_out, this_y)
+                ce_loss *= int(Fuse)
 
-            # print("celoss:", ce_loss.sum().item())
-            # print("cegrad", grad.sum().item())
-            # student_params.append(student_params[-1] - syn_lr * grad.detach())
-            # if(step < args.detachNum):
-            #     student_params.append(student_params[-1] - syn_lr * grad.detach())
-            # else:
-            # dw = grad.detach().requires_grad_(True)
-            grad = grad.detach().requires_grad_(True)
+                # grad = torch.autograd.grad(ce_loss, student_params[-1], retain_graph=True)[0]
+                # dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
+                # dx_out= torch.autograd.grad(ce_loss, x_out)[0] # 改成分段计算了。麻烦的点在于weight。需要全部手动改。而且会收到reparam影响
+                dx_out = crossEntropy_bwd(x_out, this_y, Fuse)
+                dx_lin, dlin_w, dlin_b = linerFused_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse)
+                dx_lin = dx_lin.reshape(-1, student_net.module.net_width * Fuse, 4,4)  # 4*4 可能需要灵活改
+                x_lin,x_out,dx_out = split_half_second_dim([x_lin,x_out,dx_out],fuse_mask_list)
+                dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse)
+                x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin = split_half_second_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin],fuse_mask_list)
+                dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse)
+                x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, dx_conv3 = split_half_second_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, dx_conv3 ],fuse_mask_list)
+                _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
+                x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, dx_conv2 = split_half_second_dim([x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, dx_conv2 ],fuse_mask_list)
+                grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
+            grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
+
             student_params.append(student_params[-1] - syn_lr *  grad)
 
         syn_end = time.time()
         # print("FWD之后峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
         # print("FWD之后峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
-        weight = student_params[-2]
+        weight = student_params[0] # weight是原始参数，不加dw
         if Fuse != bwd_Fuse:
             weight = weight[mask]
             student_params[-1] = student_params[-1][mask]
@@ -680,9 +684,11 @@ def main(args):
             # TODO: X也要吃mask     但是x已经分好了(有list)。为了简单起见，这里或许直接要上面一半好了
             # 但是注意X 不可以简单的中间切分。
             # l = [x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out]
-            x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin = split_half_second_dim([x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin],fuse_mask_list)
-            dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,x_out,dx_out = split_half_second_dim([dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,x_out,dx_out], fuse_mask_list)
-            # print(x_out.shape)
+            # x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin = split_half_second_dim([x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin],fuse_mask_list)
+            # dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,x_out,dx_out = split_half_second_dim([dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,x_out,dx_out], fuse_mask_list)
+            conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0][mask],shape_list, bwd_Fuse)
+
+            # conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w = split_half_second_dim([conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w], fuse_mask_list)
             # half = x_out.shape[0] // Fuse  # 第1维的长度
             # x_out = x_out[:half,]  # x其实不太确定。按理说Bmm之后应该是fusion在前。但是现在走einsum，"abc,bcd->bad"，b是fusion size
             # # print(x_out.sum().item()).contiguous()
@@ -712,10 +718,9 @@ def main(args):
         with torch.no_grad():
             ddx_conv = torch.zeros_like(x_conv1).cuda()
             # dw 好像只能用这种方法获取，但是w可以直接student_net.module.conv1.weight.shape
-            conv1_w, _, norm1_w, _, conv2_w, _, norm2_w, _, conv3_w, _, norm3_w, _, lin_w, _  =recover_params(weight,shape_list, bwd_Fuse)
+            # conv1_w, _, norm1_w, _, conv2_w, _, norm2_w, _, conv3_w, _, norm3_w, _, lin_w, _  =recover_params(weight,shape_list, bwd_Fuse)
             # print("DDW",dw.sum().item())
             ddw = torch.autograd.grad(grand_loss, grad)[0]
-            # ddw = grad*2*bwd_Fuse # 这个为啥不行呀？ 之前不是试过是对的么
             ddw = ddw[mask]
             del grad
             ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(ddw, shape_list,bwd_Fuse )
@@ -792,8 +797,8 @@ def main(args):
     print("syn_time     (", args.syn_steps ,"): ", syn_time)
     print("backward_time(", args.syn_steps ,"): ", bwd_time)
 
-    # print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
-    # print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
+    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
+    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
 
     # wandb.finish()
 

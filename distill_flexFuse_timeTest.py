@@ -646,8 +646,8 @@ def main(args):
             x = x.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
             this_y = this_y.repeat(int(Fuse))
 
-            # print("FWD之前峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-            # print("FWD之前峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
+            print("FWD之前峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+            print("FWD之前峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
             x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin, x_out  = student_net(x, flat_param=forward_params)
             x_out = x_out.view(-1,num_classes)
 
@@ -655,7 +655,7 @@ def main(args):
             ce_loss *= int(Fuse)
             # TODO: 因为criterion 会求平均
             # grad = torch.autograd.grad(ce_loss, student_params[-1], retain_graph=True)[0]
-            dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
+            dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_lin, dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_lin,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
 
 
             # print("celoss:", ce_loss.sum().item())
@@ -666,11 +666,16 @@ def main(args):
             # else:
             # dw = grad.detach().requires_grad_(True)
             grad = grad.detach().requires_grad_(True)
+
+            templist = recover_params(grad,shape_list, bwd_Fuse)
+
+            #     print("---Gradsum------",grad.sum().item())
+
             student_params.append(student_params[-1] - syn_lr *  grad)
 
         syn_end = time.time()
-        # print("FWD之后峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-        # print("FWD之后峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
+        print("FWD之后峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+        print("FWD之后峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
         weight = student_params[-2]
         if Fuse != bwd_Fuse:
             weight = weight[mask]
@@ -792,8 +797,8 @@ def main(args):
     print("syn_time     (", args.syn_steps ,"): ", syn_time)
     print("backward_time(", args.syn_steps ,"): ", bwd_time)
 
-    # print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
-    # print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
+    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
+    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
 
     # wandb.finish()
 

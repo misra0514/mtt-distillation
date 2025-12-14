@@ -26,6 +26,10 @@ def set_random_seed(seed=42):
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
 # set_random_seed(42)
 def main(args):
+    if (args.AccTest):
+        set_random_seed(42)
+        args.Iteration = 0
+
     prep_time = 0
     syn_time = 0
     bwd_time = 0
@@ -81,9 +85,7 @@ def main(args):
     #            job_type="CleanRepo",
     #            config=args,
     #            )
-
     # args = type('', (), {})()
-
     # for key in wandb.config._items:
     #     setattr(args, key, wandb.config._items[key])
 
@@ -154,7 +156,8 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    image_syn = torch.load("./script/in.pt")
+    if(args.AccTest):
+        image_syn = torch.load("./script/in.pt")
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)
@@ -231,6 +234,7 @@ def main(args):
 
     # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
     student_net = get_network("ConvStacked"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+    # student_net = get_network("ConvFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
 
     student_net = ReparamModule(student_net)
 
@@ -455,6 +459,11 @@ def main(args):
             # x = x.view(-1,3,32,32)
             # print(forward_params .shape)
 
+            # out = student_net(x, flat_param=forward_params)[-1]
+
+            print("FWD之前峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+            print("FWD之前峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
+ 
             out = student_net(x, flat_param=forward_params)
             out = out.view(-1,10)
 
@@ -498,7 +507,10 @@ def main(args):
 
 
         syn_end = time.time()
+        print("FWD之后峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
+        print("FWD之后峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
 
+        # continue
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
 
@@ -526,7 +538,7 @@ def main(args):
 
         # param_loss /= param_dist
 
-        grand_loss = param_loss
+        grand_loss = param_loss * int(args.Fuse) # 虽然上下都是sum。但是要做乘法。
 
         optimizer_img.zero_grad()
         optimizer_lr.zero_grad()
@@ -541,26 +553,19 @@ def main(args):
         # # 计算时间
         # print(f"Total backward time: {start_event.elapsed_time(end_event):.3f} ms")
         # exit()
-        # TODO: Grandloss 也是一个MSE/paramNum的平均值，所以也是乘个Fuse就可以了。
-        grand_loss *= int(args.Fuse)
 
         grand_loss.backward()
-        # print("--GradLoss--",grand_loss.item())
-        # print("--GRAD--",image_syn.grad.sum().item())
+        if(args.AccTest):
+            print("--GradLoss--",grand_loss.item())
+            print("--GRAD--",image_syn.grad.sum().item())
 
         optimizer_img.step()
         optimizer_lr.step()
-
         iter_end = time.time()
         prep_time += (syn_start- start) # 从iter开始一直到内层循环
         syn_time += (syn_end-syn_start) # 内层循环的时间
         # iter_time += iter_end-syn_start
         bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
-        # print("--TIME---")
-        # print("prepare time (", args.syn_steps ,"): ", prep_time)
-        # print("syn_time     (", args.syn_steps ,"): ", syn_time)
-        # print("backward_time(", args.syn_steps ,"): ", bwd_time)
-        # print("sum time (", args.syn_steps ,"): ", iter_end- start)
 
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})
@@ -588,6 +593,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
 
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
+    parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
 

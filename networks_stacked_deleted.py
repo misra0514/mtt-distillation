@@ -1,6 +1,3 @@
-# 11.29 
-# 做了一次更新。只保留了group conv 这一个分支。
-
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
@@ -11,16 +8,66 @@ class ConvNetStacked(nn.Module):
         super(ConvNetStacked, self).__init__()
 
         self.stack_size = stack_size
-        self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
-        num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
-        self.num_feat = num_feat
-        self.classifierStacked2 = LinearStacked_2(num_feat,num_classes, stack_size)
+        self.l = "BS" # Batch+fuse group conv是N，G，C。G替换成FUse
+        if(self.l=="BS"): # BS : Batch* fusionsize *rest,  group conv + einsum
+            self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
+            num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
+            self.num_feat = num_feat
+            self.classifierStacked2 = LinearStacked_2(num_feat,num_classes, stack_size)
+        else: # based on torch.bmm (conv & linear)
+            self.features2, shape_feat2 = self._make_layers_2(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
+            num_feat = shape_feat2[0]*shape_feat2[1]*shape_feat2[2]
+            self.num_feat = num_feat
+            self.classifierStacked = LinearStacked(num_feat,num_classes, stack_size)
+
+
+        # self.stack_size = stack_size
+        # self.features, shape_feat = self._make_layers(channel, net_width, net_depth, net_norm, net_act, net_pooling, im_size)
+        # num_feat = shape_feat[0]*shape_feat[1]*shape_feat[2]
+        # self.num_feat = num_feat
+        # self.classifier = nn.Linear(num_feat,num_classes, stack_size)
+
+
+
 
     def forward(self, x):
-        out = self.features(x)
-        out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
-        out = self.classifierStacked2(out)
-        return out
+        # # 额外的输入可以以channel的形式直接cat在新的维度上，这样子group conv可能比较好做，linear还需要在变换一下
+        # out = self.features(x)
+        # out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
+
+        # # 两张图片在channel 维度cat 转为0维（转置）
+        # # 20, 2048
+        # out = out.view(self.stack_size, -1, self.num_feat )
+        # out = out.permute(1,0,2).contiguous()
+        # # out = torch.cat(torch.chunk(out, self.stack_size, dim=1), 0).contiguous()
+        
+        # out = self.classifierStacked(out)
+        # out = torch.unbind(out, dim=0)# 如果是走的linear2需要在dim1上unbind
+        # return out
+
+
+        # TODO: 现在是 groupconv+ bmm。中间做了一个contiguous。 下面用branch 重新写两种Dayout
+        if(self.l=="BS"): # B,S, else
+            out = self.features(x)
+            # print("CKPT",out.sum().item()) # stk=1这里还一致，后面好像也有点出入
+            out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
+            # 20, 2048
+            # out = out.view(-1, self.stack_size, self.num_feat )
+            # print(out.shape)
+            out = self.classifierStacked2(out)
+            # print("out",out.sum().item()) 
+            # out = torch.unbind(out, dim=1)# 如果是走的linear2需要在dim1上unbind
+            # out 10 * 4 *10
+            # Update: 不要unbind了，直接和target 做loss，注意stk在一维就可以
+            return out
+        else: # Stk, Batch ,esle 
+            out = self.features2(x)
+            out = out.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
+            # 20, 2048
+            out = self.classifierStacked(out)
+            out = torch.unbind(out, dim=0)# 如果是走的linear2需要在dim1上unbind
+            return out
+
 
 
     def _get_activation(self, net_act):
@@ -102,41 +149,4 @@ class ConvNetStacked(nn.Module):
                 shape_feat[1] //= 2
                 shape_feat[2] //= 2
         return nn.Sequential(*layers), shape_feat
-
-
-
-
-class Conv_Flexfuse(nn.Module):
-    def __init__(self, channel=3, num_classes=10, net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), Fuse=2):
-        super(Conv_Flexfuse, self).__init__()
-        self.Fuse = Fuse
-        self.conv1 = nn.Conv2d(in_channels=channel*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        self.norm1 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        # self.norm1 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool1 = nn.AvgPool2d(kernel_size=2)
-        self.conv2 = nn.Conv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        self.norm2 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        # self.norm2 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool2 = nn.AvgPool2d(kernel_size=2)
-        self.conv3 = nn.Conv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        self.norm3 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        # self.norm3 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool3 = nn.AvgPool2d(kernel_size=2)
-        self.linear = LinearStacked_2(net_width * 4 * 4, num_classes,Fuse )
-        self.net_width= net_width
-
-    def forward(self, x_conv1):
-        x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
-        x_norm1 = self.conv1(x_conv1)          
-        x_pool1 = F.relu(self.norm1(x_norm1)    )
-        x_conv2 = self.pool1(x_pool1)
-        x_norm2 = self.conv2(x_conv2)          
-        x_pool2 = F.relu(self.norm2(x_norm2) )   
-        x_conv3 = self.pool2(x_pool2)
-        x_norm3 = self.conv3(x_conv3)          
-        x_pool3 = F.relu(self.norm3(x_norm3))    
-        x_lin  = self.pool3(x_pool3)
-        x_out = self.linear(x_lin)    # N x 10
-        x_out = x_out.view(-1,10)
-        return  x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out
 

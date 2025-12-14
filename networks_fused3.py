@@ -1,29 +1,3 @@
-# 10.25
-# 最基本的并行方法，F+Fcg并行，要求backward之后上半部分已经完全释放，下面还保留着计算图。用来做下一个B。
-
-# 思路1：用with nograd，再手动写二阶展开，不能调用cg=t了，而且这样合并不了（必须把with内的op单独拿出来）
-# 思路2：正常forward，但是想办法让一半的图loss.backward(create graph)（这个好像不太靠谱，因为就不能并行了） 
-# 思路3：全面重写kernel。forward用Batchgemm。一阶导数正常算，但是只save下半部分，二阶导数不变。（好像也不行，因为只要cg=t中间节点就保留，也不可能没有中间节点？）
-
-# 难点在于，同一个op，似乎很难让其一半保存在计算图中，一半不保存；op的输出tensor节点，我也不能让他一半保存一半不保存。
-
-# 手动展开一阶导数。然后每个op的输出手动分成两个量，然后上半部分detach，这样可能可以。
-
-
-# 尝试用无状态函数来解决这个问题： 正常做两个不存cg的forward，然后把第二半的grad 拿到已经做好的stateless model里面去求。
-# 即便是无状态的模型，也是得做一遍forward，然后才能backword吧？毕竟里面有那种多临时变量？
-# 所以stateless的办法看起来可行，但是实际实现的时候，为了做backward，不只需要一个loss，还需要所有的中间变量
-
-# 新的问题： 不能做到只根据loss信息就做backward。做backward必须在某一个已经建立好的计算图上，而且还需要各种中间变量。这些中间变量也很难自定义修改。
-
-
-# 使用了test 10的base code。
-# 目前策略： 使用一个stateless model来处理二阶导数。
-
-#---------------------------------------------------#
-# 本testcode 主要对比cg+autograd 实现的backward 和手写的stateless backwards的精度（速度）差距
-#---------------------------------------------------#
-
 
 
 import torch 
@@ -41,24 +15,32 @@ from operator import mul
 
 import triton
 import triton.language as tl
-import time 
-import random
-import numpy as np
-import os
-
-def set_random_seed(seed=42):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
 
 
 BLOCK_M = 64
 
+def instanceNorm_backward_plain( x, gamma, grad_output, out, eps=1e-5):
+    N, C, H, W = x.shape
+    M = H * W
+    # use fp32 for stats/accumulation to avoid fp16/bf16 error
+    x_reshaped = x.view(N, C, M).float()
+    relu_mask = (out > 0).view(N, C, M)
+    grad_output_reshaped = grad_output.view(N, C, M).float() * relu_mask
+
+    mean = x_reshaped.mean(dim=2, keepdim=True)  # (N, C, 1)
+    var = x_reshaped.var(dim=2, unbiased=False, keepdim=True)  # (N, C, 1)
+    std = torch.sqrt(var + eps)  # (N, C, 1)
+    x_hat = (x_reshaped - mean) / std  # (N, C, M)
+
+    grad_output_hat = grad_output_reshaped * gamma.view(1, C, 1).float()  # (N, C, M)
+    dx = (1. / M) / std * (
+        M * grad_output_hat
+        - grad_output_hat.sum(dim=2, keepdim=True)
+        - x_hat * (grad_output_hat * x_hat).sum(dim=2, keepdim=True)
+    )  # (N, C, M)
+    grad_gamma = (grad_output_reshaped * x_hat).sum(dim=(0, 2))  # (C,)
+    grad_beta = grad_output_reshaped.sum(dim=(0, 2))             # (C,)
+    return dx.view(N, C, H, W).to(x.dtype), grad_gamma, grad_beta
 
 def sum_exclude_dim1(to_sum, keepdim=True):
     to_sum = to_sum.sum(dim=0, keepdim=keepdim)
@@ -457,6 +439,9 @@ def instance_norm_double_backward_kernel(
 @torch.no_grad()
 
 def instanceNorm_double_backwards_triton(x, gamma, ggX, ggG, ggB, gO, out, eps=1e-5):
+    # print("CKPT--Norm",gamma.sum().item()) # ggX一样； ggG不同：0.001736530102789402 vs 0.0014542767312377691
+    # ggB -5.511566996574402e-06 vs -0.0018266912084072828
+
     N, C, H, W = x.shape
     M = H * W
     x_flat = x.view(N, C, M)
@@ -499,6 +484,7 @@ def instanceNorm_double_backwards_triton(x, gamma, ggX, ggG, ggB, gO, out, eps=1
     )
     # ggO = ggO.view(N, C, H, W)
     # ggO[out <= 0] = 0
+
     return gX.view(N, C, H, W), gG, ggO.view(N, C, H, W)
 
 
@@ -657,6 +643,8 @@ def instanceNorm_double_backwards_fn_cln(x, gamma, ggX, ggG, ggB, gO,
 
 class Snd_Order_MyLinearFunction(torch.autograd.Function):
     '''2 forward: relu+pool+linear.backward '''
+    # TODO: 如果做ckpt，那么记得保证forward可以在算完之后全释放掉。 然后backward再重新算一遍。
+    # 现在也没有做save ctx，为啥内存消耗还是1483？
     @staticmethod
     def forward(ctx, dLdy, input, weight, out):
         ctx.save_for_backward( input, weight, dLdy, out )
@@ -681,8 +669,9 @@ class MyLinearFunction(torch.autograd.Function):
     '''forward: relu+pool+linear '''
     @staticmethod
     def forward(ctx, input, weight, bias):
-        out1 = F.instance_norm(input,weight= weight, bias = bias)
-        out = F.relu(out1)
+        # out1 = F.instance_norm(input,weight= weight, bias = bias)
+        # out = F.relu(out1)
+        out = F.relu(F.instance_norm(input,weight= weight, bias = bias))
         ctx.save_for_backward( input, weight ,out)
         return  out
     @staticmethod
@@ -695,227 +684,12 @@ class MyLinearFunction(torch.autograd.Function):
 
 
 
-
-
 class NormActive(nn.Module):
     # in_features 应该是1
-    def __init__(self, channel_num):
+    def __init__(self, channel_num, affine=True):
         super().__init__()
         self.weight = nn.Parameter(torch.randn([channel_num]))
         self.bias = nn.Parameter(torch.randn([channel_num]))
     def forward(self, input):
         out = MyLinearFunction.apply(input, self.weight, self.bias)
         return out
-
-# TODO: einsum之后是不连续的？？这里需要解决。
-
-class LinearStacked_2(nn.Module):
-    # batch* fusion * channel * WH。 
-    def __init__(self ,in_features, out_features, Fuse):
-        super(LinearStacked_2, self).__init__()
-        self.Fuse = Fuse
-        self.in_features = in_features
-        self.out_features = out_features
-        # TODO: 在nn实现中，这里是一个转制，也就是说应该是Fuse, out_features, in_features
-        self.weight = torch.nn.Parameter(torch.randn(Fuse* out_features,in_features))
-        self.bias = torch.nn.Parameter(torch.randn(self.Fuse* out_features))
-
-    def forward(self, x):
-        """
-        x目前仅支持二维输入： B* STK * In。 B和stk可以view 在一起。 weight  STK*IN*OUT 
-        """
-        # self.weight = self.weight.view(self.Fuse,self.out_features,self.in_features)
-        # self.bias = self.bias.view(self.Fuse, self.out_features)
-
-        x = x.view(-1,self.Fuse, self.in_features)
-        x = torch.einsum("abc,bcd->abd",x,self.weight.view(self.Fuse,self.out_features,self.in_features).transpose(-1, -2)) 
-        x = x+self.bias.view(self.Fuse, self.out_features)
-
-        x = x.contiguous()
-        return x
-
-
-# TODO: 3 实现一个stateless 的snd order backward 包含2nd order + 1st order bwd；__init__不定义任何变量。
-# double conv  bwd 可以直接import/
-
-class group_conv_double_backward_fn():
-    def forward():
-    # const std::optional<Tensor>& ggI_opt, const std::optional<Tensor>& ggW_r_opt, const std::optional<Tensor>& ggb_opt,
-    # const Tensor& gO_r, const Tensor& weight_r, const Tensor& input,
-    # IntArrayRef stride_, IntArrayRef padding_, IntArrayRef dilation_,
-    # bool transposed_, IntArrayRef output_padding_, int64_t groups_,
-    # std::array<bool, 3> output_mask
-    # torch.ops.aten._convolution_double_backward(ggI_opt, )
-        pass
-
-# class double_bwd_conv():
-#     pass
-
-class Conv_original(nn.Module):
-    def __init__(self, net_width, Fuse):
-        super(Conv_original, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=net_width, kernel_size=3, padding=1)
-        self.norm1 = nn.BatchNorm2d(net_width, affine=True)
-        self.pool1 = nn.AvgPool2d(kernel_size=2)
-        self.classifier = nn.Linear(net_width * 16 * 16, 10)
-    def forward(self, x):
-        # x = x.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
-        x = self.conv1(x)          # N x net_width x 32 x 32
-        x = self.norm1(x)          # N x net_width x 32 x 32
-        x = F.relu(x)             # N x net_width x 32 x 32
-        x = self.pool1(x)          # N x net_width x 16 x 16
-        x = x.view(x.size(0), -1) # Flatten to N x (net_width*16*16)
-        x = self.classifier(x)    # N x 10
-        return x
-    
-class ConvNet(nn.Module):
-    def __init__(self, net_width, Fuse):
-        super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        self.norm1 = nn.BatchNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool1 = nn.AvgPool2d(kernel_size=2)
-        self.classifier = LinearStacked_2(net_width * 16 * 16, 10,2 )
-    def forward(self, x):
-        x = x.view(-1,6 ,32,32)        # 10, 256, 4,4   -> 20, 2048
-        x = self.conv1(x)          # N x net_width x 32 x 32
-        x = self.norm1(x)          # N x net_width x 32 x 32
-        x = F.relu(x)             # N x net_width x 32 x 32
-        x = self.pool1(x)          # N x net_width x 16 x 16
-        x = x.view(x.size(0), -1) # Flatten to N x (net_width*16*16)
-        x = self.classifier(x)    # N x 10
-        return x
-    
-class Myconv(nn.Module):
-    def __init__(self, net_width, Fuse):
-        super(Myconv, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        self.norm1 = nn.BatchNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool1 = nn.AvgPool2d(kernel_size=2)
-        self.classifier = LinearStacked_2(net_width * 16 * 16, 10,2 )
-    def forward(self, x, criterion, target):
-        x = x.view(-1,6 ,32,32)        # 10, 256, 4,4   -> 20, 2048
-        x_norm = self.conv1(x)          # N x net_width x 32 x 32
-        x_relu = self.norm1(x_norm)          # N x net_width x 32 x 32
-        x_pool = F.relu(x_relu)             # N x net_width x 32 x 32
-        x_pool = self.pool1(x_pool)          # N x net_width x 16 x 16
-        x_lin = x_pool.view(x_pool.size(0), -1) # Flatten to N x (net_width*16*16)
-        out = self.classifier(x_lin)    # N x 10
-        # TODO: 2 需要手动实现一阶的loss backward。并且同时把需要的ctx输出。
-        # 2.1 criterion
-        out = out.view(-1,10)
-        loss = criterion(out, target) 
-
-        # 2.2 求dw，以及所有中间要存ctx的量。 这个地方不知道能不能用autograd
-        # dw = torch.torch.autograd.grad(loss, list(model.parameters()))
-        dw=[]
-        dout = torch.torch.autograd.grad(loss, out) # criterion bwd
-        grad_output, dlinw, dlinb = torch.torch.autograd.grad(out, [x_lin, self.classifier.weight, self.classifier.bias], grad_outputs= dout)  # linear bwd
-        # relu bwd， pooling bwd
-        grad_output = grad_output.view(x_pool.shape)
-        grad_output = F.interpolate(grad_output, scale_factor=2, mode='nearest') /4
-        relu_grad = (x_relu > 0).float()
-        grad_output = grad_output * relu_grad
-        grad_output, d_gamma, d_beta = torch.torch.autograd.grad(x_relu, [x_norm,self.norm1.weight, self.norm1.bias], grad_outputs=grad_output ) # norm bwd
-        grad_output, dconvw, dconvb = torch.torch.autograd.grad(x_norm, [x,self.conv1.weight, self.conv1.bias], grad_outputs=grad_output ) # conv bwd
-        dw = [ dconvw, dconvb, d_gamma, d_beta, dlinw, dlinb]
-
-        # 2.3 求grand_loss, 这一步根据具体情况调整。
-        weight = [d.sum() for d in dw]
-        grad_loss = sum(weight)
-        return grad_loss, dw
-
-def load_state_dict_by_position(model, pretrained_state_dict):
-    model_state_dict = model.state_dict()
-    new_state_dict = {}
-    # 取出当前模型的参数名字和值（有顺序）
-    model_items = list(model_state_dict.items())
-    pretrained_items = list(pretrained_state_dict.items())
-    assert len(model_items) == len(pretrained_items), \
-        f"参数数量不一致：当前模型有 {len(model_items)} 个参数，预训练模型有 {len(pretrained_items)} 个参数"
-
-    for (model_key, _), (_, pretrained_val) in zip(model_items, pretrained_items):
-        new_state_dict[model_key] = pretrained_val
-
-    model.load_state_dict(new_state_dict)
-
-
-if __name__ == "__main__":
-    flag = 'myconv'
-    Fuse = 2
-    batch_size = 1024
-    set_random_seed() # 仅仅在ACC test的时候使用。会严重影响性能。 
-
-    model1 = ConvNet(32, Fuse).to("cuda")
-    model2 = Myconv(32, Fuse).to("cuda")
-    if flag =='conv':
-        model = model1
-    else:
-        model = model2
-
-    transform = transforms.ToTensor()
-    cifar10 = torchvision.datasets.CIFAR10(root='/scratch/yguo25/files/mtt-distillation/data', train=True, download=True, transform=transform)
-    img, label = cifar10[0]
-    x = img.unsqueeze(0).repeat(batch_size, 1, 1, 1)  # shape: [batch_size, 3, 32, 32]
-    x = x.clone().detach().to("cuda").requires_grad_(True)
-    target = torch.tensor([label] * batch_size, device="cuda")  # shape: [batch_size]
-
-
-    # TODO: 1 输入和target、weight先变成两倍
-
-    # torch.save(model.state_dict(), 'model_test7.pt')
-    # exit()
-    # # model.load_state_dict(torch.load('model_test5.pt'), strict = False)
-
-    pretrained_dict = torch.load("model_test7.pt")
-    for i,j in pretrained_dict.items():
-        if j.ndim  != 0 :
-            pretrained_dict[i] = torch.cat([j, j], dim=0)
-
-    # 如何复制，取决于原始weight里面是怎么排布的， linear放在最外面，但是weight不知道。（应该也是最外面吧）
-    # pretrained_dict = [(torch.cat([x, x], dim=0)) for x in pretrained_dict.items()] 
-    load_state_dict_by_position(model, pretrained_dict)
-
-    # x = x.repeat_interleave(Fuse,dim =1)
-    x = x.repeat(1, Fuse, 1, 1).detach().clone().requires_grad_()
-    target = target.repeat(Fuse)
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD([x], lr=1e-1)
-
-    torch.cuda.reset_peak_memory_stats()
-    torch.cuda.empty_cache()
-    start = time.time()
-
-    for step in range(1):
-        optimizer.zero_grad()
-
-        if flag =='conv':
-            output = model(x)  # forward
-            # print(output.stride())           # 查看各维度的步长  
-            # print(output.is_contiguous())    # 如果返回 True，说明是 contiguous；False 则不是。 :contentReference[oaicite:0]{index=0}
-            output = output.view(-1,10)
-            # print(output.shape)
-            loss = criterion(output, target)  # compute loss
-            # print(loss.item())
-            dw = torch.torch.autograd.grad(loss, list(model.parameters()), create_graph=True)
-            # weight = list(model.parameters()) 
-            # weight = [(1- p + g).sum() for p, g in zip(weight, dw)]
-            weight = [d.sum() for d in dw]
-            grad_loss = sum(weight)
-            print("----GRANDLOSS-----", grad_loss.item())
-            grad_loss.backward()  
-        else: 
-            output, dw = model(x,criterion, target)  # forward+1stbwd+weight op
-            print("----GRANDLOSS-----", output.item())
-            
-
-
-        print("----GRAD-----")
-        # print(x.grad.sum().item())
-        optimizer.step()  # update x
-
-    end = time.time()
-
-    print("当前显存使用:", torch.cuda.memory_allocated() / 1024**2, "MB")
-    print("峰值显存使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
-    print("时间占用：", end-start)

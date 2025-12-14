@@ -1,31 +1,4 @@
-# 10.25
-# 最基本的并行方法，F+Fcg并行，要求backward之后上半部分已经完全释放，下面还保留着计算图。用来做下一个B。
-
-# 思路1：用with nograd，再手动写二阶展开，不能调用cg=t了，而且这样合并不了（必须把with内的op单独拿出来）
-# 思路2：正常forward，但是想办法让一半的图loss.backward(create graph)（这个好像不太靠谱，因为就不能并行了） 
-# 思路3：全面重写kernel。forward用Batchgemm。一阶导数正常算，但是只save下半部分，二阶导数不变。（好像也不行，因为只要cg=t中间节点就保留，也不可能没有中间节点？）
-
-# 难点在于，同一个op，似乎很难让其一半保存在计算图中，一半不保存；op的输出tensor节点，我也不能让他一半保存一半不保存。
-
-# 手动展开一阶导数。然后每个op的输出手动分成两个量，然后上半部分detach，这样可能可以。
-
-
-# 尝试用无状态函数来解决这个问题： 正常做两个不存cg的forward，然后把第二半的grad 拿到已经做好的stateless model里面去求。
-# 即便是无状态的模型，也是得做一遍forward，然后才能backword吧？毕竟里面有那种多临时变量？
-# 所以stateless的办法看起来可行，但是实际实现的时候，为了做backward，不只需要一个loss，还需要所有的中间变量
-
-# 新的问题： 不能做到只根据loss信息就做backward。做backward必须在某一个已经建立好的计算图上，而且还需要各种中间变量。这些中间变量也很难自定义修改。
-
-
-# 使用了test 10的base code。
-# 目前策略： 使用一个stateless model来处理二阶导数。
-
-#---------------------------------------------------#
-# 本testcode 主要对比cg+autograd 实现的backward 和手写的stateless backwards的精度（速度）差距
-#---------------------------------------------------#
-
-
-
+# 理论上fused 2值不对
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -41,20 +14,6 @@ from operator import mul
 
 import triton
 import triton.language as tl
-import time 
-import random
-import numpy as np
-import os
-
-def set_random_seed(seed=42):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
 
 
 BLOCK_M = 64
@@ -208,140 +167,99 @@ def batchNorm2d_backward(x, gamma, beta, grad_output, eps=1e-5):
 
     # has_relu: tl.constexpr,       # 新增常量：是否需要做 ReLU 掩码
 
-
-
-
-@triton.autotune(
-    configs=[
-        triton.Config({'BLOCK_SIZE': bs}, num_warps=4, num_stages=2)
-        for bs in [64, 128, 256, 512, 1024]
-    ],
-    key=['HW'],
-)
 @triton.jit
 def _instancenorm_backward_kernel(
-    dY, X, gamma, out_ptr, 
-    mean_ptr, rstd_ptr, dX, dgamma, dbeta,
-    stride_n, stride_c, C, HW,
-    BLOCK_SIZE: tl.constexpr,
+    dY, X, gamma, out_ptr, mean_ptr, rstd_ptr,
+    dX, dgamma, dbeta,
+    stride_n, stride_c, stride_hw,
+    C, HW,
+    BLOCK_SIZE: tl.constexpr
 ):
-    # program id layout: (N, C)
-    n = tl.program_id(0)        # batch dimension
-    c = tl.program_id(1)        # channel dimension
-    idx_offset = n * stride_n + c * stride_c
-
-    dy_ptr = dY + idx_offset
-    x_ptr = X + idx_offset
-    dx_ptr = dX + idx_offset
-
-    # 缓存通道对应的 gamma, mean, rstd
-    g = tl.load(gamma + c).to(tl.float32)
-    mean_val = tl.load(mean_ptr + (n * C + c)).to(tl.float32)
-    rstd_val = tl.load(rstd_ptr + (n * C + c)).to(tl.float32)
-    N = HW
-
-    # 初始化局部累加器：用于 dgamma/dbeta 和 dX 求和
-    dgam_acc = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
-    dbet_acc = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
-    term1_sum_acc = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
-    term1_xhat_sum_acc = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
-
-    # 第一次遍历：累积 dgamma/dbeta 以及计算 dX 所需的全局求和
+    pid = tl.program_id(0)
+    batch_id = pid // C
+    c = pid % C
+    start = batch_id * stride_n + c * stride_c
+    dy  = dY + start
+    x   = X  + start
+    dx  = dX + start
+    out = out_ptr + start
+    mean = tl.load(mean_ptr + pid).to(tl.float32)
+    rstd = tl.load(rstd_ptr + pid).to(tl.float32)
+    # accumulate dgamma, dbeta
+    _dgam = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
+    _dbet = tl.zeros([BLOCK_SIZE], dtype=tl.float32)
     for off in range(0, HW, BLOCK_SIZE):
-        idx = off + tl.arange(0, BLOCK_SIZE)
+        idx  = off + tl.arange(0, BLOCK_SIZE)
         mask = idx < HW
-
-        x_val = tl.load(x_ptr + idx, mask=mask, other=0.0).to(tl.float32)
-        dy_val = tl.load(dy_ptr + idx, mask=mask, other=0.0).to(tl.float32)
-        # out_val = tl.load(out_ptr + idx_offset + idx, mask=mask, other=0.0).to(tl.float32)
-        # out_val = tl.where(out_val <= 0.0, 0.0, 1.0)
-        # dy_val *= out_val
-        
-
-        x_hat = (x_val - mean_val) * rstd_val
-
-        # 累积 dgamma, dbeta
-        dgam_acc += dy_val * x_hat
-        dbet_acc += dy_val
-
-        # 累积计算 dX 时所需的求和：sum_j (g*dy_j) 和 sum_j (g*dy_j * x_hat_j)
-        term1_val = dy_val * g
-        term1_sum_acc += term1_val
-        term1_xhat_sum_acc += term1_val * x_hat
-
-    # 将向量求和 reduce 为标量
-    dgam = tl.sum(dgam_acc, axis=0)
-    dbet = tl.sum(dbet_acc, axis=0)
-    term1_sum = tl.sum(term1_sum_acc, axis=0)
-    term1_xhat_sum = tl.sum(term1_xhat_sum_acc, axis=0)
-
-    # 写回 dgamma, dbeta（每个程序实例写入相同结果，不会产生数据竞争）
+        x_val  = tl.load(x  + idx, mask=mask, other=0.).to(tl.float32)
+        dy_val = tl.load(dy + idx, mask=mask, other=0.).to(tl.float32)
+        # 如果启用了 ReLU，则根据 out_val 决定 dy_val 是否为 0
+        # if has_relu:
+        # out_val = tl.load(out + idx, mask=mask, other=0.).to(tl.float32)
+        # dy_val = tl.where(out_val <= 0.0, 0.0, dy_val)
+        x_hat = (x_val - mean) * rstd
+        _dgam += dy_val * x_hat
+        _dbet += dy_val
+    # reduce 到通道维度
+    dgam = tl.sum(_dgam, axis=0)
+    dbet = tl.sum(_dbet, axis=0)
     tl.store(dgamma + c, dgam)
     tl.store(dbeta + c, dbet)
 
-    # 计算公式中的 1/N 系数
-    term2_global = term1_sum / N            # = mean(g * dy)
-    term3_global = term1_xhat_sum / N       # = mean(g * dy * x_hat)
-
-    # 第二次遍历：根据全局求和结果计算 dX
+    # compute dX per-element
     for off in range(0, HW, BLOCK_SIZE):
-        idx = off + tl.arange(0, BLOCK_SIZE)
+        idx  = off + tl.arange(0, BLOCK_SIZE)
         mask = idx < HW
+        x_val  = tl.load(x  + idx, mask=mask, other=0.).to(tl.float32)
+        dy_val = tl.load(dy + idx, mask=mask, other=0.).to(tl.float32)
 
-        x_val = tl.load(x_ptr + idx, mask=mask, other=0.0).to(tl.float32)
-        dy_val = tl.load(dy_ptr + idx, mask=mask, other=0.0).to(tl.float32)
-        # out_val = tl.load(out_ptr + idx_offset + idx, mask=mask, other=0.0).to(tl.float32)
-        # dy_val = tl.where(out_val <= 0.0, 0.0, dy_val)
-        x_hat = (x_val - mean_val) * rstd_val
-        term1_val = dy_val * g
+        # if has_relu:                                   # ★ 再做一次 ReLU 屏蔽
+        # out_val = tl.load(out + idx,
+        #                 mask=mask, other=0.).to(tl.float32)
+        # df  = tl.where(out_val > 0,  1.0, 0.0)
+        # dy_val = df *dy_val
+        
+        x_hat = (x_val - mean) * rstd
+        N = HW
+        g = tl.load(gamma + c).to(tl.float32)
+        term1 = dy_val * g
+        term2 = tl.sum(term1, axis=0) / N
+        term3 = tl.sum(term1 * x_hat, axis=0) * x_hat / N
+        dx_hat = rstd * (term1 - term2 - term3)
+        tl.store(dx + idx, dx_hat, mask=mask)
 
-        # 公式：dx_i = rstd * [g*dy_i - term2_global - term3_global * x_hat_i]
-        dx_val = rstd_val * (term1_val - term2_global - term3_global * x_hat)
-        tl.store(dx_ptr + idx, dx_val, mask=mask)
-
-
-def instance_norm_backward_triton(x, gamma, grad_output,out, eps=1e-5):
-    """
-    计算 InstanceNorm 的反向传播 (dX, dgamma, dbeta)。
-    x, grad_output: (N, C, H, W)
-    gamma: (C,)
-    """
+def instance_norm_backward_triton(x, gamma, grad_output, out, eps=1e-5):
+    # x, grad_output: (N, C, H, W)
     N, C, H, W = x.shape
     HW = H * W
     stride_n = C * HW
     stride_c = HW
+    BLOCK_SIZE = 1024  # 可以调优
+    grad_output[out<=0 ] = 0
+    # relu_grad = (out > 0).float()
+    # grad_output *= relu_grad
 
-    # 展平输入以便在 Triton 内核中按 HW 维度遍历
     x_flat = x.contiguous().view(N, C, HW)
-    out_flat = out.contiguous().view(N, C, HW)
-
+    out = out.contiguous().view(N, C, HW)
     grad_output_flat = grad_output.contiguous().view(N, C, HW)
-    grad_output_flat[out_flat <= 0] = 0
-
     x_buf = x_flat.reshape(-1, HW)
     dy_buf = grad_output_flat.reshape(-1, HW)
-
     dX = torch.empty_like(x_buf)
     dgamma = torch.zeros(C, device=x.device, dtype=torch.float32)
     dbeta = torch.zeros(C, device=x.device, dtype=torch.float32)
-
-    # 预先计算均值和反标准差
-    mean = x_buf.mean(dim=1)
+    # 使用 forward 计算 mean 和 rstd（可选提前缓存）
+    mean = x_buf.mean(dim=1, keepdim=False)
     var = x_buf.var(dim=1, unbiased=False)
     rstd = 1.0 / torch.sqrt(var + eps)
-
     mean_ptr = mean.contiguous()
     rstd_ptr = rstd.contiguous()
-
-    # 使用二维 grid 调度 (N, C)
-    grid = (N, C)
-    _instancenorm_backward_kernel[grid](
-        dy_buf, x_buf, gamma, out_flat,
+    _instancenorm_backward_kernel[(N * C,)](
+        dy_buf, x_buf, gamma, out,
         mean_ptr, rstd_ptr,
         dX, dgamma, dbeta,
-        stride_n, stride_c, C, HW,
+        stride_n, stride_c, HW, C, HW,
+        BLOCK_SIZE=BLOCK_SIZE,
     )
-
     dX = dX.view(N, C, H, W)
     return dX, dgamma, dbeta
 
@@ -457,6 +375,7 @@ def instance_norm_double_backward_kernel(
 @torch.no_grad()
 
 def instanceNorm_double_backwards_triton(x, gamma, ggX, ggG, ggB, gO, out, eps=1e-5):
+
     N, C, H, W = x.shape
     M = H * W
     x_flat = x.view(N, C, M)
@@ -499,6 +418,8 @@ def instanceNorm_double_backwards_triton(x, gamma, ggX, ggG, ggB, gO, out, eps=1
     )
     # ggO = ggO.view(N, C, H, W)
     # ggO[out <= 0] = 0
+    # print("CKPT--Norm",ggO.sum().item())
+
     return gX.view(N, C, H, W), gG, ggO.view(N, C, H, W)
 
 
@@ -657,6 +578,8 @@ def instanceNorm_double_backwards_fn_cln(x, gamma, ggX, ggG, ggB, gO,
 
 class Snd_Order_MyLinearFunction(torch.autograd.Function):
     '''2 forward: relu+pool+linear.backward '''
+    # TODO: 如果做ckpt，那么记得保证forward可以在算完之后全释放掉。 然后backward再重新算一遍。
+    # 现在也没有做save ctx，为啥内存消耗还是1483？
     @staticmethod
     def forward(ctx, dLdy, input, weight, out):
         ctx.save_for_backward( input, weight, dLdy, out )
@@ -695,8 +618,6 @@ class MyLinearFunction(torch.autograd.Function):
 
 
 
-
-
 class NormActive(nn.Module):
     # in_features 应该是1
     def __init__(self, channel_num):
@@ -707,215 +628,240 @@ class NormActive(nn.Module):
         out = MyLinearFunction.apply(input, self.weight, self.bias)
         return out
 
-# TODO: einsum之后是不连续的？？这里需要解决。
-
-class LinearStacked_2(nn.Module):
-    # batch* fusion * channel * WH。 
-    def __init__(self ,in_features, out_features, Fuse):
-        super(LinearStacked_2, self).__init__()
-        self.Fuse = Fuse
-        self.in_features = in_features
-        self.out_features = out_features
-        # TODO: 在nn实现中，这里是一个转制，也就是说应该是Fuse, out_features, in_features
-        self.weight = torch.nn.Parameter(torch.randn(Fuse* out_features,in_features))
-        self.bias = torch.nn.Parameter(torch.randn(self.Fuse* out_features))
-
-    def forward(self, x):
-        """
-        x目前仅支持二维输入： B* STK * In。 B和stk可以view 在一起。 weight  STK*IN*OUT 
-        """
-        # self.weight = self.weight.view(self.Fuse,self.out_features,self.in_features)
-        # self.bias = self.bias.view(self.Fuse, self.out_features)
-
-        x = x.view(-1,self.Fuse, self.in_features)
-        x = torch.einsum("abc,bcd->abd",x,self.weight.view(self.Fuse,self.out_features,self.in_features).transpose(-1, -2)) 
-        x = x+self.bias.view(self.Fuse, self.out_features)
-
-        x = x.contiguous()
-        return x
 
 
-# TODO: 3 实现一个stateless 的snd order backward 包含2nd order + 1st order bwd；__init__不定义任何变量。
-# double conv  bwd 可以直接import/
 
-class group_conv_double_backward_fn():
-    def forward():
-    # const std::optional<Tensor>& ggI_opt, const std::optional<Tensor>& ggW_r_opt, const std::optional<Tensor>& ggb_opt,
-    # const Tensor& gO_r, const Tensor& weight_r, const Tensor& input,
-    # IntArrayRef stride_, IntArrayRef padding_, IntArrayRef dilation_,
-    # bool transposed_, IntArrayRef output_padding_, int64_t groups_,
-    # std::array<bool, 3> output_mask
-    # torch.ops.aten._convolution_double_backward(ggI_opt, )
-        pass
+_INV_SQRT2 = 1.0 / (2.0 ** 0.5)
+_INV_SQRT2PI = 1.0 / math.sqrt(2.0 * math.pi)  # 0.3989422804014327
 
-# class double_bwd_conv():
-#     pass
+# ------ Triton kernel: gX = gY * m * gelu'(x) ------
+@triton.jit
+def _gelu_drop_grad_kernel(
+    x_ptr, gy_ptr, m_ptr, gx_ptr,
+    n_elements: tl.constexpr,
+    DTYPE: tl.constexpr,           # tl.float32 / tl.float16 / tl.bfloat16
+    BLOCK_SIZE: tl.constexpr
+):
+    pid = tl.program_id(0)
+    offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    mask = offs < n_elements
 
-class Conv_original(nn.Module):
-    def __init__(self, net_width, Fuse):
-        super(Conv_original, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=net_width, kernel_size=3, padding=1)
-        self.norm1 = nn.BatchNorm2d(net_width, affine=True)
-        self.pool1 = nn.AvgPool2d(kernel_size=2)
-        self.classifier = nn.Linear(net_width * 16 * 16, 10)
-    def forward(self, x):
-        # x = x.view(-1, self.num_feat)        # 10, 256, 4,4   -> 20, 2048
-        x = self.conv1(x)          # N x net_width x 32 x 32
-        x = self.norm1(x)          # N x net_width x 32 x 32
-        x = F.relu(x)             # N x net_width x 32 x 32
-        x = self.pool1(x)          # N x net_width x 16 x 16
-        x = x.view(x.size(0), -1) # Flatten to N x (net_width*16*16)
-        x = self.classifier(x)    # N x 10
-        return x
-    
-class ConvNet(nn.Module):
-    def __init__(self, net_width, Fuse):
-        super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        self.norm1 = nn.BatchNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool1 = nn.AvgPool2d(kernel_size=2)
-        self.classifier = LinearStacked_2(net_width * 16 * 16, 10,2 )
-    def forward(self, x):
-        x = x.view(-1,6 ,32,32)        # 10, 256, 4,4   -> 20, 2048
-        x = self.conv1(x)          # N x net_width x 32 x 32
-        x = self.norm1(x)          # N x net_width x 32 x 32
-        x = F.relu(x)             # N x net_width x 32 x 32
-        x = self.pool1(x)          # N x net_width x 16 x 16
-        x = x.view(x.size(0), -1) # Flatten to N x (net_width*16*16)
-        x = self.classifier(x)    # N x 10
-        return x
-    
-class Myconv(nn.Module):
-    def __init__(self, net_width, Fuse):
-        super(Myconv, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=3*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        self.norm1 = nn.BatchNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool1 = nn.AvgPool2d(kernel_size=2)
-        self.classifier = LinearStacked_2(net_width * 16 * 16, 10,2 )
-    def forward(self, x, criterion, target):
-        x = x.view(-1,6 ,32,32)        # 10, 256, 4,4   -> 20, 2048
-        x_norm = self.conv1(x)          # N x net_width x 32 x 32
-        x_relu = self.norm1(x_norm)          # N x net_width x 32 x 32
-        x_pool = F.relu(x_relu)             # N x net_width x 32 x 32
-        x_pool = self.pool1(x_pool)          # N x net_width x 16 x 16
-        x_lin = x_pool.view(x_pool.size(0), -1) # Flatten to N x (net_width*16*16)
-        out = self.classifier(x_lin)    # N x 10
-        # TODO: 2 需要手动实现一阶的loss backward。并且同时把需要的ctx输出。
-        # 2.1 criterion
-        out = out.view(-1,10)
-        loss = criterion(out, target) 
+    # load -> fp32 计算，提升数值稳定性
+    x  = tl.load(x_ptr  + offs, mask=mask, other=0).to(tl.float32)
+    gy = tl.load(gy_ptr + offs, mask=mask, other=0).to(tl.float32)
+    mm = tl.load(m_ptr  + offs, mask=mask, other=0).to(tl.float32)
 
-        # 2.2 求dw，以及所有中间要存ctx的量。 这个地方不知道能不能用autograd
-        # dw = torch.torch.autograd.grad(loss, list(model.parameters()))
-        dw=[]
-        dout = torch.torch.autograd.grad(loss, out) # criterion bwd
-        grad_output, dlinw, dlinb = torch.torch.autograd.grad(out, [x_lin, self.classifier.weight, self.classifier.bias], grad_outputs= dout)  # linear bwd
-        # relu bwd， pooling bwd
-        grad_output = grad_output.view(x_pool.shape)
-        grad_output = F.interpolate(grad_output, scale_factor=2, mode='nearest') /4
-        relu_grad = (x_relu > 0).float()
-        grad_output = grad_output * relu_grad
-        grad_output, d_gamma, d_beta = torch.torch.autograd.grad(x_relu, [x_norm,self.norm1.weight, self.norm1.bias], grad_outputs=grad_output ) # norm bwd
-        grad_output, dconvw, dconvb = torch.torch.autograd.grad(x_norm, [x,self.conv1.weight, self.conv1.bias], grad_outputs=grad_output ) # conv bwd
-        dw = [ dconvw, dconvb, d_gamma, d_beta, dlinw, dlinb]
+    inv_sqrt2   = 0.7071067811865476  # _INV_SQRT2
+    inv_sqrt2pi = 0.3989422804014327  # _INV_SQRT2PI
 
-        # 2.3 求grand_loss, 这一步根据具体情况调整。
-        weight = [d.sum() for d in dw]
-        grad_loss = sum(weight)
-        return grad_loss, dw
+    # φ(x) = exp(-x^2/2) / sqrt(2π)
+    phi = tl.exp(-0.5 * x * x) * inv_sqrt2pi
+    # gelu'(x) = 0.5*(1+erf(x/√2)) + x*φ(x)
+    gp = 0.5 * (1.0 + tl.erf(x * inv_sqrt2)) + x * phi
 
-def load_state_dict_by_position(model, pretrained_state_dict):
-    model_state_dict = model.state_dict()
-    new_state_dict = {}
-    # 取出当前模型的参数名字和值（有顺序）
-    model_items = list(model_state_dict.items())
-    pretrained_items = list(pretrained_state_dict.items())
-    assert len(model_items) == len(pretrained_items), \
-        f"参数数量不一致：当前模型有 {len(model_items)} 个参数，预训练模型有 {len(pretrained_items)} 个参数"
-
-    for (model_key, _), (_, pretrained_val) in zip(model_items, pretrained_items):
-        new_state_dict[model_key] = pretrained_val
-
-    model.load_state_dict(new_state_dict)
+    gx = gy * mm * gp
+    tl.store(gx_ptr + offs, gx.to(DTYPE), mask=mask)
 
 
-if __name__ == "__main__":
-    flag = 'myconv'
-    Fuse = 2
-    batch_size = 1024
-    set_random_seed() # 仅仅在ACC test的时候使用。会严重影响性能。 
+def gelu_drop_grad_triton(gY: torch.Tensor, x: torch.Tensor, m: torch.Tensor, out: torch.Tensor = None):
+    """
+    计算 gX = gY * m * GELU'(x)
+    - x, gY, m: 同形状张量（m 为已按 1/(1-p) 缩放后的 mask）
+    - 输出 dtype 默认与 gY.dtype 一致
+    """
+    assert x.is_cuda and gY.is_cuda and m.is_cuda, "use CUDA tensors"
+    assert x.shape == gY.shape == m.shape, "shape mismatch"
 
-    model1 = ConvNet(32, Fuse).to("cuda")
-    model2 = Myconv(32, Fuse).to("cuda")
-    if flag =='conv':
-        model = model1
+    # 为了内存访问合并，这里用 1D contiguous 缓冲
+    x_c  = x.contiguous()
+    gy_c = gY.contiguous()
+    m_c  = m.contiguous()
+
+    if out is None:
+        out = torch.empty_like(gy_c)
     else:
-        model = model2
+        assert out.is_cuda and out.dtype == gY.dtype and out.shape == gY.shape
+    gx_c = out.contiguous()
 
-    transform = transforms.ToTensor()
-    cifar10 = torchvision.datasets.CIFAR10(root='/scratch/yguo25/files/mtt-distillation/data', train=True, download=True, transform=transform)
-    img, label = cifar10[0]
-    x = img.unsqueeze(0).repeat(batch_size, 1, 1, 1)  # shape: [batch_size, 3, 32, 32]
-    x = x.clone().detach().to("cuda").requires_grad_(True)
-    target = torch.tensor([label] * batch_size, device="cuda")  # shape: [batch_size]
+    n = x_c.numel()
 
+    # 选择 Triton 输出 dtype
+    if gx_c.dtype == torch.float16:
+        DTYPE = tl.float16
+    elif gx_c.dtype == torch.bfloat16:
+        DTYPE = tl.bfloat16
+    elif gx_c.dtype == torch.float32:
+        DTYPE = tl.float32
+    else:
+        raise TypeError(f"unsupported dtype: {gx_c.dtype}")
 
-    # TODO: 1 输入和target、weight先变成两倍
+    BLOCK_SIZE = 1024
+    grid = lambda meta: (triton.cdiv(n, meta['BLOCK_SIZE']),)
 
-    # torch.save(model.state_dict(), 'model_test7.pt')
-    # exit()
-    # # model.load_state_dict(torch.load('model_test5.pt'), strict = False)
-
-    pretrained_dict = torch.load("model_test7.pt")
-    for i,j in pretrained_dict.items():
-        if j.ndim  != 0 :
-            pretrained_dict[i] = torch.cat([j, j], dim=0)
-
-    # 如何复制，取决于原始weight里面是怎么排布的， linear放在最外面，但是weight不知道。（应该也是最外面吧）
-    # pretrained_dict = [(torch.cat([x, x], dim=0)) for x in pretrained_dict.items()] 
-    load_state_dict_by_position(model, pretrained_dict)
-
-    # x = x.repeat_interleave(Fuse,dim =1)
-    x = x.repeat(1, Fuse, 1, 1).detach().clone().requires_grad_()
-    target = target.repeat(Fuse)
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD([x], lr=1e-1)
-
-    torch.cuda.reset_peak_memory_stats()
-    torch.cuda.empty_cache()
-    start = time.time()
-
-    for step in range(1):
-        optimizer.zero_grad()
-
-        if flag =='conv':
-            output = model(x)  # forward
-            # print(output.stride())           # 查看各维度的步长  
-            # print(output.is_contiguous())    # 如果返回 True，说明是 contiguous；False 则不是。 :contentReference[oaicite:0]{index=0}
-            output = output.view(-1,10)
-            # print(output.shape)
-            loss = criterion(output, target)  # compute loss
-            # print(loss.item())
-            dw = torch.torch.autograd.grad(loss, list(model.parameters()), create_graph=True)
-            # weight = list(model.parameters()) 
-            # weight = [(1- p + g).sum() for p, g in zip(weight, dw)]
-            weight = [d.sum() for d in dw]
-            grad_loss = sum(weight)
-            print("----GRANDLOSS-----", grad_loss.item())
-            grad_loss.backward()  
-        else: 
-            output, dw = model(x,criterion, target)  # forward+1stbwd+weight op
-            print("----GRANDLOSS-----", output.item())
-            
+    _gelu_drop_grad_kernel[grid](
+        x_c, gy_c, m_c, gx_c,
+        n_elements=n,
+        DTYPE=DTYPE,
+        BLOCK_SIZE=BLOCK_SIZE,
+        num_warps=4
+    )
+    return gx_c
 
 
-        print("----GRAD-----")
-        # print(x.grad.sum().item())
-        optimizer.step()  # update x
+# -------- 二阶：同时算 ggY 与 ggx ------------
+@triton.jit
+def _gelu_drop_double_grad_kernel(
+    ggx_in_ptr, gy_ptr, x_ptr, m_ptr,     # inputs: ggX, gY, x, m
+    ggy_out_ptr, ggx_out_ptr,             # outputs: ggY, ggx
+    n_elements: tl.constexpr,
+    DTYPE_GGY: tl.constexpr,              # 输出 ggY 的 dtype（通常跟 gY 一致）
+    DTYPE_GGX: tl.constexpr,              # 输出 ggx 的 dtype（通常跟 x 一致）
+    BLOCK_SIZE: tl.constexpr
+):
+    pid  = tl.program_id(0)
+    offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    mask = offs < n_elements
 
-    end = time.time()
+    ggX = tl.load(ggx_in_ptr + offs, mask=mask, other=0).to(tl.float32)
+    gY  = tl.load(gy_ptr     + offs, mask=mask, other=0).to(tl.float32)
+    x   = tl.load(x_ptr      + offs, mask=mask, other=0).to(tl.float32)
+    mm  = tl.load(m_ptr      + offs, mask=mask, other=0).to(tl.float32)
 
-    print("当前显存使用:", torch.cuda.memory_allocated() / 1024**2, "MB")
-    print("峰值显存使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
-    print("时间占用：", end-start)
+    inv_sqrt2   = 0.7071067811865476
+    inv_sqrt2pi = 0.3989422804014327
+
+    # φ(x), g'(x), g''(x)
+    phi = tl.exp(-0.5 * x * x) * inv_sqrt2pi
+    gp  = 0.5 * (1.0 + tl.erf(x * inv_sqrt2)) + x * phi
+    gpp = (2.0 - x * x) * phi
+
+    # ggY = ggX * m * g'(x)
+    ggY = ggX * mm * gp
+    # ggx = ggX * gY * m * g''(x)
+    ggx = ggX * gY * mm * gpp
+
+    tl.store(ggy_out_ptr + offs, ggY.to(DTYPE_GGY), mask=mask)
+    tl.store(ggx_out_ptr + offs, ggx.to(DTYPE_GGX), mask=mask)
+
+
+def gelu_drop_double_grad_triton(ggX: torch.Tensor, gY: torch.Tensor, x: torch.Tensor, m: torch.Tensor,
+                                 out_ggY: torch.Tensor = None, out_ggx: torch.Tensor = None):
+    """
+    计算 (ggY, ggx)：
+      ggY = ggX * m * GELU'(x)
+      ggx = ggX * gY * m * GELU''(x)
+    - ggX, gY, x, m 需同形状且均在 CUDA
+    - out_ggY dtype 建议与 gY.dtype 对齐；out_ggx dtype 建议与 x.dtype 对齐
+    """
+    assert ggX.is_cuda and gY.is_cuda and x.is_cuda and m.is_cuda
+    assert ggX.shape == gY.shape == x.shape == m.shape
+
+    ggX_c = ggX.contiguous()
+    gY_c  = gY.contiguous()
+    x_c   = x.contiguous()
+    m_c   = m.contiguous()
+
+    if out_ggY is None:
+        out_ggY = torch.empty_like(gY_c)
+    if out_ggx is None:
+        out_ggx = torch.empty_like(x_c)
+    ggy_c  = out_ggY.contiguous()
+    ggx_c2 = out_ggx.contiguous()
+
+    n = ggX_c.numel()
+
+    def _to_tl_dtype(t: torch.Tensor):
+        if t.dtype == torch.float16:  return tl.float16
+        if t.dtype == torch.bfloat16: return tl.bfloat16
+        if t.dtype == torch.float32:  return tl.float32
+        raise TypeError(f"unsupported dtype: {t.dtype}")
+
+    DTYPE_GGY = _to_tl_dtype(ggy_c)
+    DTYPE_GGX = _to_tl_dtype(ggx_c2)
+
+    BLOCK_SIZE = 1024
+    grid = lambda meta: (triton.cdiv(n, meta['BLOCK_SIZE']),)
+
+    _gelu_drop_double_grad_kernel[grid](
+        ggX_c, gY_c, x_c, m_c,
+        ggy_c, ggx_c2,
+        n_elements=n,
+        DTYPE_GGY=DTYPE_GGY,
+        DTYPE_GGX=DTYPE_GGX,
+        BLOCK_SIZE=BLOCK_SIZE,
+        num_warps=4
+    )
+    return ggy_c, ggx_c2
+
+
+def _phi(x):
+    # x 已在 GPU；常数是 Python float，会作为 kernel 的标量传入，不触发 H2D 拷贝
+    return torch.exp(-0.5 * x * x) * _INV_SQRT2PI
+
+def _gelu_prime(x):
+    # GELU'(x) = 0.5(1+erf(x/√2)) + x φ(x)
+    return 0.5 * (1.0 + torch.special.erf(x * _INV_SQRT2)) + x * _phi(x)
+
+def _gelu_double_prime(x):
+    # GELU''(x) = (2 - x^2) φ(x)
+    return (2.0 - x * x) * _phi(x)
+
+
+
+class Snd_Order_GeluDrop(torch.autograd.Function):
+    '''2 forward: relu+pool+linear.backward '''
+    @staticmethod
+    def forward(ctx, gY, x, m):
+        # gX = gY * m * _gelu_prime(x)
+        gX = gelu_drop_grad_triton(gY, x, m)
+        ctx.save_for_backward(gY, x, m)
+        return gX, None
+
+
+    @staticmethod
+    def backward(ctx, ggX, _ggNone):
+        gY, x, m = ctx.saved_tensors
+        # 二阶：单核同时得到 (ggY, ggx)
+        ggY, ggx = gelu_drop_double_grad_triton(ggX, gY, x, m)
+        # 对 y 与 m 不回传梯度
+        return ggY, ggx, None
+
+
+class Fst_Order_GeluDrop(torch.autograd.Function):
+    '''forward: gelu+dropout '''
+    @staticmethod
+    def forward(ctx, x, p):
+        # 生成缩放后掩码：m = mask / (1-p)
+        if p <= 0.0:
+            m = torch.ones_like(x)
+        else:
+            # 为了数值安全，防止 p 接近 1
+            p_clamped = torch.clamp(torch.as_tensor(p, dtype=x.dtype, device=x.device),
+                                    min=0.0, max=1.0 - 1e-6).item()
+            keep_prob = 1.0 - p_clamped
+            mask = (torch.rand_like(x) < keep_prob).to(x.dtype)
+            m = mask / keep_prob
+
+        y_gelu = F.gelu(x)  # 精确 erf 版本
+        y = y_gelu * m
+
+        # 保存必要信息（注意把已缩放的 m 存起来，避免二阶里还要知道 p）
+        ctx.save_for_backward(x, m)
+        return y
+
+    @staticmethod
+    def backward(ctx, dLdy):
+        x, m = ctx.saved_tensors
+        # p = ctx.p
+        return Snd_Order_GeluDrop.apply(dLdy ,x, m)
+
+
+class GeluDrop(nn.Module):
+    def __init__(self,  p=0.1):
+        self.p = p
+        super().__init__()
+    def forward(self, input):
+        # out = F.gelu(input)
+        # out = F.dropout(out, p=self.p)
+        out = Fst_Order_GeluDrop.apply(input,self.p)
+        return out
