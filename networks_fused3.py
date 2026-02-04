@@ -63,6 +63,109 @@ def expand_as_dim1(src, target):
         src_expanded = src_expanded.unsqueeze(1)
     return src_expanded.expand_as(target)
 
+def batchnorm_double_backwards_fn_new(input, gamma, ggI, ggG, ggB, gO, eps=1e-5,
+                                  running_mean=None, running_var=None, training=True):
+    N, C, H, W = input.shape
+    M = N * H * W
+
+    device = input.device
+    affine = gamma is not None
+    if training:
+        # per-channel mean/var over (N,H,W)
+        # 用 float32 算统计量更稳（尤其输入是 fp16/bf16）
+        x32 = input.float()
+        save_mean = x32.mean(dim=(0, 2, 3))                         # (C,)
+        var = x32.var(dim=(0, 2, 3), unbiased=False)           # (C,)
+        rstd = torch.rsqrt(var + eps).to(input.dtype)          # (C,)  = (var+eps)^(-1/2)
+
+        mu = unsqueeze_dim1(save_mean.to(input.dtype), input)
+        sigma2_eps_neg_1_2 = unsqueeze_dim1(rstd, input)
+
+    if affine:
+        gamma = gamma.to(device)
+        gamma_expanded = expand_as_dim1(gamma, input)
+        if ggG is not None:
+            ggG = ggG.to(device)
+            ggG_expanded = expand_as_dim1(ggG, input)
+        if ggB is not None:
+            ggB = ggB.to(device)
+            ggB_expanded = expand_as_dim1(ggB, input)
+    else:
+        gamma_expanded = 1.0
+
+    mu = unsqueeze_dim1(save_mean if training else running_mean, input)
+    input_sub_mu = input - mu
+    # sigma2_eps_neg_1_2 = unsqueeze_dim1(
+    #     save_std if training else (running_var + eps).pow(-1. / 2),
+    #     input
+    # )
+    sigma2_eps_neg_1_2 = unsqueeze_dim1(rstd, input)
+    sigma2_eps_neg_1 = sigma2_eps_neg_1_2.pow(2)
+    sigma2_eps_neg_3_2 = sigma2_eps_neg_1_2.pow(3)
+
+
+    input_sub_mu = input - mu
+    input_mu_sigma2_neg_3_2 = input_sub_mu * sigma2_eps_neg_3_2
+    gOinmu_sum = sum_exclude_dim1(gO * input_sub_mu)
+    gO_sum = sum_exclude_dim1(gO)
+
+    gI = None
+    if ggI is not None and training:
+        ggI = ggI.to(device)
+        ggI_sum = sum_exclude_dim1(ggI)
+        ggIinmu_sum = sum_exclude_dim1(ggI * input_sub_mu)
+        all_sub = ((ggI_sum * gO_sum).div_(M)).sub_(sum_exclude_dim1(gO * ggI)).add_(
+            (sigma2_eps_neg_1 * gOinmu_sum * ggIinmu_sum).mul_(3.0 / M)
+        )
+        gI_0t = (input_mu_sigma2_neg_3_2 * all_sub).div_(M)
+        gI_1t = (ggIinmu_sum * sigma2_eps_neg_3_2).div_(M) * (gO_sum.div(M) - gO)
+        gI_2t = (gOinmu_sum * sigma2_eps_neg_3_2).div_(M) * (ggI_sum.div(M) - ggI)
+        gI = gamma_expanded * (gI_0t + gI_1t + gI_2t)
+
+    if affine and ggG is not None:
+        if training:
+            t0 = gO * sigma2_eps_neg_1_2
+            t1 = (sigma2_eps_neg_1_2 * gO_sum).div_(-M)
+            t2 = (input_mu_sigma2_neg_3_2 * sum_exclude_dim1(gO * input_sub_mu)).div_(-M)
+            gI_G_term = ggG_expanded * (t0 + t1 + t2)
+        else:
+            gI_G_term = ggG_expanded * sigma2_eps_neg_1_2 * gO
+        gI = gI + gI_G_term if gI is not None else gI_G_term
+
+    def first_back_grad_input(gO, gamma):
+        h0 = (gamma * sigma2_eps_neg_1_2).div(M)
+        h1 = M * gO - sum_exclude_dim1(gO) - (
+            input_sub_mu * sigma2_eps_neg_1 * sum_exclude_dim1(gO * input_sub_mu)
+        )
+        return h0 * h1
+
+    gG = None
+    if affine and ggI is not None:
+        if training:
+            gG = ggI * first_back_grad_input(gO, torch.ones_like(gamma_expanded))
+            gG = sum_exclude_dim1(gG, keepdim=False)
+        else:
+            gG = sum_exclude_dim1(ggI * gO * sigma2_eps_neg_1_2, keepdim=False)
+
+    ggO = None
+    if ggI is not None:
+        if training:
+            ggO = first_back_grad_input(ggI, gamma_expanded)
+        else:
+            ggO = ggI * sigma2_eps_neg_1_2 * gamma_expanded
+
+    if ggG is not None:
+        ggO_G_term = ggG_expanded * input_sub_mu * sigma2_eps_neg_1_2
+        ggO = ggO + ggO_G_term if ggO is not None else ggO_G_term
+
+    if ggB is not None:
+        ggO_B_term = ggB_expanded
+        ggO = ggO + ggO_B_term if ggO is not None else ggO_B_term
+
+    # return gI, gG, ggO
+    return ggO, gI, gG
+
+
 def batchnorm_double_backwards_fn(input, gamma, ggI, ggG, ggB, gO, eps,
                                   save_mean, save_std, running_mean, running_var, training):
     device = input.device
@@ -148,7 +251,8 @@ def batchnorm_double_backwards_fn(input, gamma, ggI, ggG, ggB, gO, eps,
         ggO_B_term = ggB_expanded
         ggO = ggO + ggO_B_term if ggO is not None else ggO_B_term
 
-    return gI, gG, ggO
+    # return gI, gG, ggO
+    return ggO, gI, gG
 
 def batchNorm2d_backward(x, gamma, beta, grad_output, eps=1e-5):
     """
@@ -283,49 +387,210 @@ def _instancenorm_backward_kernel(
 
 
 def instance_norm_backward_triton(x, gamma, grad_output,out, eps=1e-5):
-    """
-    计算 InstanceNorm 的反向传播 (dX, dgamma, dbeta)。
-    x, grad_output: (N, C, H, W)
-    gamma: (C,)
-    """
+    assert x.is_cuda and grad_output.is_cuda and gamma.is_cuda and out.is_cuda
     N, C, H, W = x.shape
     HW = H * W
+
+    # (N,C,HW) view -> 底层仍是连续的 NCHW 展平
+    x_flat = x.contiguous().view(N, C, HW)
+    dy_flat = grad_output.contiguous().view(N, C, HW)
+    out_flat = out.contiguous().view(N, C, HW)
+
+    # 直接把 (N,C,HW) 当成 1D 指针 + stride 访问
     stride_n = C * HW
     stride_c = HW
 
-    # 展平输入以便在 Triton 内核中按 HW 维度遍历
-    x_flat = x.contiguous().view(N, C, HW)
-    out_flat = out.contiguous().view(N, C, HW)
+    # mean/rstd: 展平为 (N*C,)
+    mean = torch.empty((N * C,), device=x.device, dtype=torch.float32)
+    rstd = torch.empty((N * C,), device=x.device, dtype=torch.float32)
 
-    grad_output_flat = grad_output.contiguous().view(N, C, HW)
-    grad_output_flat[out_flat <= 0] = 0
+    # 输出
+    dX = torch.empty_like(x_flat, dtype=torch.float32)  # 你也可以输出和 x 同 dtype，但一般 dx 用 fp32 更稳
+    dgamma = torch.zeros((C,), device=x.device, dtype=torch.float32)
+    dbeta = torch.zeros((C,), device=x.device, dtype=torch.float32)
 
-    x_buf = x_flat.reshape(-1, HW)
-    dy_buf = grad_output_flat.reshape(-1, HW)
-
-    dX = torch.empty_like(x_buf)
-    dgamma = torch.zeros(C, device=x.device, dtype=torch.float32)
-    dbeta = torch.zeros(C, device=x.device, dtype=torch.float32)
-
-    # 预先计算均值和反标准差
-    mean = x_buf.mean(dim=1)
-    var = x_buf.var(dim=1, unbiased=False)
-    rstd = 1.0 / torch.sqrt(var + eps)
-
-    mean_ptr = mean.contiguous()
-    rstd_ptr = rstd.contiguous()
-
-    # 使用二维 grid 调度 (N, C)
     grid = (N, C)
-    _instancenorm_backward_kernel[grid](
-        dy_buf, x_buf, gamma, out_flat,
-        mean_ptr, rstd_ptr,
+
+    _instancenorm_stats_kernel[grid](
+        x_flat, mean, rstd,
+        stride_n, stride_c, C, HW,
+        eps=eps,
+        BLOCK_SIZE=256
+    )
+
+    _instancenorm_backward_fused_kernel[grid](
+        dy_flat, x_flat, gamma, out_flat,
+        mean, rstd,
         dX, dgamma, dbeta,
         stride_n, stride_c, C, HW,
+        BLOCK_SIZE=256
     )
 
     dX = dX.view(N, C, H, W)
     return dX, dgamma, dbeta
+    # """
+    # 计算 InstanceNorm 的反向传播 (dX, dgamma, dbeta)。
+    # x, grad_output: (N, C, H, W)
+    # gamma: (C,)
+    # """
+    # N, C, H, W = x.shape
+    # HW = H * W
+    # stride_n = C * HW
+    # stride_c = HW
+
+    # # 展平输入以便在 Triton 内核中按 HW 维度遍历
+    # x_flat = x.contiguous().view(N, C, HW)
+    # out_flat = out.contiguous().view(N, C, HW)
+
+    # grad_output_flat = grad_output.contiguous().view(N, C, HW)
+    # grad_output_flat[out_flat <= 0] = 0
+
+    # x_buf = x_flat.reshape(-1, HW)
+    # dy_buf = grad_output_flat.reshape(-1, HW)
+
+    # dX = torch.empty_like(x_buf)
+    # dgamma = torch.zeros(C, device=x.device, dtype=torch.float32)
+    # dbeta = torch.zeros(C, device=x.device, dtype=torch.float32)
+
+    # # 预先计算均值和反标准差
+    # mean = x_buf.mean(dim=1)
+    # var = x_buf.var(dim=1, unbiased=False)
+    # rstd = 1.0 / torch.sqrt(var + eps)
+
+    # mean_ptr = mean.contiguous()
+    # rstd_ptr = rstd.contiguous()
+
+    # # 使用二维 grid 调度 (N, C)
+    # grid = (N, C)
+    # _instancenorm_backward_kernel[grid](
+    #     dy_buf, x_buf, gamma, out_flat,
+    #     mean_ptr, rstd_ptr,
+    #     dX, dgamma, dbeta,
+    #     stride_n, stride_c, C, HW,
+    # )
+
+    # dX = dX.view(N, C, H, W)
+    # return dX, dgamma, dbeta
+
+
+
+# @triton.autotune(
+#     configs=[
+#         triton.Config({'BLOCK_SIZE': bs}, num_warps=4, num_stages=2)
+#         for bs in [64, 128, 256, 512, 1024]
+#     ],
+#     key=['HW'],
+# )
+@triton.jit
+def _instancenorm_stats_kernel(
+    X, mean_ptr, rstd_ptr,
+    stride_n, stride_c, C, HW,
+    eps: tl.constexpr,
+    BLOCK_SIZE: tl.constexpr,
+):
+    # program id layout: (N, C)
+    n = tl.program_id(0)
+    c = tl.program_id(1)
+
+    idx_offset = n * stride_n + c * stride_c
+    x_ptr = X + idx_offset
+
+    # 用标量累加，避免你原来那种 [BLOCK_SIZE] 累加器占用大量寄存器
+    sum_x = tl.zeros([], dtype=tl.float32)
+    sum_x2 = tl.zeros([], dtype=tl.float32)
+
+    for off in range(0, HW, BLOCK_SIZE):
+        idx = off + tl.arange(0, BLOCK_SIZE)
+        mask = idx < HW
+        x = tl.load(x_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        sum_x += tl.sum(x, axis=0)
+        sum_x2 += tl.sum(x * x, axis=0)
+
+    invN = 1.0 / tl.full([], HW, tl.float32)
+    mean = sum_x * invN
+    # var = E[x^2] - (E[x])^2
+    var = sum_x2 * invN - mean * mean
+    rstd = tl.rsqrt(var + eps)
+
+    # mean/rstd buffer 是按 (N*C) 展平的：index = n*C + c
+    idx_nc = n * C + c
+    tl.store(mean_ptr + idx_nc, mean)
+    tl.store(rstd_ptr + idx_nc, rstd)
+
+
+# @triton.autotune(
+#     configs=[
+#         triton.Config({'BLOCK_SIZE': bs}, num_warps=4, num_stages=2)
+#         for bs in [64, 128, 256, 512, 1024]
+#     ],
+#     key=['HW'],
+# )
+@triton.jit
+def _instancenorm_backward_fused_kernel(
+    dY, X, gamma, out_ptr,
+    mean_ptr, rstd_ptr,
+    dX, dgamma, dbeta,
+    stride_n, stride_c, C, HW,
+    BLOCK_SIZE: tl.constexpr,
+):
+    # program id layout: (N, C)
+    n = tl.program_id(0)
+    c = tl.program_id(1)
+
+    idx_offset = n * stride_n + c * stride_c
+    dy_ptr = dY + idx_offset
+    x_ptr = X + idx_offset
+    dx_ptr = dX + idx_offset
+    o_ptr = out_ptr + idx_offset  # out 是 ReLU 后的输出（或你也可以传 pre-activation + mask）
+
+    g = tl.load(gamma + c).to(tl.float32)
+    idx_nc = n * C + c
+    mean = tl.load(mean_ptr + idx_nc).to(tl.float32)
+    rstd = tl.load(rstd_ptr + idx_nc).to(tl.float32)
+
+    # 第一遍：算 dbeta = sum(dy), dgamma = sum(dy*xhat)
+    sum_dy = tl.zeros([], dtype=tl.float32)
+    sum_dy_xhat = tl.zeros([], dtype=tl.float32)
+
+    for off in range(0, HW, BLOCK_SIZE):
+        idx = off + tl.arange(0, BLOCK_SIZE)
+        mask = idx < HW
+
+        x = tl.load(x_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        dy = tl.load(dy_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+
+        # ReLU backward gate：out<=0 的位置 dy=0
+        outv = tl.load(o_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        dy = tl.where(outv > 0.0, dy, 0.0)
+
+        xhat = (x - mean) * rstd
+        sum_dy += tl.sum(dy, axis=0)
+        sum_dy_xhat += tl.sum(dy * xhat, axis=0)
+
+    # 跨 N 的正确累加（修复你原来的数据竞争）
+    tl.atomic_add(dbeta + c, sum_dy)
+    tl.atomic_add(dgamma + c, sum_dy_xhat)
+
+    # 第二遍：算 dX
+    invN = 1.0 / tl.full([], HW, tl.float32)
+    term2 = (g * sum_dy) * invN             # mean(g*dy)
+    term3 = (g * sum_dy_xhat) * invN        # mean(g*dy*xhat)
+
+    for off in range(0, HW, BLOCK_SIZE):
+        idx = off + tl.arange(0, BLOCK_SIZE)
+        mask = idx < HW
+
+        x = tl.load(x_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        dy = tl.load(dy_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+
+        outv = tl.load(o_ptr + idx, mask=mask, other=0.0).to(tl.float32)
+        dy = tl.where(outv > 0.0, dy, 0.0)
+
+        xhat = (x - mean) * rstd
+        dx = rstd * (g * dy - term2 - term3 * xhat)
+
+        tl.store(dx_ptr + idx, dx, mask=mask)
+
 
 def instanceNorm_backward( x, gamma, grad_output, eps=1e-5):
     N, C, H, W = x.shape

@@ -218,7 +218,9 @@ def main(args):
     if args.batch_syn is None:
         args.batch_syn = num_classes * args.ipc
 
-    args.distributed = torch.cuda.device_count() > 1
+    # args.distributed = torch.cuda.device_count() > 1
+    args.distributed = False # 多卡情况目前不考虑
+    
 
 
     # print('Hyper-parameters: \n', args.__dict__)
@@ -278,6 +280,10 @@ def main(args):
             image_syn.data[c * args.ipc:(c + 1) * args.ipc] = get_images(c, args.ipc).detach().data
     else:
         print('initialize synthetic data from random noise')
+
+    # torch.save(image_syn, "./script/in.pt")
+    # exit()
+
 
     if(args.AccTest):
         image_syn = torch.load("./script/in.pt")
@@ -665,8 +671,18 @@ def main(args):
                 x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin = split_half_second_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin],fuse_mask_list)
                 dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse)
                 x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, dx_conv3 = split_half_second_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, dx_conv3 ],fuse_mask_list)
-                _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
-                x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, dx_conv2 = split_half_second_dim([x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, dx_conv2 ],fuse_mask_list)
+                # _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
+                dx_pool1 = avgPool_bwd( x_pool1, grad_output= dx_conv2 )
+                dx_conv2 = split_half_second_dim([dx_conv2], fuse_mask_list)[0]
+                # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
+                dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1)
+                x_norm1 = split_half_second_dim([x_norm1],fuse_mask_list)[0]
+                x_pool1 = split_half_second_dim([x_pool1 ],fuse_mask_list)[0]
+                dx_pool1 = split_half_second_dim([dx_pool1],fuse_mask_list)[0]
+                # del dx_pool_d1
+                dx_conv1, dconv1_w, dconv1_b = conv_bwd(x_conv1, conv1_w, grad_output=dx_norm1, groups=Fuse)
+                x_conv1 = split_half_second_dim([x_conv1 ],fuse_mask_list)[0]
+                dx_norm1 = split_half_second_dim([dx_norm1 ],fuse_mask_list)[0]
                 grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
             grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
 
@@ -769,6 +785,7 @@ def main(args):
             #                          dxconv3_d2, x_conv2, x_norm2, x_pool2, dx_norm2_d2, dxconv2_d2, x_conv1, x_norm1, x_pool1, dx_norm1_d2, dxconv1_d2, model, Fuse)
 
         if(args.AccTest):
+            print("--Celoss--",ce_loss.item())
             print("--GradLoss--",grand_loss.item())
             print("----GRAD-----", dx_conv1_d1.sum().item()) 
         # print("--GRAD--",image_syn.grad.sum().item())

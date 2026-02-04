@@ -8,3 +8,5 @@ test/data
 log*
 data/*
 temp/*
+prof/trace_it0.json
+prof-ViT/trace_it0.json
