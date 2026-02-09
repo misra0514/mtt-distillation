@@ -487,6 +487,7 @@ def main(args):
 
         # 这里有两个改动：1 不用student_net.parameters() 这个是前向的，应该直接用load上来的size（而且是在fuse 之前）
         # 但是因为fuse 之前的starting_params 长度 不太好获取。反正就是一个值而已。在这里处理一下吧。。
+        # num_params 就是一个param的值
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())]) / (Fuse)
         # print(num_params)
 
@@ -650,6 +651,7 @@ def main(args):
             x = x.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
             this_y = this_y.repeat(int(Fuse))
 
+
             # print("FWD之前峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
             # print("FWD之前峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
             with torch.no_grad():
@@ -720,9 +722,9 @@ def main(args):
 
         param_loss_list.append(param_loss)
         param_dist_list.append(param_dist)
-        param_loss /= num_params
-        param_dist /= num_params
-        # param_loss /= param_dist
+        # param_loss /= num_params
+        # param_dist /= num_params
+        param_loss /= param_dist
         grand_loss = param_loss # 是为了抵消num_params变化带来的影响。但是flex fuse 之后num_params没有变化（还是Fuse）
 
         optimizer_img.zero_grad()
@@ -736,8 +738,14 @@ def main(args):
             # dw 好像只能用这种方法获取，但是w可以直接student_net.module.conv1.weight.shape
             # conv1_w, _, norm1_w, _, conv2_w, _, norm2_w, _, conv3_w, _, norm3_w, _, lin_w, _  =recover_params(weight,shape_list, bwd_Fuse)
             # print("DDW",dw.sum().item())
-            ddw = torch.autograd.grad(grand_loss, grad)[0]
-            ddw = ddw[mask]
+            # TODO: 这里开始手动做。
+            # ddw = torch.autograd.grad(grand_loss, grad)[0]
+            # ddw = ddw[mask]
+            # print(target_params.shape)
+            # print(student_params[-1].shape)
+            ddw = 2*(student_params[-1]- target_params)/param_dist
+            ddw *= (-syn_lr)
+
             del grad
             ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(ddw, shape_list,bwd_Fuse )
             ddx_conv2, dxconv1_d2, _,dx_norm1_d2,_ = ConvBlock_double_bwd(x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, \

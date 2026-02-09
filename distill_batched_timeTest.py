@@ -24,7 +24,7 @@ def set_random_seed(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
-# set_random_seed(42)
+
 def main(args):
     if (args.AccTest):
         set_random_seed(42)
@@ -455,15 +455,12 @@ def main(args):
             # syn_images = x
             this_y = this_y.repeat(int(args.Fuse))
 
-
             # x = x.view(-1,3,32,32)
             # print(forward_params .shape)
 
             # out = student_net(x, flat_param=forward_params)[-1]
 
-            print("FWD之前峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-            print("FWD之前峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
- 
+
             out = student_net(x, flat_param=forward_params)
             out = out.view(-1,10)
 
@@ -536,7 +533,7 @@ def main(args):
         param_loss /= num_params
         param_dist /= num_params
 
-        # param_loss /= param_dist
+        param_loss /= param_dist
 
         grand_loss = param_loss * int(args.Fuse) # 虽然上下都是sum。但是要做乘法。
 
@@ -556,6 +553,7 @@ def main(args):
 
         grand_loss.backward()
         if(args.AccTest):
+            print("--Celoss--", ce_loss.item())
             print("--GradLoss--",grand_loss.item())
             print("--GRAD--",image_syn.grad.sum().item())
 

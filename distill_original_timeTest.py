@@ -480,7 +480,7 @@ def main(args):
         param_loss /= num_params
         param_dist /= num_params
 
-        # param_loss /= param_dist
+        param_loss /= param_dist
 
         grand_loss = param_loss
 
@@ -501,6 +501,7 @@ def main(args):
         grand_loss.backward()
 
         if(args.AccTest):
+            print("celoss---", ce_loss.item())
             print("--GradLoss--",grand_loss.item())
             print("--GRAD--",image_syn.grad.sum().item())
 

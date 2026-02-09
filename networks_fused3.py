@@ -613,142 +613,214 @@ def instanceNorm_backward( x, gamma, grad_output, eps=1e-5):
 
 
 
+
+import triton
+import triton.language as tl
+
 @triton.jit
-def instance_norm_double_backward_kernel(
-    x_ptr, gO_ptr, ggX_ptr, out_ptr,
-    gamma_ptr,     # gamma_ptr 用于 γ，beta_ptr 保留但不使用
-    ggG_ptr, ggB_ptr,        # ggG_ptr 用于 ggG，ggB_ptr 用于 ggB
-    mean_ptr, var_ptr, inv_std_ptr, xcm_ptr,
-    sum_gO_ptr, sum_gO_xmu_ptr, sum_ggX_ptr, sum_ggX_xmu_ptr, dot_ggX_gO_ptr,
-    gX_ptr, gG_ptr, ggO_ptr,
-    N, C, M,
+def instance_norm_double_backward_kernel_blocked(
+    # (N,C,M) fp32, gO 已经按 ReLU mask 处理过
+    gO_ptr, ggX_ptr, out_ptr,
+
+    # (C,) fp32
+    gamma_ptr,
+    ggG_ptr, ggB_ptr,
+
+    # (N,C) fp32
+    var_ptr, inv_std_ptr,
+
+    # (N,C,M) fp32
+    xcm_ptr,
+
+    # (N,C) fp32  —— 这些必须是“全 M 的总和”，由 host 端算好
+    sum_gO_ptr, sum_gO_xmu_ptr,
+    sum_ggX_ptr, sum_ggX_xmu_ptr,
+    dot_ggX_gO_ptr,
+
+    # outputs
+    gX_ptr, gG_ptr, ggO_ptr,   # gG 是 (C,) fp32, atomic_add
+
+    M,                         # runtime
     eps: tl.constexpr,
-    has_gamma: tl.constexpr, 
-    has_ggX: tl.constexpr, has_ggG: tl.constexpr, has_ggB: tl.constexpr,
+
+    has_gamma: tl.constexpr,
+    has_ggX: tl.constexpr,
+    has_ggG: tl.constexpr,
+    has_ggB: tl.constexpr,
+
+    C: tl.constexpr,
     BLOCK_M: tl.constexpr,
 ):
-    pid = tl.program_id(0)
-    c = pid % C
-    n = pid // C
-    offs_m = tl.arange(0, BLOCK_M)
-    mask = offs_m < M
-    offs = (n * C + c) * M + offs_m
-    x   = tl.load(x_ptr   + offs, mask=mask, other=0.0)
-    gO  = tl.load(gO_ptr  + offs, mask=mask, other=0.0)
-    xcm = tl.load(xcm_ptr + offs, mask=mask, other=0.0)
-    # mean    = tl.load(mean_ptr    + n * C + c)
-    var     = tl.load(var_ptr     + n * C + c)
-    inv_std = tl.load(inv_std_ptr + n * C + c)
+    pid_nc = tl.program_id(0)       # 0 .. N*C-1
+    pid_blk = tl.program_id(1)      # 0 .. ceil(M/BLOCK_M)-1
+    c = pid_nc % C
+    nc = pid_nc
+
+    offs_m = pid_blk * BLOCK_M + tl.arange(0, BLOCK_M)
+    m = offs_m < M
+    base = nc * M
+    offs = base + offs_m
+
+    # ---- load scalars (fp32) ----
+    var     = tl.load(var_ptr + nc).to(tl.float32)
+    inv_std = tl.load(inv_std_ptr + nc).to(tl.float32)
     inv_std2 = inv_std * inv_std
-    inv_std3 = inv_std / (var + eps)
-    sum_gO     = tl.load(sum_gO_ptr     + n * C + c)
-    sum_gO_xmu = tl.load(sum_gO_xmu_ptr + n * C + c)
-    # -------- gX 部分：利用 ggX 计算，再乘上 gamma --------
+    inv_std3 = inv_std2 * inv_std
+
+    M_f = tl.full([], M, tl.float32)
+    invM = 1.0 / M_f
+
+    sum_gO     = tl.load(sum_gO_ptr     + nc).to(tl.float32)
+    sum_gO_xmu = tl.load(sum_gO_xmu_ptr + nc).to(tl.float32)
+
+    gamma_val = tl.full([], 1.0, tl.float32)
+    if has_gamma:
+        gamma_val = tl.load(gamma_ptr + c).to(tl.float32)
+
+    # ---- load block vectors (fp32) ----
+    gO  = tl.load(gO_ptr  + offs, mask=m, other=0.0).to(tl.float32)
+    xcm = tl.load(xcm_ptr + offs, mask=m, other=0.0).to(tl.float32)
+
+    ggX = tl.zeros([BLOCK_M], dtype=tl.float32)
     if has_ggX:
-        ggX          = tl.load(ggX_ptr + offs, mask=mask, other=0.0)
-        sum_ggX      = tl.load(sum_ggX_ptr      + n * C + c)
-        sum_ggX_xmu  = tl.load(sum_ggX_xmu_ptr  + n * C + c)
-        dot_ggX_gO   = tl.load(dot_ggX_gO_ptr   + n * C + c)
-        A = (sum_ggX * sum_gO) / M - dot_ggX_gO + 3 * inv_std2 * sum_gO_xmu * sum_ggX_xmu / M
-        term0 = xcm * inv_std3 * A / M
-        term1 = sum_ggX_xmu * inv_std3 * (sum_gO / M - gO) / M
-        term2 = sum_gO_xmu  * inv_std3 * (sum_ggX / M - ggX) / M
+        ggX = tl.load(ggX_ptr + offs, mask=m, other=0.0).to(tl.float32)
+
+    # ---- precomputed ggX sums (fp32) ----
+    sum_ggX     = tl.full([], 0.0, tl.float32)
+    sum_ggX_xmu = tl.full([], 0.0, tl.float32)
+    dot_ggX_gO  = tl.full([], 0.0, tl.float32)
+    if has_ggX:
+        sum_ggX     = tl.load(sum_ggX_ptr     + nc).to(tl.float32)
+        sum_ggX_xmu = tl.load(sum_ggX_xmu_ptr + nc).to(tl.float32)
+        dot_ggX_gO  = tl.load(dot_ggX_gO_ptr  + nc).to(tl.float32)
+
+    # =========================
+    # gX (only if has_ggX)
+    # =========================
+    if has_ggX:
+        A = (sum_ggX * sum_gO) * invM - dot_ggX_gO + (3.0 * inv_std2 * sum_gO_xmu * sum_ggX_xmu) * invM
+        term0 = xcm * inv_std3 * A * invM
+        term1 = sum_ggX_xmu * inv_std3 * (sum_gO * invM - gO) * invM
+        term2 = sum_gO_xmu  * inv_std3 * (sum_ggX * invM - ggX) * invM
         gX_val = term0 + term1 + term2
         if has_gamma:
-            # 这里应该从 gamma_ptr 读取 γ，而不是从 ggG_ptr 读取
-            gamma_val = tl.load(gamma_ptr + c)
-            gX_val *= gamma_val
-        tl.store(gX_ptr + offs, gX_val, mask=mask)
-    # -------- gG 部分：仅当 gamma 和 ggX 均存在时计算 --------
+            gX_val = gX_val * gamma_val
+        tl.store(gX_ptr + offs, gX_val, mask=m)
+
+    # =========================
+    # gG (atomic accumulate over blocks)
+    # only if has_gamma & has_ggX
+    # =========================
     if has_gamma and has_ggX:
-        # 这里只涉及 gO 和 ggX，与 gamma 或 ggG 无关
-        gO_masked     = gO * mask
-        gO_xcm_masked = gO * xcm * mask
-        fb = (inv_std / M) * (
-            M * gO_masked - tl.sum(gO_masked, axis=0) -
-            xcm * inv_std2 * tl.sum(gO_xcm_masked, axis=0)
-        )
-        ggX_masked = ggX * mask
-        gG_val = tl.sum(ggX_masked * fb, axis=0)
-        tl.atomic_add(gG_ptr + c, gG_val)
-    # -------- ggO 第一部分：first_back(ggX, gamma) --------
+        fb = (inv_std * invM) * (M_f * gO - sum_gO - xcm * inv_std2 * sum_gO_xmu)
+        gG_part = tl.sum(ggX * fb, axis=0)
+        tl.atomic_add(gG_ptr + c, gG_part)
+
+    # =========================
+    # ggO  (blocked)
+    # =========================
+    ggO_val = tl.zeros([BLOCK_M], dtype=tl.float32)
+
     if has_ggX:
-        ggX_masked     = ggX * mask
-        ggX_xcm_masked = ggX * xcm * mask
-        # 若有 gamma，用 gamma_ptr 读取；否则默认为 1
-        if has_gamma:
-            gamma_val = tl.load(gamma_ptr + c)
-        else:
-            gamma_val = 1.0
-        fb2 = (gamma_val * inv_std / M) * (
-            M * ggX_masked - tl.sum(ggX_masked, axis=0) -
-            xcm * inv_std2 * tl.sum(ggX_xcm_masked, axis=0)
-        )
-        ggO_val = fb2
-    else:
-        ggO_val = tl.zeros([BLOCK_M], dtype=tl.float32)
-    # -------- ggO 第二部分：ggG * x_centered * inv_std --------
+        fb2 = (gamma_val * inv_std * invM) * (M_f * ggX - sum_ggX - xcm * inv_std2 * sum_ggX_xmu)
+        ggO_val += fb2
+
     if has_ggG:
-        ggG_val = tl.load(ggG_ptr + c)
-        ggO_val += ggG_val * xcm * inv_std * mask
-    # -------- ggO 第三部分：ggB --------
+        ggG_val = tl.load(ggG_ptr + c).to(tl.float32)
+        ggO_val += ggG_val * xcm * inv_std
+
     if has_ggB:
-        ggB_val = tl.load(ggB_ptr + c)
-        # ggB 是一维的 (C,) 张量，需要在 M 维上广播，所以直接加上 ggB_val * mask
-        ggO_val += ggB_val * mask
-    
-    out_val = tl.load(out_ptr + offs, mask=mask, other=0.).to(tl.float32)
-    ggO_val = tl.where(out_val <= 0.0, 0.0, ggO_val)
-    tl.store(ggO_ptr + offs, ggO_val, mask=mask)
-    
+        ggB_val = tl.load(ggB_ptr + c).to(tl.float32)
+        ggO_val += ggB_val
+
+    # ReLU gate on ggO: multiply by mask(out>0)
+    outv = tl.load(out_ptr + offs, mask=m, other=0.0).to(tl.float32)
+    ggO_val = tl.where(outv > 0.0, ggO_val, 0.0)
+
+    tl.store(ggO_ptr + offs, ggO_val, mask=m)
+import torch
+import triton
+
 @torch.no_grad()
-
-def instanceNorm_double_backwards_triton(x, gamma, ggX, ggG, ggB, gO, out, eps=1e-5):
-    # print("CKPT--Norm",gamma.sum().item()) # ggX一样； ggG不同：0.001736530102789402 vs 0.0014542767312377691
-    # ggB -5.511566996574402e-06 vs -0.0018266912084072828
-
+def instanceNorm_double_backwards_triton(
+    x, gamma, ggX, ggG, ggB, gO, out,
+    eps=1e-5, BLOCK_M=256
+):
     N, C, H, W = x.shape
     M = H * W
-    x_flat = x.view(N, C, M)
-    gO_flat = gO.view(N, C, M)
-    mean = x_flat.mean(dim=2)
-    var = x_flat.var(dim=2, unbiased=False)
-    std = torch.sqrt(var + eps)
-    inv_std = 1.0 / std
-    xcm = x_flat - mean.unsqueeze(2)
-    sum_gO = gO_flat.sum(dim=2)
-    sum_gO_xmu = (gO_flat * xcm).sum(dim=2)
+
+    # flatten contiguous
+    x_flat   = x.contiguous().view(N, C, M)
+    out_flat = out.contiguous().view(N, C, M)
+    gO_flat  = gO.contiguous().view(N, C, M)
+
+    # (2) ReLU mask: gO entering IN must be masked
+    relu_mask = (out_flat > 0)
+    gO_in = (gO_flat * relu_mask).to(torch.float32)   # fp32 + masked
+
+    # (3) stats in fp32
+    x_f = x_flat.to(torch.float32)
+    mean = x_f.mean(dim=2)                            # (N,C) fp32
+    var  = x_f.var(dim=2, unbiased=False)             # (N,C) fp32
+    inv_std = torch.rsqrt(var + eps)                  # (N,C) fp32
+    xcm = x_f - mean.unsqueeze(2)                     # (N,C,M) fp32
+
+    # sums based on masked gO_in (fp32)
+    sum_gO     = gO_in.sum(dim=2)                     # (N,C)
+    sum_gO_xmu = (gO_in * xcm).sum(dim=2)             # (N,C)
+
     if ggX is not None:
-        ggX_flat = ggX.view(N, C, M)
-        sum_ggX = ggX_flat.sum(dim=2)
+        ggX_flat = ggX.contiguous().view(N, C, M).to(torch.float32)
+        sum_ggX     = ggX_flat.sum(dim=2)
         sum_ggX_xmu = (ggX_flat * xcm).sum(dim=2)
-        dot_ggX_gO = (ggX_flat * gO_flat).sum(dim=2)
+        dot_ggX_gO  = (ggX_flat * gO_in).sum(dim=2)   # IMPORTANT: use gO_in
     else:
-        ggX_flat = torch.empty(1, device=x.device)
-        sum_ggX = sum_ggX_xmu = dot_ggX_gO = torch.empty(1, device=x.device)
-    gX = torch.empty_like(x_flat)
-    gG = torch.empty_like(gamma) if gamma is not None and ggX is not None else None
-    ggO = torch.empty_like(x_flat)
-    grid = (N * C,)
-    instance_norm_double_backward_kernel[grid](
-        x_flat, gO_flat, ggX_flat, out,
-        gamma if gamma is not None else torch.empty(1, device=x.device),
-        ggG   if ggG   is not None else torch.empty(1, device=x.device),
-        ggB   if ggB   is not None else torch.empty(1, device=x.device),
-        mean, var, inv_std, xcm,
-        sum_gO, sum_gO_xmu,
-        sum_ggX, sum_ggX_xmu, dot_ggX_gO,
+        ggX_flat = torch.empty(1, device=x.device, dtype=torch.float32)
+        sum_ggX = torch.empty(1, device=x.device, dtype=torch.float32)
+        sum_ggX_xmu = torch.empty(1, device=x.device, dtype=torch.float32)
+        dot_ggX_gO = torch.empty(1, device=x.device, dtype=torch.float32)
+
+    # outputs fp32 (2nd order more stable)
+    gX  = torch.empty((N, C, M), device=x.device, dtype=torch.float32)
+    ggO = torch.empty((N, C, M), device=x.device, dtype=torch.float32)
+
+    # (1) atomic_add target must be zero-init
+    if (gamma is not None) and (ggX is not None):
+        gG = torch.zeros((C,), device=x.device, dtype=torch.float32)
+    else:
+        gG = None
+
+    gamma_f = gamma.to(torch.float32) if gamma is not None else torch.empty(1, device=x.device, dtype=torch.float32)
+    ggG_f   = ggG.to(torch.float32)   if ggG   is not None else torch.empty(1, device=x.device, dtype=torch.float32)
+    ggB_f   = ggB.to(torch.float32)   if ggB   is not None else torch.empty(1, device=x.device, dtype=torch.float32)
+
+    # (4) 2D grid over (N*C, blocks_of_M)
+    grid = (N * C, triton.cdiv(M, BLOCK_M))
+
+    instance_norm_double_backward_kernel_blocked[grid](
+        gO_in,
+        ggX_flat,
+        out_flat,
+        gamma_f,
+        ggG_f, ggB_f,
+        var.contiguous(), inv_std.contiguous(),
+        xcm.contiguous(),
+        sum_gO.contiguous(), sum_gO_xmu.contiguous(),
+        sum_ggX.contiguous(), sum_ggX_xmu.contiguous(),
+        dot_ggX_gO.contiguous(),
         gX,
-        gG   if gG   is not None else torch.empty_like(gamma),
+        (gG if gG is not None else torch.empty((1,), device=x.device, dtype=torch.float32)),
         ggO,
-        N, C, M,
-        eps,
-        gamma is not None, 
-        ggX is not None, ggG is not None, ggB is not None,
-        BLOCK_M=M,
+        M,
+        eps=eps,
+        has_gamma=(gamma is not None),
+        has_ggX=(ggX is not None),
+        has_ggG=(ggG is not None),
+        has_ggB=(ggB is not None),
+        C=C,
+        BLOCK_M=BLOCK_M,
+        num_warps=4,
     )
-    # ggO = ggO.view(N, C, H, W)
-    # ggO[out <= 0] = 0
 
     return gX.view(N, C, H, W), gG, ggO.view(N, C, H, W)
 
