@@ -235,13 +235,17 @@ def main(args):
 
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
-
+    if (args.AccTest):
+        warmup = 0
+    else:
+        warmup = 3
+    args.Iteration += warmup
 
     pre_end = time.time()
 
     for it in range(0, args.Iteration+1):
-         
-        start = time.time()
+        if it >= warmup:
+            start = time.time()
 
         save_this_it = False
 
@@ -399,8 +403,8 @@ def main(args):
         param_loss_list = []
         param_dist_list = []
         indices_chunks = []
-
-        syn_start = time.time()
+        if it >= warmup:
+            syn_start = time.time()
         for step in range(args.syn_steps):
 
             if not indices_chunks:
@@ -460,8 +464,8 @@ def main(args):
             # if (len(student_params) > 2 ):  
             #     # print("DETACH")
             #     student_params[-3] = student_params[-3].detach()
-
-        syn_end = time.time()
+        if it >= warmup:
+            syn_end = time.time()
 
         param_loss = torch.tensor(0.0).to(args.device)
         param_dist = torch.tensor(0.0).to(args.device)
@@ -507,13 +511,11 @@ def main(args):
 
         optimizer_img.step()
         optimizer_lr.step()
-
-
-        iter_end = time.time()
-        prep_time += (syn_start- start) # 从iter开始一直到内层循环
-        syn_time += (syn_end-syn_start) # 内层循环的时间
-        # iter_time += iter_end-syn_start
-        bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
+        if it >= warmup:
+            iter_end = time.time()
+            prep_time += (syn_start- start) # 从iter开始一直到内层循环
+            syn_time += (syn_end-syn_start) # 内层循环的时间
+            bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
 
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})

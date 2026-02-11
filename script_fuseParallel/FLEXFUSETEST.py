@@ -21,14 +21,14 @@ import numpy as np
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from networks_stacked import LinearStacked_2 # NOTE 这里和flex fuse 不太一样。
-from networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
+from networks.networks_stacked import LinearStacked_2 # NOTE 这里和flex fuse 不太一样。
+from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
     
 
-from networks_fused3 import NormActive
-from networks_flexFuse import Conv_Flexfused, ConvBlock_double_bwd,ConvBlock_bwd2_1
+from networks.networks_fused3 import NormActive
+from networks.networks_flexFuse import Conv_Flexfused, ConvBlock_double_bwd,ConvBlock_bwd2_1
 
 def set_random_seed(seed=42):
     random.seed(seed)
