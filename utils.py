@@ -207,8 +207,8 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True):
     elif model.startswith("ConvStacked"):
     # elif model == 'ConvNetStacked':
         fusion = int(model[11:])
-        net = ConvNet_virticalfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
-        # net = ConvNetStacked(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, stack_size=fusion)
+        # net = ConvNet_virticalfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
+        net = ConvNetStacked(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, stack_size=fusion)
     elif model.startswith("ConvFlexFuse"):
         fusion = int(model[12:])
         net = Conv_Flexfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)

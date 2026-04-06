@@ -163,7 +163,8 @@ def batchnorm_double_backwards_fn_new(input, gamma, ggI, ggG, ggB, gO, eps=1e-5,
         ggO = ggO + ggO_B_term if ggO is not None else ggO_B_term
 
     # return gI, gG, ggO
-    return ggO, gI, gG
+    # return gX.view(N, C, H, W) if gX is not None else None, gG, ggO.view(N, C, H, W)
+    return gI,gG, ggO
 
 
 def batchnorm_double_backwards_fn(input, gamma, ggI, ggG, ggB, gO, eps,
@@ -252,9 +253,11 @@ def batchnorm_double_backwards_fn(input, gamma, ggI, ggG, ggB, gO, eps,
         ggO = ggO + ggO_B_term if ggO is not None else ggO_B_term
 
     # return gI, gG, ggO
-    return ggO, gI, gG
+    # return ggO, gI, gG
+    return gI,gG, ggO
 
-def batchNorm2d_backward(x, gamma, beta, grad_output, eps=1e-5):
+
+def batchNorm2d_backward(x, gamma, grad_output, eps=1e-5):
     """
     x: (N, C, H, W)
     gamma, beta: (C,)
@@ -826,6 +829,88 @@ def instanceNorm_double_backwards_triton(
 
 
 
+def instanceNorm_double_backwards_fn_new(x, gamma, ggX, ggG, ggB, gO,
+                                     eps=1e-5, training=True):
+    N, C, H, W = x.shape
+    M = H * W
+
+    x_flat = x.view(N, C, M)
+    gO_flat = gO.view(N, C, M)
+    with torch.no_grad():
+        mean = x_flat.mean(dim=2, keepdim=True)
+        var = x_flat.var(dim=2, unbiased=False, keepdim=True)
+        std = torch.sqrt(var + eps)
+        inv_std = 1.0 / std
+        x_centered = x_flat - mean
+        x_hat = x_centered * inv_std
+        # inv_std3 = inv_std.pow(3)
+        # 稳定性增强
+        inv_std3 = inv_std / (var + eps)
+
+        sum_gO = gO_flat.sum(dim=2, keepdim=True)
+        sum_gO_xmu = (gO_flat * x_centered).sum(dim=2, keepdim=True)
+
+    # Broadcast gamma safely
+    if gamma is not None:
+        gamma_exp = gamma.view(1, C, 1)
+        ggG_exp = ggG.view(1, C, 1) if ggG is not None else None
+    else:
+        gamma_exp = 1.0
+        ggG_exp = None
+    gX = None
+    if ggX is not None and training:
+        ggX_flat = ggX.view(N, C, M)
+        with torch.no_grad():
+            sum_ggX = ggX_flat.sum(dim=2, keepdim=True)
+            sum_ggX_xmu = (ggX_flat * x_centered).sum(dim=2, keepdim=True)
+            dot_ggX_gO = (ggX_flat * gO_flat).sum(dim=2, keepdim=True)
+
+            A = (sum_ggX * sum_gO) / M - dot_ggX_gO + 3 * (inv_std ** 2) * sum_gO_xmu * sum_ggX_xmu / M
+            term0 = x_centered * inv_std3 * A / M
+            term1 = sum_ggX_xmu * inv_std3 * (sum_gO / M - gO_flat) / M
+            term2 = sum_gO_xmu * inv_std3 * (sum_ggX / M - ggX_flat) / M
+        gX = gamma_exp * (term0 + term1 + term2)
+    # gamma 分支贡献
+    if gamma is not None and ggG is not None:
+        if training:
+            t0 = gO_flat * inv_std
+            t1 = -(inv_std * sum_gO) / M
+            t2 = -x_centered * inv_std3 * sum_gO_xmu / M
+            gX_G = ggG_exp * (t0 + t1 + t2)
+        else:
+            gX_G = ggG_exp * inv_std * gO_flat
+        gX = gX + gX_G if gX is not None else gX_G
+
+    # gG
+    gG = None
+    if gamma is not None and ggX is not None:
+        def first_back(g, gamma_val):
+            return (gamma_val * inv_std / M) * (
+                M * g - g.sum(dim=2, keepdim=True) -
+                x_centered * inv_std ** 2 * (g * x_centered).sum(dim=2, keepdim=True)
+            )
+        if training:
+            gG = (ggX_flat * first_back(gO_flat, torch.ones_like(gamma_exp))).sum(dim=2)
+        else:
+            gG = (ggX_flat * gO_flat * inv_std).sum(dim=2)
+    # ggO
+    ggO = None
+    if ggX is not None:
+        if training:
+            ggO = first_back(ggX_flat, gamma_exp)
+        else:
+            ggO = ggX_flat * gamma_exp * inv_std
+    if ggG is not None:
+        # ggO_G = ggG_exp * x_centered
+        # ggO =  ggO_G if ggO is not None else ggO_G
+        ggO_G = ggG_exp * x_centered * inv_std
+        ggO = ggO + ggO_G if ggO is not None else ggO_G
+    if ggB is not None:
+        ggB_exp = ggB.view(1, C, 1)
+        ggO = ggO + ggB_exp if ggO is not None else ggB_exp
+    return gX.view(N, C, H, W) if gX is not None else None, gG, ggO.view(N, C, H, W)
+
+
 def instanceNorm_double_backwards_fn(x, gamma, beta, ggX, ggG, ggB, gO,
                                      eps=1e-5, training=True):
     N, C, H, W = x.shape
@@ -907,75 +992,75 @@ def instanceNorm_double_backwards_fn(x, gamma, beta, ggX, ggG, ggB, gO,
         ggO = ggO + ggB_exp if ggO is not None else ggB_exp
     return gX.view(N, C, H, W) if gX is not None else None, gG, ggO.view(N, C, H, W)
 
-def instanceNorm_double_backwards_fn_cln(x, gamma, ggX, ggG, ggB, gO,
-                                     eps=1e-5, training=True):
-    N, C, H, W = x.shape
-    M = H * W
+# def instanceNorm_double_backwards_fn_cln(x, gamma, ggX, ggG, ggB, gO,
+#                                      eps=1e-5, training=True):
+#     N, C, H, W = x.shape
+#     M = H * W
 
-    x_flat = x.view(N, C, M)
-    gO_flat = gO.view(N, C, M)
-    with torch.no_grad():
-        mean = x_flat.mean(dim=2, keepdim=True)
-        var = x_flat.var(dim=2, unbiased=False, keepdim=True)
-        std = torch.sqrt(var + eps)
-        inv_std = 1.0 / std
-        x_centered = x_flat - mean
-        x_hat = x_centered * inv_std
-        # inv_std3 = inv_std.pow(3)
-        # 稳定性增强
-        inv_std3 = inv_std / (var + eps)
+#     x_flat = x.view(N, C, M)
+#     gO_flat = gO.view(N, C, M)
+#     with torch.no_grad():
+#         mean = x_flat.mean(dim=2, keepdim=True)
+#         var = x_flat.var(dim=2, unbiased=False, keepdim=True)
+#         std = torch.sqrt(var + eps)
+#         inv_std = 1.0 / std
+#         x_centered = x_flat - mean
+#         x_hat = x_centered * inv_std
+#         # inv_std3 = inv_std.pow(3)
+#         # 稳定性增强
+#         inv_std3 = inv_std / (var + eps)
 
-        sum_gO = gO_flat.sum(dim=2, keepdim=True)
-        sum_gO_xmu = (gO_flat * x_centered).sum(dim=2, keepdim=True)
+#         sum_gO = gO_flat.sum(dim=2, keepdim=True)
+#         sum_gO_xmu = (gO_flat * x_centered).sum(dim=2, keepdim=True)
 
-    # Broadcast gamma safely
-    if gamma is not None:
-        gamma_exp = gamma.view(1, C, 1)
-        ggG_exp = ggG.view(1, C, 1) if ggG is not None else None
-    else:
-        gamma_exp = 1.0
-        ggG_exp = None
-    gX = None
-    if ggX is not None:
-        ggX_flat = ggX.view(N, C, M)
-        with torch.no_grad():
-            sum_ggX = ggX_flat.sum(dim=2, keepdim=True)
-            sum_ggX_xmu = (ggX_flat * x_centered).sum(dim=2, keepdim=True)
-            dot_ggX_gO = (ggX_flat * gO_flat).sum(dim=2, keepdim=True)
+#     # Broadcast gamma safely
+#     if gamma is not None:
+#         gamma_exp = gamma.view(1, C, 1)
+#         ggG_exp = ggG.view(1, C, 1) if ggG is not None else None
+#     else:
+#         gamma_exp = 1.0
+#         ggG_exp = None
+#     gX = None
+#     if ggX is not None:
+#         ggX_flat = ggX.view(N, C, M)
+#         with torch.no_grad():
+#             sum_ggX = ggX_flat.sum(dim=2, keepdim=True)
+#             sum_ggX_xmu = (ggX_flat * x_centered).sum(dim=2, keepdim=True)
+#             dot_ggX_gO = (ggX_flat * gO_flat).sum(dim=2, keepdim=True)
 
-            A = (sum_ggX * sum_gO) / M - dot_ggX_gO + 3 * (inv_std ** 2) * sum_gO_xmu * sum_ggX_xmu / M
-            term0 = x_centered * inv_std3 * A / M
-            term1 = sum_ggX_xmu * inv_std3 * (sum_gO / M - gO_flat) / M
-            term2 = sum_gO_xmu * inv_std3 * (sum_ggX / M - ggX_flat) / M
-        gX = gamma_exp * (term0 + term1 + term2)
-    # gamma 分支贡献
-    if gamma is not None and ggG is not None:
-        t0 = gO_flat * inv_std
-        t1 = -(inv_std * sum_gO) / M
-        t2 = -x_centered * inv_std3 * sum_gO_xmu / M
-        gX_G = ggG_exp * (t0 + t1 + t2)
-        gX = gX + gX_G if gX is not None else gX_G
+#             A = (sum_ggX * sum_gO) / M - dot_ggX_gO + 3 * (inv_std ** 2) * sum_gO_xmu * sum_ggX_xmu / M
+#             term0 = x_centered * inv_std3 * A / M
+#             term1 = sum_ggX_xmu * inv_std3 * (sum_gO / M - gO_flat) / M
+#             term2 = sum_gO_xmu * inv_std3 * (sum_ggX / M - ggX_flat) / M
+#         gX = gamma_exp * (term0 + term1 + term2)
+#     # gamma 分支贡献
+#     if gamma is not None and ggG is not None:
+#         t0 = gO_flat * inv_std
+#         t1 = -(inv_std * sum_gO) / M
+#         t2 = -x_centered * inv_std3 * sum_gO_xmu / M
+#         gX_G = ggG_exp * (t0 + t1 + t2)
+#         gX = gX + gX_G if gX is not None else gX_G
 
-    # gG
-    gG = None
-    if gamma is not None and ggX is not None:
-        def first_back(g, gamma_val):
-            return (gamma_val * inv_std / M) * (
-                M * g - g.sum(dim=2, keepdim=True) -
-                x_centered * inv_std ** 2 * (g * x_centered).sum(dim=2, keepdim=True)
-            )
-        gG = (ggX_flat * first_back(gO_flat, torch.ones_like(gamma_exp))).sum(dim=2)
-    # ggO
-    ggO = None
-    if ggX is not None:
-        ggO = first_back(ggX_flat, gamma_exp)
-    if ggG is not None:
-        ggO_G = ggG_exp * x_centered * inv_std
-        ggO = ggO + ggO_G if ggO is not None else ggO_G
-    if ggB is not None:
-        ggB_exp = ggB.view(1, C, 1)
-        ggO = ggO + ggB_exp if ggO is not None else ggB_exp
-    return gX.view(N, C, H, W) if gX is not None else None, gG, ggO.view(N, C, H, W)
+#     # gG
+#     gG = None
+#     if gamma is not None and ggX is not None:
+#         def first_back(g, gamma_val):
+#             return (gamma_val * inv_std / M) * (
+#                 M * g - g.sum(dim=2, keepdim=True) -
+#                 x_centered * inv_std ** 2 * (g * x_centered).sum(dim=2, keepdim=True)
+#             )
+#         gG = (ggX_flat * first_back(gO_flat, torch.ones_like(gamma_exp))).sum(dim=2)
+#     # ggO
+#     ggO = None
+#     if ggX is not None:
+#         ggO = first_back(ggX_flat, gamma_exp)
+#     if ggG is not None:
+#         ggO_G = ggG_exp * x_centered * inv_std
+#         ggO = ggO + ggO_G if ggO is not None else ggO_G
+#     if ggB is not None:
+#         ggB_exp = ggB.view(1, C, 1)
+#         ggO = ggO + ggB_exp if ggO is not None else ggB_exp
+#     return gX.view(N, C, H, W) if gX is not None else None, gG, ggO.view(N, C, H, W)
 
 
 class Snd_Order_MyLinearFunction(torch.autograd.Function):

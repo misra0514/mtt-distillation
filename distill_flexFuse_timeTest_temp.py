@@ -16,8 +16,8 @@ import time
 import warnings
 from reparam_module import ReparamModule
 
-from networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,ConvBlock_bwd1_2,conv3_double_bwd,conv3_bwd
-from networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
+from networks.networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,ConvBlock_bwd1_2,conv3_double_bwd,conv3_bwd
+from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
 

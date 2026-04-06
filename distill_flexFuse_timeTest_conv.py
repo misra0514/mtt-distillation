@@ -1,4 +1,5 @@
-# 为了在这个上面可以使用，必须得先改成一阶展开。不然20个step基本不可能手写。先测一个step=1的精度+时间把
+# 2.24
+# 从v2复制来的stable版本！ 正式更名成conv！ 
 
 import os
 import argparse
@@ -16,8 +17,8 @@ import time
 import warnings
 from reparam_module import ReparamModule
 
-from networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,conv3_double_bwd,conv3_bwd
-from networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
+from networks.networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,ConvBlock_bwd1_2,conv3_double_bwd,conv3_bwd
+from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
 
@@ -85,7 +86,6 @@ def fuse_params_with_mask(starting_params, Fuse, mask_list):
 def split_half_second_dim(param_list, fuse_mask_list):
     output = []
     Fuse = len(fuse_mask_list)
-
     # 找连续 1 的起点和终点
     start = fuse_mask_list.index(1)
     end = start + fuse_mask_list.count(1)   # 不包括 end（Python 切片习惯）
@@ -99,6 +99,7 @@ def split_half_second_dim(param_list, fuse_mask_list):
             e = end * block
             # 切分并保证连续（减少显存峰值）
             output.append(p[:, s:e, ...].contiguous())
+            del p
         else:
             # 似乎只有x_out 系列是2维,在第一维切
             c = p.shape[0]
@@ -217,7 +218,9 @@ def main(args):
     if args.batch_syn is None:
         args.batch_syn = num_classes * args.ipc
 
-    args.distributed = torch.cuda.device_count() > 1
+    # args.distributed = torch.cuda.device_count() > 1
+    args.distributed = False # 多卡情况目前不考虑
+    
 
 
     # print('Hyper-parameters: \n', args.__dict__)
@@ -278,8 +281,12 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
+    # torch.save(image_syn, "./script/in.pt")
+    # exit()
+
+
     if(args.AccTest):
-        image_syn = torch.load("./script/in.pt")
+        image_syn = torch.load("./script/in_ip10.pt")
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)
@@ -361,13 +368,19 @@ def main(args):
 
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
+    if (args.AccTest):
+        warmup = 0
+    else:
+        warmup = 3
+    warmup = 0
 
+    args.Iteration += warmup
 
     pre_end = time.time()
 
     for it in range(0, args.Iteration+1):
-         
-        start = time.time()
+        if it >= warmup:
+            start = time.time()
 
         save_this_it = False
 
@@ -480,6 +493,7 @@ def main(args):
 
         # 这里有两个改动：1 不用student_net.parameters() 这个是前向的，应该直接用load上来的size（而且是在fuse 之前）
         # 但是因为fuse 之前的starting_params 长度 不太好获取。反正就是一个值而已。在这里处理一下吧。。
+        # num_params 就是一个param的值
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())]) / (Fuse)
         # print(num_params)
 
@@ -613,7 +627,10 @@ def main(args):
         param_dist_list = []
         indices_chunks = []
 
-        syn_start = time.time()
+        if it >= warmup:
+            syn_start = time.time()
+        conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0],shape_list, Fuse)
+
         for step in range(args.syn_steps):
 
             if not indices_chunks:
@@ -637,96 +654,91 @@ def main(args):
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
                 forward_params = student_params[-1]
-            # TODO: 3 模型load, 输入一直是一个x，输出的x虽然是两个（因为两个loss），但后续x就会被覆盖，所以这里拿list也没毛病
             # 因为group conv的原因，最开始应该在Channel 维度做cat
-            # x = student_net(x, flat_param=forward_params.repeat(2))
-            # x = torch.cat([x,x],1)
-            # TODO: 这个repeat_interleavez在第一维上复制一遍，正确性可能还需要再检查
-            # x = x.repeat_interleave(int(Fuse),dim =1)
             x = x.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
             this_y = this_y.repeat(int(Fuse))
 
-            print("FWD之前峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-            print("FWD之前峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
-            x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin, x_out  = student_net(x, flat_param=forward_params)
-            x_out = x_out.view(-1,num_classes)
+            with torch.no_grad():
 
-            ce_loss = criterion(x_out, this_y)
-            ce_loss *= int(Fuse)
-            # TODO: 因为criterion 会求平均
-            # grad = torch.autograd.grad(ce_loss, student_params[-1], retain_graph=True)[0]
-            dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_lin, dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_lin,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
+                x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin, x_out  = student_net(x, flat_param=forward_params)
+                x_out = x_out.view(-1,num_classes)
 
-
-            # print("celoss:", ce_loss.sum().item())
-            # print("cegrad", grad.sum().item())
-            # student_params.append(student_params[-1] - syn_lr * grad.detach())
-            # if(step < args.detachNum):
-            #     student_params.append(student_params[-1] - syn_lr * grad.detach())
-            # else:
-            # dw = grad.detach().requires_grad_(True)
-            grad = grad.detach().requires_grad_(True)
-
-            templist = recover_params(grad,shape_list, bwd_Fuse)
-
-            #     print("---Gradsum------",grad.sum().item())
+                ce_loss = criterion(x_out, this_y)
+                ce_loss *= int(Fuse)
+                # grad = torch.autograd.grad(ce_loss, student_params[-1], retain_graph=True)[0]
+                # dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
+                # dx_out= torch.autograd.grad(ce_loss, x_out)[0] # 改成分段计算了。麻烦的点在于weight。需要全部手动改。而且会收到reparam影响
+                dx_out = crossEntropy_bwd(x_out, this_y, Fuse)
+                dx_lin, dlin_w, dlin_b = linerFused_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse)
+                dx_lin = dx_lin.reshape(-1, student_net.module.net_width * Fuse, 4,4)  # 4*4 可能需要灵活改
+                x_lin,x_out,dx_out = split_half_second_dim([x_lin,x_out,dx_out],fuse_mask_list)
+                dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse)
+                x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin = split_half_second_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin],fuse_mask_list)
+                dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse)
+                x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 = split_half_second_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 ],fuse_mask_list)
+                del dx_conv3
+                # _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
+                dx_pool1 = avgPool_bwd( x_pool1, grad_output= dx_conv2 )
+                del dx_conv2
+                # dx_conv2 = split_half_second_dim([dx_conv2], fuse_mask_list)[0]
+                # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
+                dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1)
+                x_norm1 = split_half_second_dim([x_norm1],fuse_mask_list)[0]
+                x_pool1 = split_half_second_dim([x_pool1 ],fuse_mask_list)[0]
+                dx_pool1 = split_half_second_dim([dx_pool1],fuse_mask_list)[0]
+                # del dx_pool_d1
+                _, dconv1_w, dconv1_b = conv_bwd(x_conv1, conv1_w, grad_output=dx_norm1, groups=Fuse)
+                x_conv1 = split_half_second_dim([x_conv1 ],fuse_mask_list)[0]
+                dx_norm1 = split_half_second_dim([dx_norm1 ],fuse_mask_list)[0]
+                grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
+            grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
 
             student_params.append(student_params[-1] - syn_lr *  grad)
 
-        syn_end = time.time()
-        print("FWD之后峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-        print("FWD之后峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") 
-        weight = student_params[-2]
-        if Fuse != bwd_Fuse:
-            weight = weight[mask]
-            student_params[-1] = student_params[-1][mask]
-            starting_params = starting_params[mask]
-            target_params = target_params[mask]
-            # TODO: X也要吃mask     但是x已经分好了(有list)。为了简单起见，这里或许直接要上面一半好了
-            # 但是注意X 不可以简单的中间切分。
-            # l = [x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out]
-            x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin = split_half_second_dim([x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin],fuse_mask_list)
-            dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,x_out,dx_out = split_half_second_dim([dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,x_out,dx_out], fuse_mask_list)
-            # print(x_out.shape)
-            # half = x_out.shape[0] // Fuse  # 第1维的长度
-            # x_out = x_out[:half,]  # x其实不太确定。按理说Bmm之后应该是fusion在前。但是现在走einsum，"abc,bcd->bad"，b是fusion size
-            # # print(x_out.sum().item()).contiguous()
-            # dx_out = dx_out[:half,]
-        # continue
-
-        param_loss = torch.tensor(0.0).to(args.device)
-        param_dist = torch.tensor(0.0).to(args.device)
-
-        param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum") # 好像是因为reduction的原因。。。。
-        # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params reduction="sum")
-        param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
-
-        param_loss_list.append(param_loss)
-        param_dist_list.append(param_dist)
-        param_loss /= num_params
-        param_dist /= num_params
-        # param_loss /= param_dist
-        grand_loss = param_loss # 是为了抵消num_params变化带来的影响。但是flex fuse 之后num_params没有变化（还是Fuse）
-
-        optimizer_img.zero_grad()
-        optimizer_lr.zero_grad()
-
-        # TODO: Grandloss reduction 是sum。 但是num_params 应该是原样
-        # grand_loss.backward()
+        if it >= warmup:
+            syn_end = time.time()
 
         with torch.no_grad():
+
+            weight = student_params[0] # weight是原始参数，不加dw
+            if Fuse != bwd_Fuse:
+                weight = weight[mask]
+                student_params[-1] = student_params[-1][mask]
+                starting_params = starting_params[mask]
+                target_params = target_params[mask]
+                conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0][mask],shape_list, bwd_Fuse)
+
+            param_loss = torch.tensor(0.0).to(args.device)
+            param_dist = torch.tensor(0.0).to(args.device)
+
+            param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum") # 好像是因为reduction的原因。。。。
+            param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+
+            param_loss_list.append(param_loss)
+            param_dist_list.append(param_dist)
+            # param_loss /= num_params
+            # param_dist /= num_params
+            param_loss /= param_dist
+            grand_loss = param_loss # 是为了抵消num_params变化带来的影响。但是flex fuse 之后num_params没有变化（还是Fuse）
+            optimizer_img.zero_grad()
+            optimizer_lr.zero_grad()
+
             ddx_conv = torch.zeros_like(x_conv1).cuda()
-            # dw 好像只能用这种方法获取，但是w可以直接student_net.module.conv1.weight.shape
-            conv1_w, _, norm1_w, _, conv2_w, _, norm2_w, _, conv3_w, _, norm3_w, _, lin_w, _  =recover_params(weight,shape_list, bwd_Fuse)
-            # print("DDW",dw.sum().item())
-            ddw = torch.autograd.grad(grand_loss, grad)[0]
-            # ddw = grad*2*bwd_Fuse # 这个为啥不行呀？ 之前不是试过是对的么
-            ddw = ddw[mask]
+            ddw = 2*(student_params[-1]- target_params)/param_dist
+            ddw *= (-syn_lr)
+
             del grad
             ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(ddw, shape_list,bwd_Fuse )
-            ddx_conv2, dxconv1_d2, _,dx_norm1_d2,_ = ConvBlock_double_bwd(x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, \
-                                                                            ddx_conv, conv1_w, norm1_w,ddconv1_w, ddconv1_b, ddnorm1_w, ddnorm1_b,bwd_Fuse  )
-            del ddx_conv,dx_norm1,dx_pool1
+            # ddx_conv2, dxconv1_d2, _,dx_norm1_d2,_ = ConvBlock_double_bwd(x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, \
+            #                                                                 ddx_conv, conv1_w, norm1_w,ddconv1_w, ddconv1_b, ddnorm1_w, ddnorm1_b,bwd_Fuse  )
+            # del ddx_conv,dx_norm1,dx_pool1
+            ddx_norm, dxconv1_d2, _ = conv_double_bwd(ddx_conv, ddconv1_w, ddconv1_b, dx_norm1, conv1_w, x_conv1, groups_=bwd_Fuse )
+            del ddx_conv,ddconv1_w,ddconv1_b, dx_norm1
+            ddx_pool, dx_norm1_d2, _ = insNormNRelu_double_bwd(ddx_norm, ddnorm1_w, ddnorm1_b, dx_pool1, x_pool1, norm1_w, x_norm1)
+            del ddx_norm,dx_pool1,ddnorm1_w,ddnorm1_b
+            ddx_conv2 = avgPool_double_bwd(ddx_pool)    
+            del ddx_pool
+
             ddx_conv3, dxconv2_d2, _,dx_norm2_d2,_ = ConvBlock_double_bwd(x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, \
                                                                             ddx_conv2,conv2_w, norm2_w, ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b,bwd_Fuse  )
             del ddx_conv2,dx_norm2,dx_pool2
@@ -736,24 +748,8 @@ def main(args):
             ddx_out, dx_lin_d2, _ = linearFused_double_bwd(x_lin,lin_w, dx_out, ddx_lin, ddlin_w ,ddlin_b ,bwd_Fuse)
             del dx_out, ddx_lin
 
-
-            # dconv1_w,dconv1_b,dnorm1_w,dnorm1_b,dconv2_w,dconv2_b,dnorm2_w,dnorm2_b,dconv3_w,dconv3_b,dnorm3_w,dnorm3_b,dlin_w,dlin_b=recover_params(dw[mask],shape_list, bwd_Fuse)
-            # ddx_conv2, dxconv1_d2, _,dx_norm1_d2,_ = ConvBlock_double_bwd(x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, \
-            #                                                                 ddx_conv, conv1_w, norm1_w,dconv1_w*2, dconv1_b*2, dnorm1_w*2, dnorm1_b*2,bwd_Fuse  )
-            # del ddx_conv,dx_norm1,dx_pool1,dconv1_w,dconv1_b,dnorm1_w,dnorm1_b
-            # ddx_conv3, dxconv2_d2, _,dx_norm2_d2,_ = ConvBlock_double_bwd(x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, \
-            #                                                                 ddx_conv2,conv2_w, norm2_w, dconv2_w*2, dconv2_b*2, dnorm2_w*2, dnorm2_b*2,bwd_Fuse  )
-            # del ddx_conv2,dx_norm2,dx_pool2, dconv2_w, dconv2_b, dnorm2_w, dnorm2_b
-            # ddx_lin, dxconv3_d2, _,dx_norm3_d2,_ = ConvBlock_double_bwd(x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, \
-            #                                                             ddx_conv3, conv3_w,norm3_w, dconv3_w*2, dconv3_b*2, dnorm3_w*2, dnorm3_b*2,bwd_Fuse  )
-            # del ddx_conv3,dx_norm3,dx_pool3,dconv3_w, dconv3_b, dnorm3_w, dnorm3_b
-            # ddx_out, dx_lin_d2, _ = linearFused_double_bwd(x_lin,lin_w, dx_out, ddx_lin, dlin_w*2 ,dlin_b*2 ,bwd_Fuse)
-            # del dx_out, ddx_lin
             dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, bwd_Fuse)
             del ddx_out,x_out
-            # dx_out_d1, dx_norm1_d2, dx_norm2_d2, dx_norm3_d2, dxconv1_d2, dxconv2_d2, dxconv3_d2 ,dx_lin_d2= conv3_double_bwd(x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out ,dx_norm1, dx_norm2,dx_norm3,dx_pool1,dx_pool2,dx_pool3,
-            #      dconv1_w,dconv1_b,dnorm1_w,dnorm1_b,dconv2_w,dconv2_b,dnorm2_w,dnorm2_b,dconv3_w,dconv3_b,dnorm3_w,dnorm3_b,dlin_w,ddlin_b,ddx_conv,dx_out,
-            #       model, Fuse=2 )
 
             dx_lin_d1, _, _ = linerFused_bwd(x_lin, lin_w, grad_output=dx_out_d1, Fuse=bwd_Fuse)
             dx_lin_d1 = dx_lin_d1.reshape(-1, student_net.module.net_width * bwd_Fuse, 4,4)  # 这里128是net_width， 但是distill里面好像没有这个变量。。
@@ -765,21 +761,21 @@ def main(args):
             del dx_norm2_d2,dxconv2_d2, x_conv2, x_norm2,x_pool2,dx_conv3_d1
             dx_conv1_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv1, x_norm1, x_pool1,conv1_w, norm1_w, dx_conv2_d1,dx_norm1_d2,dxconv1_d2 ,Fuse=bwd_Fuse)
             del dx_norm1_d2,dxconv1_d2, x_conv1, x_norm1,x_pool1, dx_conv2_d1
-            # dx_conv1_d1 = conv3_bwd(x_lin, dx_out_d1, dx_lin_d2, x_conv3, x_norm3, x_pool3, dx_norm3_d2,
-            #                          dxconv3_d2, x_conv2, x_norm2, x_pool2, dx_norm2_d2, dxconv2_d2, x_conv1, x_norm1, x_pool1, dx_norm1_d2, dxconv1_d2, model, Fuse)
+            # ddw_output = [ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b ]
+
 
         if(args.AccTest):
+            print("--Celoss--",ce_loss.item())
             print("--GradLoss--",grand_loss.item())
             print("----GRAD-----", dx_conv1_d1.sum().item()) 
-        # print("--GRAD--",image_syn.grad.sum().item())
 
         optimizer_img.step()
         optimizer_lr.step()
-        iter_end = time.time()
-        prep_time += (syn_start- start) # 从iter开始一直到内层循环
-        syn_time += (syn_end-syn_start) # 内层循环的时间
-        # iter_time += iter_end-syn_start
-        bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
+        if it >= warmup:
+            iter_end = time.time()
+            prep_time += (syn_start- start) # 从iter开始一直到内层循环
+            syn_time += (syn_end-syn_start) # 内层循环的时间
+            bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
 
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})
@@ -788,7 +784,10 @@ def main(args):
             del _
 
         # if it%10 == 0:
-        #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+    #     #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+    #     print("alloc", torch.cuda.memory_allocated() / 1024**2,
+    #   "reserved", torch.cuda.memory_reserved() / 1024**2)
+
 
     iter_end = time.time()
     print("------------FIN TIME-------------")

@@ -232,7 +232,6 @@ def main(args):
     # x = image_syn[these_indices]
     # bind(0.2 ,0, x)
 
-
     # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
     student_net = get_network("ConvStacked"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
     # student_net = get_network("ConvFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
@@ -350,6 +349,7 @@ def main(args):
             # x = torch.cat([x,x],1)
             # TODO: 这个repeat_interleavez在第一维上复制一遍，正确性可能还需要再检查
             # x = x.repeat_interleave(int(args.Fuse),dim =1)
+            # print(args.Fuse)
             x = x.repeat(1,int(args.Fuse), 1, 1).requires_grad_(True)
             # x1 = x.clone().detach()
             # x2 = x.clone().detach()
@@ -370,6 +370,8 @@ def main(args):
             # out = out[:10, :]
             # this_y = this_y[:10]
             # print(criterion(out[9:19, :], this_y[9:19]).item())
+            print(this_y.shape)
+            print(out.shape)
 
             ce_loss = criterion(out, this_y)
             ce_loss *= int(args.Fuse)
