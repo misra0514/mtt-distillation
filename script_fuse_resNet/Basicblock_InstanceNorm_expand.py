@@ -6,6 +6,10 @@
 # 修正一下没有short cut 1*1 conv的问题
 # 为了能做bwd，conv out 也需要保存。(bn out 应该不用存吧... )
 
+# 4.5 修正了在shortcut下的bug。目前后缀为full的接口均可以返回正常结果。（除了性能不太好。）
+# 4.7 mem上已经消耗接近。剩下大约150/600 的mem 难以优化因为瓶颈在basic block里面。
+
+
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,7 +44,9 @@ linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossE
 from networks.networks_fused3 import NormActive
 # from networks_flexFuse import Conv_Flexfused, ConvBlock_double_bwd,ConvBlock_bwd2_1
 
-
+def clear_tensorlists(*dicts):
+    for d in dicts:
+        d.clear()
 
 def set_random_seed(seed=42):
     random.seed(seed)
@@ -71,253 +77,268 @@ def adaptivepooling_double_bwd(x,shape = (1, 1)):
     return F.adaptive_avg_pool2d(x, shape)
 
 
-def BasicBlock_bwd2_1(x_conv1, x_bn1, x_conv2, x_bn2 , out, conv1w, bn1w, bn1b, conv2w, bn2w, bn2b, \
-                       grad_output, dx_conv1_d2, dx_conv2_d2, dx_bn1_d2,dx_bn2_d2):
-    # 在2——1，需要做grad加法
-    grad_output[out <= 0] = 0
-    dx_bn2, dbn2w, dbn2b,_,_ = instanceNorm_backward(x_bn2, bn2w, grad_output=grad_output)
-    dx_bn2+=dx_bn2_d2
-    dx_conv2, dconv2w, _ = conv_bwd(x_conv2, conv2w, grad_output=dx_bn2 )
-
-    dx_conv2[x_conv2 <=0 ] = 0
-    dx_conv2 += dx_conv2_d2
-    dx_bn1, dbn1w, dbn1b,_,_ = instanceNorm_backward(x_bn1, bn1w, grad_output=dx_conv2)
-    dx_bn1+=dx_bn1_d2
-    dx_conv1, dconv1w, _ = conv_bwd(x_conv1, conv1w, grad_output=dx_bn1 )
-    return dx_conv1+grad_output+dx_conv1_d2, dconv1w, dbn1w, dbn1b, dconv2w, dbn2w, dbn2b, grad_output, dx_conv2
-
-
-def BasicBlock_bwd(x_conv1, x_bn1, x_conv2, x_bn2 , out, conv1w, bn1w, bn1b, conv2w, bn2w, bn2b,  grad_output):
-    # reluout = grad_output * (out > 0)
-    grad_output[out <= 0] = 0
-    dx_bn2, dbn2w, dbn2b,_,_ = instanceNorm_backward(x_bn2, bn2w , grad_output=grad_output)
-    # dx_bn2, dbn2w, dbn2b = torch.autograd.grad(out,[x_bn2, bn2w, bn2b ],grad_outputs=grad_output)
-    dx_conv2, dconv2w, _ = conv_bwd(x_conv2, conv2w, grad_output=dx_bn2 )
-
-    dx_conv2[x_conv2 <=0 ] = 0
-    dx_bn1, dbn1w, dbn1b,_,_ = instanceNorm_backward(x_bn1, bn1w, grad_output=dx_conv2)
-    # dx_bn1, dbn1w, dbn1b = torch.autograd.grad(x_conv2,[x_bn1, bn1w, bn1b ],grad_outputs=dx_conv2)
-    dx_conv1, dconv1w, _ = conv_bwd(x_conv1, conv1w, grad_output=dx_bn1 )
-    
-    # 因为是inplace操作，最后return的两个实际上是gbno2和gbno1
-    return dx_conv1+grad_output, dconv1w, dbn1w, dbn1b, dconv2w, dbn2w, dbn2b, grad_output, dx_conv2, dx_bn1, dx_bn2
-
-
-
-def BasicBlock_bwd_full(
-    x_conv1, x_bn1, x_conv2, x_bn2, out,
-    conv1w, bn1w, bn1b, conv2w, bn2w, bn2b,
-    grad_output,
-    x_bnsc=None, convscw=None, bnscw=None,SCstride=1
-):
+def BasicBlock_bwd( activates, weights, grad_output,SCstride=1 ):
+    # -------- unpack activates --------
+    x_conv1 = activates["x_conv1"]
+    x_bn1   = activates["x_bn1"]
+    x_conv2 = activates["x_conv2"]
+    x_bn2   = activates["x_bn2"]
+    out     = activates["x_out"]
+    x_bnsc  = activates.get("x_bnsc", None)
+    # -------- unpack weights --------
+    conv1w  = weights["conv1w"]
+    bn1w    = weights["bn1w"]
+    bn1b    = weights["bn1b"]
+    conv2w  = weights["conv2w"]
+    bn2w    = weights["bn2w"]
+    bn2b    = weights["bn2b"]
+    convscw = weights.get("convscw", None)
+    bnscw   = weights.get("bnscw", None)
 
     has_downsample = (convscw is not None)
-    g_out = grad_output.clone()
-    g_out[out <= 0] = 0
+
+    # 保持和你原来一样的写法：直接改 grad_output
+    grad_output[out <= 0] = 0
 
     # ---------------- main branch ----------------
-    dx_bn2, dbn2w, dbn2b, _, _ = instanceNorm_backward(
-        x_bn2, bn2w, grad_output=g_out
-    )
-    dx_conv2, dconv2w, _ = conv_bwd(
-        x_conv2, conv2w, grad_output=dx_bn2
-    )
-    dbno1 = dx_conv2.clone()
+    dx_bn2, dbn2w, dbn2b, _, _ = instanceNorm_backward(x_bn2, bn2w, grad_output=grad_output)
+    dx_conv2, dconv2w, _ = conv_bwd(x_conv2, conv2w, grad_output=dx_bn2)
+    dbno1 = dx_conv2
     dbno1[x_conv2 <= 0] = 0
-    dx_bn1, dbn1w, dbn1b, _, _ = instanceNorm_backward(
-        x_bn1, bn1w, grad_output=dbno1
-    )
-    dx_main, dconv1w, _ = conv_bwd(
-        x_conv1, conv1w, grad_output=dx_bn1
-    )
-    dbno2 = g_out.clone()
 
+    dx_bn1, dbn1w, dbn1b, _, _ = instanceNorm_backward(x_bn1, bn1w, grad_output=dbno1)
+    dx_main, dconv1w, _ = conv_bwd(x_conv1, conv1w, grad_output=dx_bn1, stride=SCstride)
+
+    dbno2 = grad_output
+    # ---------------- shortcut branch ----------------
     if has_downsample:
-        # 如果有down sample，需要单独对sc部分求导数，而不是简单相加
-        dbnosc = g_out.clone()
-        dx_bnsc, dscbnw, dscbnb, _, _ = instanceNorm_backward(
+        dbnosc = grad_output
+        dx_bnsc, dbnscw, dbnscb, _, _ = instanceNorm_backward(
             x_bnsc, bnscw, grad_output=dbnosc
         )
-        dx_short, dscconvw, _ = conv_bwd(
-            x_conv1, convscw, grad_output=dx_bnsc,stride=SCstride, padding=0,
-        ) # TODO:
+        dx_short, dconvscw, _ = conv_bwd(
+            x_conv1, convscw, grad_output=dx_bnsc, stride=SCstride, padding=0
+        )
         dx_in = dx_main + dx_short
     else:
         dbnosc = None
         dx_bnsc = None
-        dscbnw = None
-        dscbnb = None
-        dscconvw = None
-        dx_in = dx_main + g_out
+        dbnscw = None
+        dbnscb = None
+        dconvscw = None
+        dx_in = dx_main + grad_output
 
-    return (
-        dx_in,
-        dconv1w, dbn1w, dbn1b,
-        dconv2w, dbn2w, dbn2b,
-        dscconvw, dscbnw, dscbnb,
-        dbno2, dbno1, dbnosc,
-        dx_bn1, dx_bn2, dx_bnsc
-    )
+    d_activates = {
+        "dx_conv1": dx_in,
+        "dbno2": dbno2,
+        "dbno1": dbno1,
+        "dx_bn1": dx_bn1,
+        "dx_bn2": dx_bn2,
+        "dx_bnsc": dx_bnsc,
+    }
+    d_weights = {
+        "dconv1w": dconv1w,
+        "dbn1w": dbn1w,
+        "dbn1b": dbn1b,
+        "dconv2w": dconv2w,
+        "dbn2w": dbn2w,
+        "dbn2b": dbn2b,
+        "dconvscw": dconvscw,
+        "dbnscw": dbnscw,
+        "dbnscb": dbnscb,
+    }
+
+    return d_activates, d_weights
 
 
-def BasicBlock_bwd2_1_full(
-    x_conv1, x_bn1, x_conv2, x_bn2, out,
-    conv1w, bn1w, bn1b, conv2w, bn2w, bn2b,
-    grad_output,
-    dx_conv1_d2, dx_conv2_d2, dx_bn1_d2, dx_bn2_d2,
-    # optional shortcut / downsample branch
-    x_bnsc=None, convscw=None, bnscw=None, bnscb=None,
-    dx_bnsc_d2=None, SCstride=1
+def BasicBlock_bwd2_1(
+    activates, weights, d2_activates,
+    grad_output, SCstride=1
 ):
+    x_conv1 = activates["x_conv1"]
+    x_bn1   = activates["x_bn1"]
+    x_conv2 = activates["x_conv2"]
+    x_bn2   = activates["x_bn2"]
+    out     = activates["x_out"]
+    x_bnsc  = activates.get("x_bnsc", None)
+    conv1w  = weights["conv1w"]
+    bn1w    = weights["bn1w"]
+    conv2w  = weights["conv2w"]
+    bn2w    = weights["bn2w"]
+    convscw = weights.get("convscw", None)
+    bnscw   = weights.get("bnscw", None)
+    dx_conv1_d2   = d2_activates["dx_in_d2"]
+    dx_bn1_d2   = d2_activates["dx_bn1_d2"]
+    dx_conv2_d2  = d2_activates["dx_conv2_d2"]
+    dx_bn2_d2  = d2_activates["dx_bn2_d2"]
+    dx_bnsc_d2 = d2_activates["dx_bnsc_d2"]
+
+
     has_downsample = (convscw is not None)
-    g_out = grad_output.clone()
-    g_out[out <= 0] = 0
+    # g_out = grad_output.clone()
+    grad_output[out <= 0] = 0
     dx_bn2, dbn2w, dbn2b, _, _ = instanceNorm_backward(
-        x_bn2, bn2w, grad_output=g_out
+        x_bn2, bn2w, grad_output=grad_output
     )
     dx_bn2 += dx_bn2_d2
     dx_conv2, dconv2w, _ = conv_bwd(
         x_conv2, conv2w, grad_output=dx_bn2
     )
-    dx_conv2 = dx_conv2.clone()
+    # dx_conv2 = dx_conv2.clone()
     dx_conv2 += dx_conv2_d2 # TODO: 应该需要先加法再relu。 每一个bwd2_1结束后需要立刻合并dbwd梯度。
     dx_conv2[x_conv2 <= 0] = 0
     dx_bn1, dbn1w, dbn1b, _, _ = instanceNorm_backward(
         x_bn1, bn1w, grad_output=dx_conv2
     )
     dx_bn1 += dx_bn1_d2
+    del dx_bn1_d2
     dx_conv1_main, dconv1w, _ = conv_bwd(
-        x_conv1, conv1w, grad_output=dx_bn1
+        x_conv1, conv1w, grad_output=dx_bn1, stride=SCstride
     )
 
     if has_downsample:
-        dx_bnsc, dscbnw, dscbnb, _, _ = instanceNorm_backward(
-            x_bnsc, bnscw, grad_output=g_out
+        dx_bnsc, dbnscw, dbnscb, _, _ = instanceNorm_backward(
+            x_bnsc, bnscw, grad_output=grad_output
         )
         dx_bnsc += dx_bnsc_d2
-        dx_conv1_sc, dscconvw, _ = conv_bwd(
+        dx_conv1_sc, dconvscw, _ = conv_bwd(
             x_conv1, convscw, grad_output=dx_bnsc,
             stride=SCstride, padding=0,
         )
-
         dx_in = dx_conv1_main + dx_conv1_sc + dx_conv1_d2
     else:
         dx_bnsc = None
-        dscbnw = None
-        dscbnb = None
-        dscconvw = None
-        dx_in = dx_conv1_main + g_out + dx_conv1_d2
+        dbnscw = None
+        dbnscb = None
+        dconvscw = None
+        dx_in = dx_conv1_main + grad_output + dx_conv1_d2
 
-    return (
-        dx_in,
-        dconv1w, dbn1w, dbn1b,
-        dconv2w, dbn2w, dbn2b,
-        dscconvw, dscbnw, dscbnb,
-        g_out, dx_conv2, dx_bnsc
-    )
+    weights["dconv1w"] = dconv1w
+    weights["dbn1w"] = dbn1w
+    weights["dbn1b"] = dbn1b
+    weights["dconv2w"] = dconv2w
+    weights["dbn2w"] = dbn2w
+    weights["dbn2b"] = dbn2b
+    weights["dconvscw"] = dconvscw
+    weights["dbnscw"] = dbnscw
+    weights["dbnscb"] = dbnscb
 
-
-def BasicBlock_double_bwd(x_conv1, x_bn1, x_conv2, x_bn2 , out,\
-                          dx_bn1, dx_bn2, dx_out,\
-                          dbno1, dbno2,\
-                         conv1w, bn1w, conv2w, bn2w, \
-                        ddconv1w, ddconv1b,ddbn1w, ddbn1b, ddconv2w,ddconv2b, ddbn2w, ddbn2b, ddx_conv1):
-    
-    ddx_bn1, dx_conv1_d2, dconv1w_d2 = conv_double_bwd(ddx_conv1, ddconv1w, None,dx_bn1, conv1w, x_conv1)
-    dx_bn1_d2, dbn1w_d2, ddx_conv2 = instanceNorm_double_backwards_fn(x_bn1,bn1w,None, ddx_bn1, ddbn1w, ddbn1b,dbno1,1e-5)
-    # ggO, gx, gG =  batchnorm_double_backwards_fn_new(input, weight, grad_grad_input, grad_grad_w,grad_grad_b, dLdy,1e-5)
-
-    ddx_conv2[x_conv2<=0] = 0
-    ddx_bn2, dx_conv2_d2, dconv2w_d2= conv_double_bwd(ddx_conv2, ddconv2w, None,dx_bn2, conv2w, x_conv2)
-    dx_bn2_d2, dbn2w_d2 , ddO= instanceNorm_double_backwards_fn(x_bn2, bn2w, None, ddx_bn2, ddbn2w, ddbn2b,gO=dbno2)   
-    ddO += ddx_conv1
-    ddO[out<=0] = 0
-    return ddO, dx_conv1_d2,dx_bn1_d2,dx_conv2_d2,dx_bn2_d2, dconv1w_d2, dbn1w_d2, dconv2w_d2, dbn2w_d2
+    return dx_in
+    #     dconv1w, dbn1w, dbn1b,
+    #     dconv2w, dbn2w, dbn2b,
+    #     dconvscw, dbnscw, dbnscb
+    # )
 
 
-def BasicBlock_double_bwd_full(
-    x_conv1, x_bn1, x_conv2, x_bn2, out,
-    dx_bn1, dx_bn2, dx_out,
-    dbno1, dbno2,
-    conv1w, bn1w, conv2w, bn2w,
-    ddconv1w, ddconv1b, ddbn1w, ddbn1b,
-    ddconv2w, ddconv2b, ddbn2w, ddbn2b,
-    ddx_conv1,
-    # optional downsample branch
-    x_bnsc=None, dx_bnsc=None, 
-    convscw=None, bnscw=None,
-    ddconvscw=None, ddconvscb=None,
-    ddbnscw=None, ddbnscb=None,
-    dbnosc = None, SCstride=1
+def BasicBlock_double_bwd(
+    activates, d_activates, weights, dd_weights,
+    ddx_conv1, SCstride=1
 ):
+    # 原地修改activates 里的值为d2。（x2_1）返回值里不再体现。
+    conv1w  = weights["conv1w"]
+    bn1w    = weights["bn1w"]
+    conv2w  = weights["conv2w"]
+    bn2w    = weights["bn2w"]
+    convscw = weights.get("convscw", None)
+    bnscw   = weights.get("bnscw", None)
+
+    ddconv1w  = dd_weights["ddconv1w"]
+    ddbn1w    = dd_weights["ddbn1w"]
+    ddbn1b = dd_weights["ddbn1b"]
+    ddconv2w  = dd_weights["ddconv2w"]
+    ddbn2w    = dd_weights["ddbn2w"]
+    ddbn2b = dd_weights["ddbn2b"]
+    ddconvscw = dd_weights.get("ddconvscw", None)
+    ddbnscw   = dd_weights.get("ddbnscw", None)
+    ddbnscb   = dd_weights.get("ddbnscb", None)
+    
+    x_conv1 = activates["x_conv1"]
+    x_bn1   = activates["x_bn1"]
+    x_conv2 = activates["x_conv2"]
+    x_bn2   = activates["x_bn2"]
+    out     = activates["x_out"]
+    x_bnsc  = activates.get("x_bnsc", None)
+
+    # dx_block   = d_activates["dx_conv1"]
+    # dbno2   = d_activates["dbno2"]
+    # dbno1   = d_activates["dbno1"]
+    # dx_bn1  = d_activates["dx_bn1"]
+    # dx_bn2  = d_activates["dx_bn2"]
+    # dx_bnsc = d_activates["dx_bnsc"]
     #  branch 下还有一些点要再商议一下：
     #  因为最后一个op是先加和再relu；所以dbnosc = dbno2
     has_downsample = (convscw is not None)
-    dbnosc = dbno2
+    # dbnosc = dbno2
     # ---------------- main branch ----------------
-    ddx_bn1, dx_conv1_d2_main, dconv1w_d2 = conv_double_bwd(
+    ddx_bn1, dx_in_d2, dconv1w_d2 = conv_double_bwd(
         ddx_conv1, ddconv1w, None,
-        dx_bn1, conv1w, x_conv1
+        d_activates["dx_bn1"], conv1w, x_conv1, stride_=[SCstride,SCstride]
     )
+    d_activates.pop("dx_bn1")
+    # del dx_bn1
+    d_activates["dx_in_d2"] = dx_in_d2
     dx_bn1_d2, dbn1w_d2, ddx_conv2 = instanceNorm_double_backwards_fn(
         x_bn1, bn1w, None,
         ddx_bn1, ddbn1w, ddbn1b,
-        dbno1, 1e-5
+        d_activates["dbno1"], 1e-5
     )
-    ddx_conv2 = ddx_conv2.clone()
+    d_activates.pop("dbno1")
+    # del dbno1
+    d_activates["dx_bn1_d2"] = dx_bn1_d2
     ddx_conv2[x_conv2 <= 0] = 0
     ddx_bn2, dx_conv2_d2, dconv2w_d2 = conv_double_bwd(
-        ddx_conv2, ddconv2w, None,
-        dx_bn2, conv2w, x_conv2
+        ddx_conv2, ddconv2w, None, d_activates["dx_bn2"], conv2w, x_conv2
     )
+    d_activates.pop("dx_bn2")
+    # del dx_bn2
+    d_activates["dx_conv2_d2"] = dx_conv2_d2
     dx_bn2_d2, dbn2w_d2, ddO_main = instanceNorm_double_backwards_fn(
         x_bn2, bn2w, None,
         ddx_bn2, ddbn2w, ddbn2b,
-        gO=dbno2
+        gO=d_activates["dbno2"]
     )
+    d_activates["dx_bn2_d2"] = dx_bn2_d2
+
+
     # ---------------- shortcut branch ----------------
     if has_downsample:
-        ddx_scbn, dx_conv1_d2_sc, dscconvw_d2 = conv_double_bwd(
+        ddx_scbn, dx_conv1_d2_sc, dconvscw_d2 = conv_double_bwd(
             ddx_conv1, ddconvscw, None,
-            dx_bnsc, convscw, x_conv1,
-            stride_=[SCstride,SCstride],padding_=[0,0]
-        )
-        dx_bnsc_d2, dscbnw_d2, ddO_sc = instanceNorm_double_backwards_fn(
+            d_activates["dx_bnsc"], convscw, x_conv1,
+            stride_=[SCstride,SCstride],padding_=[0,0])
+        d_activates.pop("dx_bnsc")
+        dx_bnsc_d2, dbnscw_d2, ddO_sc = instanceNorm_double_backwards_fn(
             x_bnsc, bnscw, None,
             ddx_scbn, ddbnscw, ddbnscb,
-            gO=dbnosc
+            gO=d_activates["dbno2"]
         )
-        dx_conv1_d2_total = dx_conv1_d2_main + dx_conv1_d2_sc
-        ddO = ddO_main + ddO_sc
+        d_activates.pop("dbno2")
+        d_activates["dx_bnsc_d2"] = dx_bnsc_d2
+        d_activates["dx_in_d2"]+= dx_conv1_d2_sc
+        # dx_conv1_d2_total = dx_conv1_d2_main
+        ddO_main += ddO_sc
     else:
+        d_activates.pop("dbno2")
         dx_bnsc_d2 = None
-        dscconvw_d2 = None
-        dscbnw_d2 = None
+        # dconvscw_d2 = None
+        # dbnscw_d2 = None
+        # dx_conv1_d2_total = dx_conv1_d2_main
+        ddO_main += ddx_conv1
 
-        dx_conv1_d2_total = dx_conv1_d2_main
-        ddO = ddO_main + ddx_conv1
-
-    ddO = ddO.clone()
-    ddO[out <= 0] = 0
-
+    ddO_main[out <= 0] = 0
     # TODO: 是不是这里少返回了一个dx_convsc d2啊？
     # 不是，因为被累加到dx_conv1_d2_total 里面了，确实也合理，这个是x_conv在两个conv 下面产生的一阶梯度和。
     # dx_conv1_d2_total = dx_conv1_d2_sc(shortcut) + dx_conv1_d2_main(原来的dxconv2d2)
- 
-    return (
-        ddO,
-        dx_conv1_d2_total,
-        dx_bn1_d2,
-        dx_conv2_d2,
-        dx_bn2_d2,
-        dconv1w_d2,
-        dbn1w_d2,
-        dconv2w_d2,
-        dbn2w_d2,
-        dx_bnsc_d2,
-        dscconvw_d2,
-        dscbnw_d2,
-    )
+
+    return ddO_main
+        # dconv1w_d2,
+        # dbn1w_d2,
+        # dconv2w_d2,
+        # dbn2w_d2,
+        # dconvscw_d2,
+        # dbnscw_d2,
+    # )
+
 
 
 
@@ -351,69 +372,6 @@ class BasicBlock(nn.Module):
         return x_bn1, x_conv2, x_bn2, out, x_bnsc
 
 
-# 这个基本上只是为了调准确性的
-# class BasicBlock_VirticalFuse(nn.Module):
-#     def __init__(self, channels):
-#         super().__init__()
-#         self.conv1 = nn.Conv2d(channels, channels, 3, 1, 1, bias=False)
-#         self.bn1 = nn.InstanceNorm2d(channels, affine= True)
-#         self.conv2 = nn.Conv2d(channels, channels, 3, 1, 1, bias=False)
-#         self.bn2 = nn.InstanceNorm2d(channels, affine= True)
-
-#     def forward(self, x):
-#         identity = x
-#         x_bn1 = self.conv1(x)
-#         x_conv2 = F.relu(self.bn1(x_bn1), inplace=True)
-#         x_bn2 = self.conv2(x_conv2)
-#         out = self.bn2(x_bn2)
-#         out = F.relu(out + identity, inplace=True)
-#         return x_bn1, x_conv2, x_bn2, out
-#         # identity = x
-#         # out = F.relu(self.bn1(self.conv1(x)), inplace=True)
-#         # out = self.bn2(self.conv2(out))
-#         # out = F.relu(out + identity, inplace=True)
-#         # return out
-
-
-# class BasicBlock_manuel(nn.Module):
-#     def __init__(self, channels):
-#         super().__init__()
-#         self.conv1 = nn.Conv2d(channels, channels, 3, 1, 1, bias=False)
-#         self.bn1 = nn.InstanceNorm2d(channels, affine= True)
-#         self.conv2 = nn.Conv2d(channels, channels, 3, 1, 1, bias=False)
-#         self.bn2 = nn.InstanceNorm2d(channels, affine= True)
-
-#     def forward(self, x):
-#         identity = x
-#         x_bn1 = self.conv1(x)
-#         x_conv2 = self.bn1(x_bn1)
-#         x_conv2 = F.relu(x_conv2, inplace=True)
-#         x_bn2 = self.conv2(x_conv2)
-#         out = self.bn2(x_bn2)
-#         out = F.relu(out + identity, inplace=True)
-#         return x_bn1, x_conv2, x_bn2, out
-
-
-
-# class TinyResNet(nn.Module):
-#     def __init__(self, flag,Fuse,  in_channels=3, base_channels=64, num_classes=10):
-#         super().__init__()
-#         self.conv = nn.Conv2d(in_channels, base_channels, kernel_size=3, stride=1, padding=1, bias=False)
-#         self.bn   = nn.InstanceNorm2d(base_channels, affine= True)
-#         self.block = BasicBlock(base_channels,base_channels)
-#         self.pool = nn.AdaptiveAvgPool2d((1, 1))
-#         self.fc   = nn.Linear(base_channels, num_classes)
-
-#     def forward(self, x_conv):
-#         x_bn = self.conv(x_conv)
-#         x_block = self.bn(x_bn)
-#         x_block = F.relu(x_block, inplace=True)
-#         x_bn1, x_conv2, x_bn2, x_pool,x_bnsc = self.block(x_block)
-#         x_fc = self.pool(x_pool)
-#         x_fc = torch.flatten(x_fc, 1)
-#         x_out = self.fc(x_fc)
-#         return x_out, x_fc,x_bnsc, x_pool, x_bn2, x_conv2, x_bn1, x_block, x_bn
-    
 
 class TinyResNet(nn.Module):
     def __init__(
@@ -443,11 +401,19 @@ class TinyResNet(nn.Module):
         x_fc = self.pool(x_pool)
         x_fc = torch.flatten(x_fc, 1)
         x_out = self.fc(x_fc)
-        return x_out, x_fc,x_bnsc, x_pool, x_bn2, x_conv2, x_bn1, x_block, x_bn
+
+        activates = {
+            "x_conv1": x_block,
+            "x_bn1": x_bn1,
+            "x_conv2": x_conv2,
+            "x_bn2": x_bn2,
+            "x_bnsc": x_bnsc,
+            "x_out": x_pool,
+        }
+
+        return x_out, x_fc, x_pool, x_block, activates, x_bn
     
     
-
-
 
 
 
@@ -456,12 +422,12 @@ class TinyResNet(nn.Module):
 ###################################
 ###################################
 # flag = 'flex'        
-flag = 'manuel'         # 单纯x为了debug写的
 flag = 'original'
+flag = 'manuel'         # 单纯x为了debug写的
 Fuse = 1
 batch_size = 128
 out_channel = 128 # in shape是写死了64， 所以out是128的话就是short cut
-stride = 1
+stride = 2
 test_iter = 1
 set_random_seed() # 仅仅在ACC test的时候使用。会严重影响性能。 
 ###################################
@@ -484,12 +450,14 @@ if __name__ == "__main__":
 
 
     # torch.save(model.state_dict(), 'model_test_basicblock_instanceNorm.pt')
+    # torch.save(model.state_dict(), 'model_test_basicblock_instanceNorm_sc_stride2.pt')
     # torch.save(model.state_dict(), 'model_test_basicblock_instanceNorm_sc.pt')
     # exit()
     if(out_channel==64):
         pretrained_dict = torch.load("model_test_basicblock_instanceNorm.pt")
     else:
-        pretrained_dict = torch.load("model_test_basicblock_instanceNorm_sc.pt")
+        # pretrained_dict = torch.load("model_test_basicblock_instanceNorm_sc.pt")
+        pretrained_dict = torch.load("model_test_basicblock_instanceNorm_sc_stride2.pt")
     load_state_dict_by_position(model, pretrained_dict)
 
 
@@ -505,72 +473,66 @@ if __name__ == "__main__":
         optimizer.zero_grad()
 
         if flag =='original':
-            x_out, x_fc,x_bnsc, x_pool, x_bn2, x_conv2, x_bn1, x_block, x_bn= model(x)  # forward
+            x_out, _, _, _ , _ , _ = model(x)
+            # x_out, x_fc,x_bnsc, x_pool, x_bn2, x_conv2, x_bn1, x_block, x_bn= model(x)  # forward
             loss = criterion(x_out, target)  # compute loss
             print("----CELOSS-----", loss.item())
-            # dx_fc = torch.torch.autograd.grad(loss, x_fc, retain_graph=True)[0]
             dw = torch.torch.autograd.grad(loss, list(model.parameters()), create_graph=True)
-            weight = [d.sum() for d in dw]
-            grad_loss = sum(weight)
+            weight_sum = [d.sum() for d in dw]
+            grad_loss = sum(weight_sum)
             print("----GRANDLOSS-----", grad_loss.item())
             grad_loss.backward()  
             print("----GRAD-----", x.grad.sum().item())
 
 
         elif flag =='manuel':
-            x_out, x_fc,x_bnsc, x_pool, x_bn2, x_conv2, x_bn1, x_block, x_bn = model(x)  # forward
-            loss = criterion(x_out, target)  # compute loss
-            print("----CELOSS-----", loss.item())
             with torch.no_grad():
-                dx_out = torch.autograd.grad(loss,x_out)[0]
-                dx_fc, dfcw, dfcb = torch.autograd.grad(x_out, [x_fc, model.fc.weight, model.fc.bias ], grad_outputs=dx_out)
-
-                # dx_fc = dx_fc.view(batch_size, 64,1,1)
-                dx_fc = dx_fc.view(batch_size, out_channel,1,1)
-                dx_pool = adaptivepooling_bwd(x_pool, grad_output= dx_fc)
-                # dx_pool = torch.autograd.grad(x_fc, x_pool, grad_outputs=dx_fc, create_graph=True)[0]
-
-                # targets = [x_block, model.block.bn2.weight, model.block.bn2.bias, model.block.conv2.weight,  \
-                #            model.block.bn1.weight, model.block.bn1.bias, model.block.conv1.weight]
-                # dx_block, dbn2w,dbn2b,dconv2w,dbn1w,dbn1b,dconv1w = torch.autograd.grad(x_pool, targets, grad_outputs=dx_pool, create_graph=True)
-                
+                # 首尾的activate 是需要的x_block，x_pool， 还有一些首尾部分的activates
+                x_out, x_fc, x_pool, x_block,activates, x_bn = model(x)  # forward
                 bnscw = model.block.bnsc.weight if model.block.bnsc is not None else None
                 bnscb = model.block.bnsc.bias if model.block.bnsc is not None else None
                 convscw = model.block.convsc.weight if model.block.convsc is not None else None
+                weights = {
+                    "conv1w": model.block.conv1.weight,
+                    "bn1w":  model.block.bn1.weight,
+                    "bn1b":  model.block.bn1.bias,
+                    "conv2w":  model.block.conv2.weight,
+                    "bn2w":  model.block.bn2.weight,
+                    "bn2b":  model.block.bn2.bias,
+                    "convscw": convscw,
+                    "bnscw": bnscw,
+                }
+                loss = criterion(x_out, target)  
+                print("----CELOSS-----", loss.item())
 
-                
-                dx_block, dconv1w, dbn1w, dbn1b, \
-                dconv2w, dbn2w, dbn2b, \
-                dconvscw, dbnscw, dbnscb, \
-                dbno2, dbno1, dbnosc, \
-                dx_bn1, dx_bn2, dx_bnsc = BasicBlock_bwd_full(x_block, x_bn1, x_conv2, x_bn2,x_pool, model.block.conv1.weight, model.block.bn1.weight , model.block.bn1.bias, \
-                                            model.block.conv2.weight, model.block.bn2.weight , model.block.bn2.bias, grad_output= dx_pool,  \
-                                            x_bnsc=x_bnsc, convscw=convscw,bnscw=bnscw )
-                
+                dx_out = crossEntropy_bwd(x_out,target,1)
+                dx_fc,dfcw, dfcb  = linear_bwd(x_fc, model.fc.weight, grad_output=dx_out)
+                dx_fc = dx_fc.view(batch_size, out_channel,1,1)
+                dx_pool = adaptivepooling_bwd(x_pool, grad_output= dx_fc)
+                del dx_fc
+                d_activates, d_weights = BasicBlock_bwd(activates, weights, grad_output=dx_pool, SCstride=stride )
+                del dx_pool
+                dx_block = d_activates["dx_conv1"]
+                d_activates.pop("dx_conv1")
+
                 dx_block[x_block <= 0] = 0
-                dx_bn,dbnw, dbnb,_,_ = instanceNorm_backward(x_bn, model.bn.weight, grad_output=dx_block)
-                # dx_bn,dbnw, dbnb = torch.autograd.grad(x_block, [x_bn, model.bn.weight,  model.bn.bias, ], grad_outputs=dx_block, create_graph=True)
-                # dconvw = torch.autograd.grad(x_bn, [ model.conv.weight], grad_outputs=dx_bn) [0]         
+                dx_bn, dbnw, dbnb,_,_ = instanceNorm_backward(x_bn, model.bn.weight, grad_output=dx_block)
                 _, dconvw ,_ = conv_bwd(x, model.conv.weight, grad_output=dx_bn)
-
-                if( convscw is not None ): 
-                    dw = [dconvw,dbnw,dbnb,dconv1w,dbn1w,dbn1b,dconv2w,dbn2w,dbn2b,dconvscw,dbnscw,dbnscb,dfcw,dfcb]
-                else:
-                    dw = [dconvw,dbnw,dbnb,dconv1w,dbn1w,dbn1b,dconv2w,dbn2w,dbn2b,dfcw,dfcb]
-
-                weight = [d.sum() for d in dw]
-                grad_loss = sum(weight)
+                dw = [dconvw,dbnw,dbnb,dfcw,dfcb]
+                dw += list(d_weights.values())
+                weight_sum = [d.sum() for d in dw]
+                grad_loss = sum(weight_sum)
                 print("----GRANDLOSS-----", grad_loss.item())
 
                 ddconvw = torch.ones_like(dconvw).cuda()
                 ddbnw = torch.ones_like(dbnw).cuda()
                 ddbnb = torch.ones_like(dbnb).cuda()
-                ddconv1w = torch.ones_like(dconv1w).cuda()
-                ddbn1w = torch.ones_like(dbn1w).cuda()
-                ddbn1b = torch.ones_like(dbn1b).cuda()
-                ddconv2w = torch.ones_like(dconv2w).cuda()
-                ddbn2w = torch.ones_like(dbn2w).cuda()
-                ddbn2b = torch.ones_like(dbn2b).cuda()
+                ddconv1w = torch.ones_like(weights["conv1w"]).cuda()
+                ddbn1w = torch.ones_like(weights["bn1w"]).cuda()
+                ddbn1b = torch.ones_like(weights["bn1b"]).cuda()
+                ddconv2w = torch.ones_like(weights["conv2w"]).cuda()
+                ddbn2w = torch.ones_like(weights["bn2w"]).cuda()
+                ddbn2b = torch.ones_like(weights["bn2b"]).cuda()
                 ddfcw = torch.ones_like(dfcw).cuda()
                 ddfcb = torch.ones_like(dfcb).cuda()
                 if( convscw is not None ): 
@@ -582,51 +544,51 @@ if __name__ == "__main__":
                     ddbnscw = None
                     ddbnscb = None  
                 ddx_conv = torch.zeros_like(x).cuda()
+                dd_weights = {
+                    "ddconv1w": ddconv1w,
+                    "ddbn1w":  ddbn1w,
+                    "ddbn1b":  ddbn1b,
+                    "ddconv2w":  ddconv2w,
+                    "ddbn2w":  ddbn2w,
+                    "ddbn2b":  ddbn2b,
+                    "ddconvscw": ddconvscw,
+                    "ddbnscw": ddbnscw,
+                }
+                del ddconv1w, ddbn1w, ddbn1b, ddconv2w, ddbn2w, ddbn2b, ddconvscw, ddbnscw
 
 
                 ddx_bn, dx_conv_d2, dconvw_d2 = conv_double_bwd(ddx_conv,ddconvw,None,dx_bn, model.conv.weight,x )
-                dx_bn_d2, dbnw_d2,ddx_block = instanceNorm_double_backwards_fn(x_bn, model.bn.weight, None ,ddx_bn,ddbnw,ddbnb,dx_block)
+                del dx_bn, ddx_conv
+                dx_bn_d2, dbnw_d2, ddx_block = instanceNorm_double_backwards_fn(x_bn, model.bn.weight, None ,ddx_bn,ddbnw,ddbnb,dx_block)
+                del dx_block, ddx_bn # 可以试试用覆盖的话，这里就不用单独del了更加工整内存也更好。
                 ddx_block[x_block<=0] = 0
-                ddx_pool, dx_block_d2, dx_bn1_d2, dx_conv2_d2, dx_bn2_d2, \
-                dconv1w_d2, dbn1w_d2, dconv2w_d2, dbn2w_d2, \
-                dx_bnsc_d2, _ , _ = BasicBlock_double_bwd_full(
-                    x_block, x_bn1, x_conv2, x_bn2, x_pool,
-                    dx_bn1, dx_bn2, dx_pool,
-                    dbno1, dbno2,
-                    model.block.conv1.weight, model.block.bn1.weight,
-                    model.block.conv2.weight, model.block.bn2.weight,
-                    ddconv1w, None, ddbn1w, ddbn1b,
-                    ddconv2w, None, ddbn2w, ddbn2b,
-                    ddx_block,
-                    x_bnsc=x_bnsc, dx_bnsc=dx_bnsc, 
-                    convscw=convscw, bnscw=bnscw,
-                    ddconvscw=ddconvscw, ddconvscb=None,
-                    ddbnscw=ddbnscw, ddbnscb=ddbnscb, dbnosc=dbnosc
-                    )
+
+                # 这里的dx_block_d2 已经累计了来自sc的梯度。
+                ddx_pool = BasicBlock_double_bwd( activates,d_activates,weights, dd_weights, ddx_block, SCstride=stride)
+                del ddx_block # 这里是必要的。但是目前瓶颈不在这里
+                clear_tensorlists(dd_weights)
+                d2_activates = d_activates
 
                 ddx_lin = adaptivepooling_double_bwd(ddx_pool)
+                del ddx_pool
                 ddx_out, dx_lin_d2, _ = linearFused_double_bwd(x_fc,model.fc.weight, dx_out, ddx_lin, ddfcw ,ddfcb ,1)
+                del ddx_lin
 
-                dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, Fuse) # 没有y。也就是说 CrossEntropy 对 logits 的 Hessian 只和 p = softmax(z) 有关，和 target 无关。
-                # print("----temp-----", dx_out_d1.sum().item())
-                
+                dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, Fuse) # 没有y。也就是说 CrossEntropy 对 logits 的 Hessian 只和 p = softmax(z) 有关，和 target 无关。                
                 dx_lin_d1, _, _ = linerFused_bwd(x_fc, model.fc.weight, grad_output=dx_out_d1, Fuse=1)
                 dx_lin_d1 += dx_lin_d2
+                del dx_lin_d2
                 dx_lin_d1 = dx_lin_d1.view(batch_size, out_channel,1,1)
 
                 dx_pool_d1 = adaptivepooling_bwd(x_pool, grad_output= dx_lin_d1)
-                dx_block_d1, dconv1w, dbn1w, dbn1b, dconv2w, dbn2w, dbn2b, dconvscw, dbnscw, dbnscb, dbno2, dbno1, dx_bnsc = BasicBlock_bwd2_1_full(x_block, x_bn1, x_conv2, x_bn2,x_pool, model.block.conv1.weight, model.block.bn1.weight , model.block.bn1.bias, \
-                            model.block.conv2.weight, model.block.bn2.weight , model.block.bn2.bias, dx_pool_d1 , dx_block_d2, dx_conv2_d2, dx_bn1_d2,dx_bn2_d2,\
-                            x_bnsc=x_bnsc, convscw=convscw, bnscw=bnscw, bnscb=bnscb, dx_bnsc_d2=dx_bnsc_d2 )
-                
+                dx_block_d1 = BasicBlock_bwd2_1(activates, weights, d2_activates, grad_output=dx_pool_d1, SCstride=stride)
+                clear_tensorlists(activates, d2_activates,weights)
+                del dx_pool_d1, x_pool
                 dx_block_d1[x_block <= 0] = 0
-                # dx_block_d1_new = np.where(x_block <= 0, 0, dx_block_d1)
-                
-                # dx_bn_d1,dbnw, dbnb = torch.autograd.grad(x_block, [x_bn, model.bn.weight,  model.bn.bias ], grad_outputs=dx_block_d1, create_graph=True)
+                del x_block
                 dx_bn_d1,dbnw, dbnb,_,_ = instanceNorm_backward(x_bn, model.bn.weight, grad_output=dx_block_d1)
                 dx_bn_d1 +=dx_bn_d2
                 dx_conv,_,_ = conv_bwd(x, model.conv.weight, grad_output=dx_bn_d1)
-                # dx_conv = torch.autograd.grad(x_bn, [ x], grad_outputs=dx_bn_d1, create_graph=True) [0]     
                 dx_conv+=dx_conv_d2      
                 print("----GRAD-----", dx_conv.sum().item())
 
@@ -640,8 +602,8 @@ if __name__ == "__main__":
             loss *= Fuse
             print("----CELOSS-----", loss.item())
             dw = torch.torch.autograd.grad(loss, list(model.parameters()), create_graph=True)   
-            weight = [d.sum() for d in dw]
-            grad_loss = sum(weight)
+            weight_sum = [d.sum() for d in dw]
+            grad_loss = sum(weight_sum)
 
             print("----GRANDLOSS-----", grad_loss.item())
             grad_loss.backward()  
