@@ -69,13 +69,14 @@ def load_state_dict_by_position(model, pretrained_state_dict):
         new_state_dict[model_key] = pretrained_val
     model.load_state_dict(new_state_dict)
 
+
+
 def adaptivepooling_bwd(x, grad_output):
     out = torch.ops.aten._adaptive_avg_pool2d_backward(grad_output, x)
     return out
 
 def adaptivepooling_double_bwd(x,shape = (1, 1)):
     return F.adaptive_avg_pool2d(x, shape)
-
 
 def BasicBlock_bwd( activates, weights, grad_output,SCstride=1 ):
     # -------- unpack activates --------
@@ -129,7 +130,7 @@ def BasicBlock_bwd( activates, weights, grad_output,SCstride=1 ):
         dx_in = dx_main + grad_output
 
     d_activates = {
-        "dx_conv1": dx_in,
+        # "dx_conv1": dx_in,
         "dbno2": dbno2,
         "dbno1": dbno1,
         "dx_bn1": dx_bn1,
@@ -148,8 +149,7 @@ def BasicBlock_bwd( activates, weights, grad_output,SCstride=1 ):
         "dbnscb": dbnscb,
     }
 
-    return d_activates, d_weights
-
+    return dx_in, d_activates, d_weights
 
 def BasicBlock_bwd2_1(
     activates, weights, d2_activates,
@@ -232,8 +232,9 @@ def BasicBlock_bwd2_1(
 
 def BasicBlock_double_bwd(
     activates, d_activates, weights, dd_weights,
-    ddx_conv1, SCstride=1
+    ddgrad_in, SCstride=1
 ):
+    ddx_conv1 = ddgrad_in
     # 原地修改activates 里的值为d2。（x2_1）返回值里不再体现。
     conv1w  = weights["conv1w"]
     bn1w    = weights["bn1w"]
@@ -330,7 +331,7 @@ def BasicBlock_double_bwd(
     # 不是，因为被累加到dx_conv1_d2_total 里面了，确实也合理，这个是x_conv在两个conv 下面产生的一阶梯度和。
     # dx_conv1_d2_total = dx_conv1_d2_sc(shortcut) + dx_conv1_d2_main(原来的dxconv2d2)
 
-    return ddO_main
+    return ddO_main, d_activates
         # dconv1w_d2,
         # dbn1w_d2,
         # dconv2w_d2,
@@ -340,6 +341,21 @@ def BasicBlock_double_bwd(
     # )
 
 
+
+def conv_norm_relu_bwd(x, x_bn,x_block,convw, bnw, grad_output  ):
+    dx_block = grad_output
+    dx_block[x_block <= 0] = 0
+    dx_bn, dbnw, dbnb,_,_ = instanceNorm_backward(x_bn, bnw, grad_output=dx_block)
+    _, dconvw ,_ = conv_bwd(x, convw, grad_output=dx_bn)
+    return dx_bn, dbnw, dbnb, dconvw
+
+def conv_norm_relu_double_bwd(x, x_bn,x_block,dx_bn,dx_block,ddx_conv,  convw ,bnw,ddconvw,ddbnw,ddbnb):
+    ddx_bn, dx_conv_d2, dconvw_d2 = conv_double_bwd(ddx_conv,ddconvw,None,dx_bn, convw, x )
+    del dx_bn, ddx_conv
+    dx_bn_d2, dbnw_d2, ddx_block = instanceNorm_double_backwards_fn(x_bn,bnw, None ,ddx_bn,ddbnw,ddbnb,dx_block)
+    del dx_block, ddx_bn # 可以试试用覆盖的话，这里就不用单独del了更加工整内存也更好。
+    ddx_block[x_block<=0] = 0
+    return  ddx_block, dx_bn_d2, dx_conv_d2
 
 
 class BasicBlock(nn.Module):
@@ -369,7 +385,16 @@ class BasicBlock(nn.Module):
         x_bn2 = self.conv2(x_conv2)
         out = self.bn2(x_bn2)
         out = F.relu(out + identity, inplace=True)
-        return x_bn1, x_conv2, x_bn2, out, x_bnsc
+        activates = {
+            "x_conv1": x,
+            "x_bn1": x_bn1,
+            "x_conv2": x_conv2,
+            "x_bn2": x_bn2,
+            "x_bnsc": x_bnsc,
+            "x_out": out,
+        }
+        return activates
+        # return x_bn1, x_conv2, x_bn2, out, x_bnsc
 
 
 
@@ -397,19 +422,11 @@ class TinyResNet(nn.Module):
         x_bn = self.conv(x_conv)
         x_block = self.bn(x_bn)
         x_block = F.relu(x_block, inplace=True)
-        x_bn1, x_conv2, x_bn2, x_pool,x_bnsc = self.block(x_block)
+        activates = self.block(x_block)
+        x_pool = activates['x_out']
         x_fc = self.pool(x_pool)
         x_fc = torch.flatten(x_fc, 1)
         x_out = self.fc(x_fc)
-
-        activates = {
-            "x_conv1": x_block,
-            "x_bn1": x_bn1,
-            "x_conv2": x_conv2,
-            "x_bn2": x_bn2,
-            "x_bnsc": x_bnsc,
-            "x_out": x_pool,
-        }
 
         return x_out, x_fc, x_pool, x_block, activates, x_bn
     
@@ -510,14 +527,13 @@ if __name__ == "__main__":
                 dx_fc = dx_fc.view(batch_size, out_channel,1,1)
                 dx_pool = adaptivepooling_bwd(x_pool, grad_output= dx_fc)
                 del dx_fc
-                d_activates, d_weights = BasicBlock_bwd(activates, weights, grad_output=dx_pool, SCstride=stride )
-                del dx_pool
-                dx_block = d_activates["dx_conv1"]
-                d_activates.pop("dx_conv1")
 
-                dx_block[x_block <= 0] = 0
-                dx_bn, dbnw, dbnb,_,_ = instanceNorm_backward(x_bn, model.bn.weight, grad_output=dx_block)
-                _, dconvw ,_ = conv_bwd(x, model.conv.weight, grad_output=dx_bn)
+                # TODO: check一下activates 里面的x_conv1 到底有多大用。因为i现在既单独返回了x_conv1，又在activate里面保存了。
+                dx_block, d_activates, d_weights = BasicBlock_bwd(activates, weights, grad_output=dx_pool, SCstride=stride )
+                del dx_pool
+
+
+                dx_bn, dbnw, dbnb, dconvw = conv_norm_relu_bwd(x, x_bn, x_block ,model.conv.weight, model.bn.weight , grad_output=dx_block )
                 dw = [dconvw,dbnw,dbnb,dfcw,dfcb]
                 dw += list(d_weights.values())
                 weight_sum = [d.sum() for d in dw]
@@ -564,10 +580,9 @@ if __name__ == "__main__":
                 ddx_block[x_block<=0] = 0
 
                 # 这里的dx_block_d2 已经累计了来自sc的梯度。
-                ddx_pool = BasicBlock_double_bwd( activates,d_activates,weights, dd_weights, ddx_block, SCstride=stride)
+                ddx_pool, d2_activates = BasicBlock_double_bwd( activates,d_activates,weights, dd_weights, ddgrad_in = ddx_block, SCstride=stride)
                 del ddx_block # 这里是必要的。但是目前瓶颈不在这里
                 clear_tensorlists(dd_weights)
-                d2_activates = d_activates
 
                 ddx_lin = adaptivepooling_double_bwd(ddx_pool)
                 del ddx_pool
@@ -579,10 +594,11 @@ if __name__ == "__main__":
                 dx_lin_d1 += dx_lin_d2
                 del dx_lin_d2
                 dx_lin_d1 = dx_lin_d1.view(batch_size, out_channel,1,1)
-
                 dx_pool_d1 = adaptivepooling_bwd(x_pool, grad_output= dx_lin_d1)
+
                 dx_block_d1 = BasicBlock_bwd2_1(activates, weights, d2_activates, grad_output=dx_pool_d1, SCstride=stride)
                 clear_tensorlists(activates, d2_activates,weights)
+
                 del dx_pool_d1, x_pool
                 dx_block_d1[x_block <= 0] = 0
                 del x_block
