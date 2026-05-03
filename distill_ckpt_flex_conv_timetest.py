@@ -260,6 +260,7 @@ def set_random_seed(seed=42):
 
 
 def main(args):
+    args.model = 'ConvNet'# conv的file直接写死好了
     fuse_mask_list = args.fuse_mask_list 
     Bwd_fuse = sum(fuse_mask_list)
     args.Fuse = str(len(fuse_mask_list)) # 对于Flex fuse来说，只用fuse_mask_list控制即可

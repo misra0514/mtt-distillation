@@ -15,9 +15,10 @@ from scipy.ndimage.interpolation import rotate as scipyrotate
 # from networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP
 from networks.networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP, ResNet50
 
-from networks.networks_stacked import ConvNetStacked, Conv_Flexfuse, ConvNet_virticalfuse
-from networks.networks_exptended import ViT
+from networks.networks_stacked import ConvNetStacked, ConvNet_virticalfuse
+from networks.networks_Fuse  import Conv_Flexfuse, ResNet18_FlexFuse
 
+from networks.networks_exptended import ViT
 # from networks_flexFuse import Conv_Flexfuse # 已经弃用
 class Config:
     imagenette = [0, 217, 482, 491, 497, 566, 569, 571, 574, 701]
@@ -212,6 +213,10 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True):
     elif model.startswith("ConvFlexFuse"):
         fusion = int(model[12:])
         net = Conv_Flexfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)
+    elif model.startswith("ResNetFlexFuse"):
+        fusion = int(model[14:])
+        # net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)
+        net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes,Fuse=fusion)
 
     elif model == 'LeNet':
         net = LeNet(channel=channel, num_classes=num_classes)

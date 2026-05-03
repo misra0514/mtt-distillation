@@ -1,13 +1,10 @@
+# 3.26
+# 终于迟迟的调完了正确性。目前虽然只能保证一个instance norm的。但是感觉可以开始搭建resnet18做测试了。
+# basic code 复制与basic block
+# 
+# 
+# # 4.24  现在终于完成了封装和bug修复。 再试一下res 18 
 
-# 3.24
-# 改成instance norm再试试
-
-# 3.30
-# 修正一下没有short cut 1*1 conv的问题
-# 为了能做bwd，conv out 也需要保存。(bn out 应该不用存吧... )
-
-# 4.5 修正了在shortcut下的bug。目前后缀为full的接口均可以返回正常结果。（除了性能不太好。）
-# 4.7 mem上已经消耗接近。剩下大约150/600 的mem 难以优化因为瓶颈在basic block里面。
 
 
 import torch 
@@ -171,7 +168,8 @@ def BasicBlock_bwd2_1(
     dx_bn1_d2   = d2_activates["dx_bn1_d2"]
     dx_conv2_d2  = d2_activates["dx_conv2_d2"]
     dx_bn2_d2  = d2_activates["dx_bn2_d2"]
-    dx_bnsc_d2 = d2_activates["dx_bnsc_d2"]
+    # dx_bnsc_d2 = d2_activates["dx_bnsc_d2"]
+    dx_bnsc_d2 = d2_activates.get("dx_bnsc_d2", None)
 
 
     has_downsample = (convscw is not None)
@@ -363,10 +361,8 @@ class BasicBlock(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride, 1, bias=False)
         self.bn1 = nn.InstanceNorm2d(out_channels, affine=True)
-
         self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False)
         self.bn2 = nn.InstanceNorm2d(out_channels, affine=True)
-
         if stride != 1 or in_channels != out_channels:
             self.convsc = nn.Conv2d(in_channels, out_channels, 1, stride, bias=False)
             self.bnsc = nn.InstanceNorm2d(out_channels, affine=True)
@@ -393,47 +389,275 @@ class BasicBlock(nn.Module):
             "x_bnsc": x_bnsc,
             "x_out": out,
         }
-        return activates
-        # return x_bn1, x_conv2, x_bn2, out, x_bnsc
+        return out, activates
 
 
-
-class TinyResNet(nn.Module):
-    def __init__(
-        self,
-        flag,
-        Fuse,
-        in_channels=3,
-        stem_channels=64,       # 第一层 conv 输出通道
-        block_out_channels=64, # BasicBlock 输出通道
-        num_classes=10,
-        stride=1
-    ):
+class ResNet18(nn.Module):
+    def __init__(self, in_channels=3, num_classes=10):
         super().__init__()
-        self.conv = nn.Conv2d(
-            in_channels, stem_channels,
-            kernel_size=3, stride=1, padding=1, bias=False
-        )
-        self.bn = nn.InstanceNorm2d(stem_channels, affine=True)
-        self.block = BasicBlock(stem_channels, block_out_channels, stride=stride)
+        self.conv = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn = nn.InstanceNorm2d(64, affine=True)
+        self.stages = nn.ModuleList()
+        in_ch = 64
+        cfg = [
+            (64,  2, 1),
+            (128, 2, 2),
+            (256, 2, 2),
+            (512, 2, 2),
+        ]
+        for stage_id, (out_ch, num_blocks, first_stride) in enumerate(cfg):
+            stage = nn.ModuleList()
+            for block_id in range(num_blocks):
+                stride = first_stride if block_id == 0 else 1
+                stage.append(BasicBlock(in_ch, out_ch, stride=stride))
+                in_ch = out_ch
+            self.stages.append(stage)
+
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(block_out_channels, num_classes)
+        self.fc = nn.Linear(512, num_classes)
+        
     def forward(self, x_conv):
+        tape = { "stem": {}, "blocks": [], "head": {} }
         x_bn = self.conv(x_conv)
         x_block = self.bn(x_bn)
         x_block = F.relu(x_block, inplace=True)
-        activates = self.block(x_block)
-        x_pool = activates['x_out']
+        tape["stem"] = {  "x_conv": x_conv, "x_bn": x_bn,  "x_block": x_block}
+        h = x_block
+        for stage_id, stage in enumerate(self.stages):
+            for block_id, blk in enumerate(stage):
+                h, activates = blk(h)
+                activates["stage_id"] = stage_id
+                activates["block_id"] = block_id
+                tape["blocks"].append(activates)
+        x_pool = h
         x_fc = self.pool(x_pool)
         x_fc = torch.flatten(x_fc, 1)
         x_out = self.fc(x_fc)
-
-        return x_out, x_fc, x_pool, x_block, activates, x_bn
+        tape["head"] = {
+            "x_pool": x_pool,
+            "x_fc": x_fc,
+            "x_out": x_out,
+        }
+        return x_out, tape
     
+    def get_flat_blocks(self):
+        return [blk for stage in self.stages for blk in stage]
     
+    def get_block_weights(self, blk):
+        bnscw = blk.bnsc.weight if blk.bnsc is not None else None
+        bnscb = blk.bnsc.bias if blk.bnsc is not None else None
+        convscw = blk.convsc.weight if blk.convsc is not None else None
+        weights = {
+            "conv1w": blk.conv1.weight,
+            "bn1w": blk.bn1.weight,
+            "bn1b": blk.bn1.bias,
+            "conv2w": blk.conv2.weight,
+            "bn2w": blk.bn2.weight,
+            "bn2b": blk.bn2.bias,
+            "convscw": convscw,
+            "bnscw": bnscw,
+            "bnscb": bnscb,
+        }
+        return weights
 
+    def init_dd_block_weights(self, blk):
+        convscw = blk.convsc.weight if blk.convsc is not None else None
+        bnscw = blk.bnsc.weight if blk.bnsc is not None else None
+        bnscb = blk.bnsc.bias if blk.bnsc is not None else None
+        dd_weights = {
+            "ddconv1w": torch.ones_like(blk.conv1.weight),
+            "ddbn1w": torch.ones_like(blk.bn1.weight),
+            "ddbn1b": torch.ones_like(blk.bn1.bias),
+            "ddconv2w": torch.ones_like(blk.conv2.weight),
+            "ddbn2w": torch.ones_like(blk.bn2.weight),
+            "ddbn2b": torch.ones_like(blk.bn2.bias),
+            "ddconvscw": torch.ones_like(convscw) if convscw is not None else None,
+            "ddbnscw": torch.ones_like(bnscw) if bnscw is not None else None,
+            "ddbnscb": torch.ones_like(bnscb) if bnscb is not None else None,
+        }
+        return dd_weights
+        
+    def run_double_bwd(
+        self,
+        tape,
+        d_activates_list,
+        dd_weights_list,
+        work,
+        ddconvw,
+        ddbnw,
+        ddbnb,
+        ddfcw,
+        ddfcb,
+        Fuse,
+    ):
+        flat_blocks = self.get_flat_blocks()
 
+        stem = tape["stem"]
+        head = tape["head"]
 
+        x = stem["x_conv"]
+        x_bn = stem["x_bn"]
+        x_block = stem["x_block"]
+
+        x_pool = head["x_pool"]
+        x_fc = head["x_fc"]
+        x_out = head["x_out"]
+
+        dx_bn = work.pop("dx_bn")
+        dx_block = work.pop("dx_block")
+        dx_out = work.pop("dx_out")
+        ddx_conv = work.pop("ddx_conv")
+        work = None
+
+        # stem double backward
+        ddx_bn, dx_conv_d2, dconvw_d2 = conv_double_bwd(
+            ddx_conv, ddconvw, None,
+            dx_bn, self.conv.weight, x
+        )
+        del dx_bn, ddx_conv
+
+        dx_bn_d2, dbnw_d2, dd_cur = instanceNorm_double_backwards_fn(
+            x_bn, self.bn.weight, None,
+            ddx_bn, ddbnw, ddbnb, dx_block
+        )
+        del dx_block, ddx_bn
+
+        dd_cur[x_block <= 0] = 0
+
+        # blocks: double_bwd, forward direction
+        for i in range(len(flat_blocks)):
+            blk = flat_blocks[i]
+            activates_i = tape["blocks"][i]
+            d_activates_i = d_activates_list[i]
+            weights_i = self.get_block_weights(blk)
+            dd_weights_i = dd_weights_list[i]
+
+            dd_cur, d_activates_i = BasicBlock_double_bwd(
+                activates_i,
+                d_activates_i,
+                weights_i,
+                dd_weights_i,
+                ddgrad_in=dd_cur,
+                SCstride=blk.conv1.stride[0],
+            )
+
+            # inplace 升级，继续复用同一个 list
+            d_activates_list[i] = d_activates_i
+
+            clear_tensorlists(dd_weights_i)
+            dd_weights_list[i] = None
+
+            del activates_i, d_activates_i, weights_i, dd_weights_i
+
+        ddx_pool = dd_cur
+        del dd_cur
+
+        # head double backward
+        ddx_lin = adaptivepooling_double_bwd(ddx_pool)
+        del ddx_pool
+
+        ddx_out, dx_lin_d2, _ = linearFused_double_bwd(
+            x_fc, self.fc.weight, dx_out, ddx_lin, ddfcw, ddfcb, 1
+        )
+        del dx_out, ddx_lin
+
+        dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, Fuse)
+        del ddx_out
+
+        dx_lin_d1, _, _ = linerFused_bwd(
+            x_fc, self.fc.weight, grad_output=dx_out_d1, Fuse=1
+        )
+        del dx_out_d1
+
+        dx_lin_d1 += dx_lin_d2
+        del dx_lin_d2
+
+        dx_lin_d1 = dx_lin_d1.view(x_pool.size(0), x_pool.size(1), 1, 1)
+        g = adaptivepooling_bwd(x_pool, grad_output=dx_lin_d1)
+        del dx_lin_d1, x_pool
+
+        # blocks: bwd2_1, backward direction
+        for i in reversed(range(len(flat_blocks))):
+            blk = flat_blocks[i]
+            activates_i = tape["blocks"][i]
+            weights_i = self.get_block_weights(blk)
+            d2_activates_i = d_activates_list[i]
+
+            # 无 projection shortcut 的 block，补默认项，避免 KeyError
+            if weights_i["convscw"] is None:
+                d2_activates_i.setdefault("dx_bnsc_d2", None)
+
+            g = BasicBlock_bwd2_1(
+                activates_i,
+                weights_i,
+                d2_activates_i,
+                grad_output=g,
+                SCstride=blk.conv1.stride[0],
+            )
+
+            clear_tensorlists(activates_i, d2_activates_i, weights_i)
+            tape["blocks"][i] = None
+            d_activates_list[i] = None
+
+            del activates_i, d2_activates_i, weights_i
+
+        dx_block_d1 = g
+        del g
+
+        dx_block_d1[x_block <= 0] = 0
+        del x_block
+
+        dx_bn_d1, dbnw, dbnb, _, _ = instanceNorm_backward(
+            x_bn, self.bn.weight, grad_output=dx_block_d1
+        )
+        del dx_block_d1
+
+        dx_bn_d1 += dx_bn_d2
+        del dx_bn_d2
+
+        dx_conv, _, _ = conv_bwd(
+            x, self.conv.weight, grad_output=dx_bn_d1
+        )
+        del dx_bn_d1
+
+        dx_conv += dx_conv_d2
+
+        clear_tensorlists(stem, head)
+        tape["stem"] = None
+        tape["head"] = None
+
+        return dx_conv
+
+    # def blocks_double_bwd(self, tape, d_activates_list, dd_weights_list, ddx_block):
+    #     flat_blocks = self.get_flat_blocks()
+    #     dd_cur = ddx_block
+    #     d2_activates_list = [None] * len(flat_blocks)
+    #     for i in range(len(flat_blocks)):
+    #         blk = flat_blocks[i]
+    #         activates_i = tape["blocks"][i]
+    #         d_activates_i = d_activates_list[i]
+    #         weights_i = self.get_block_weights(blk)
+    #         dd_weights_i = dd_weights_list[i]
+    #         stride = blk.conv1.stride[0]
+
+    #         dd_cur, d2_activates_i = BasicBlock_double_bwd(
+    #             activates_i,
+    #             d_activates_i,
+    #             weights_i,
+    #             dd_weights_i,
+    #             ddgrad_in=dd_cur,
+    #             SCstride=stride
+    #         )
+    #         # d2_activates_i 和 d_activates_i 是同一个 dict
+    #         d2_activates_list[i] = d2_activates_i
+    #         # 这里只移除旧引用，不能 clear dict 本体
+    #         d_activates_list[i] = None
+    #         # dd_weights 用完了，可以清
+    #         clear_tensorlists(dd_weights_i)
+    #         dd_weights_list[i] = None
+    #         del activates_i, d_activates_i, weights_i, dd_weights_i
+    #     ddx_pool = dd_cur
+    #     return ddx_pool, d2_activates_list
     
 
 ###################################
@@ -454,7 +678,7 @@ set_random_seed() # 仅仅在ACC test的时候使用。会严重影响性能。
 
 if __name__ == "__main__":
     print("flag = " + flag)
-    model1 = TinyResNet( flag, Fuse=Fuse, block_out_channels= out_channel, stride=stride).to("cuda")
+    model1 = ResNet18( ).to("cuda")
     model = model1
 
     transform = transforms.ToTensor()
@@ -466,15 +690,9 @@ if __name__ == "__main__":
     target = torch.tensor(labels, device="cuda")
 
 
-    # torch.save(model.state_dict(), 'model_test_basicblock_instanceNorm.pt')
-    # torch.save(model.state_dict(), 'model_test_basicblock_instanceNorm_sc_stride2.pt')
-    # torch.save(model.state_dict(), 'model_test_basicblock_instanceNorm_sc.pt')
+    # torch.save(model.state_dict(), 'model_test_resnet18_instanceNorm.pt')
     # exit()
-    if(out_channel==64):
-        pretrained_dict = torch.load("model_test_basicblock_instanceNorm.pt")
-    else:
-        # pretrained_dict = torch.load("model_test_basicblock_instanceNorm_sc.pt")
-        pretrained_dict = torch.load("model_test_basicblock_instanceNorm_sc_stride2.pt")
+    pretrained_dict = torch.load("model_test_resnet18_instanceNorm.pt")
     load_state_dict_by_position(model, pretrained_dict)
 
 
@@ -490,7 +708,7 @@ if __name__ == "__main__":
         optimizer.zero_grad()
 
         if flag =='original':
-            x_out, _, _, _ , _ , _ = model(x)
+            x_out,_ = model(x)
             # x_out, x_fc,x_bnsc, x_pool, x_bn2, x_conv2, x_bn1, x_block, x_bn= model(x)  # forward
             loss = criterion(x_out, target)  # compute loss
             print("----CELOSS-----", loss.item())
@@ -504,38 +722,50 @@ if __name__ == "__main__":
 
         elif flag =='manuel':
             with torch.no_grad():
-                # 首尾的activate 是需要的x_block，x_pool， 还有一些首尾部分的activates
-                x_out, x_fc, x_pool, x_block,activates, x_bn = model(x)  # forward
-                bnscw = model.block.bnsc.weight if model.block.bnsc is not None else None
-                bnscb = model.block.bnsc.bias if model.block.bnsc is not None else None
-                convscw = model.block.convsc.weight if model.block.convsc is not None else None
-                weights = {
-                    "conv1w": model.block.conv1.weight,
-                    "bn1w":  model.block.bn1.weight,
-                    "bn1b":  model.block.bn1.bias,
-                    "conv2w":  model.block.conv2.weight,
-                    "bn2w":  model.block.bn2.weight,
-                    "bn2b":  model.block.bn2.bias,
-                    "convscw": convscw,
-                    "bnscw": bnscw,
-                }
+                x_out, tape = model(x)  # forward
+                # Data prep
+                head = tape["head"]
+                # tape.pop("head")
+                x_fc  = head["x_fc"]
+                x_pool = head["x_pool"]
+                x_out = head["x_out"]
+                stem = tape["stem"]
+                # tape.pop("stem") # TODO: 这里为啥要pop？
+                x_conv  = stem["x_conv"]
+                x_bn    = stem["x_bn"]
+                x_block = stem["x_block"]
+                flat_blocks = model.get_flat_blocks()
+                d_activates_list = [None] * len(flat_blocks)
+                d_weights_list   = [None] * len(flat_blocks)
+
                 loss = criterion(x_out, target)  
                 print("----CELOSS-----", loss.item())
-
                 dx_out = crossEntropy_bwd(x_out,target,1)
+
                 dx_fc,dfcw, dfcb  = linear_bwd(x_fc, model.fc.weight, grad_output=dx_out)
-                dx_fc = dx_fc.view(batch_size, out_channel,1,1)
+                # dx_fc = dx_fc.view(batch_size, out_channel,1,1)
+                dx_fc = dx_fc.view(x_pool.size(0), x_pool.size(1), 1, 1)
                 dx_pool = adaptivepooling_bwd(x_pool, grad_output= dx_fc)
                 del dx_fc
-
-                # TODO: check一下activates 里面的x_conv1 到底有多大用。因为i现在既单独返回了x_conv1，又在activate里面保存了。
-                dx_block, d_activates, d_weights = BasicBlock_bwd(activates, weights, grad_output=dx_pool, SCstride=stride )
-                del dx_pool
-
-
+                # 注意用reversed 的去遍历。
+                for i in reversed(range(len(flat_blocks))):
+                    blk = flat_blocks[i]
+                    activates_i = tape["blocks"][i]
+                    weights_i = model.get_block_weights(blk)
+                    dx_pool, d_activates_i, d_weights_i = BasicBlock_bwd(activates_i, weights_i, grad_output=dx_pool, SCstride=blk.conv1.stride[0])
+                    d_activates_list[i] = d_activates_i
+                    d_weights_list[i]   = d_weights_i
+                    del activates_i, weights_i # del的只是临时变量
+                dx_block = dx_pool
+                del dx_pool # 这里并不释放。只是为了方便内存管理，相当于做一个重命名。
                 dx_bn, dbnw, dbnb, dconvw = conv_norm_relu_bwd(x, x_bn, x_block ,model.conv.weight, model.bn.weight , grad_output=dx_block )
+
+                # calc grand loss
                 dw = [dconvw,dbnw,dbnb,dfcw,dfcb]
-                dw += list(d_weights.values())
+                for d_weights_i in d_weights_list:
+                    for v in d_weights_i.values():
+                        if v is not None:
+                            dw.append(v)
                 weight_sum = [d.sum() for d in dw]
                 grad_loss = sum(weight_sum)
                 print("----GRANDLOSS-----", grad_loss.item())
@@ -543,69 +773,90 @@ if __name__ == "__main__":
                 ddconvw = torch.ones_like(dconvw).cuda()
                 ddbnw = torch.ones_like(dbnw).cuda()
                 ddbnb = torch.ones_like(dbnb).cuda()
-                ddconv1w = torch.ones_like(weights["conv1w"]).cuda()
-                ddbn1w = torch.ones_like(weights["bn1w"]).cuda()
-                ddbn1b = torch.ones_like(weights["bn1b"]).cuda()
-                ddconv2w = torch.ones_like(weights["conv2w"]).cuda()
-                ddbn2w = torch.ones_like(weights["bn2w"]).cuda()
-                ddbn2b = torch.ones_like(weights["bn2b"]).cuda()
                 ddfcw = torch.ones_like(dfcw).cuda()
                 ddfcb = torch.ones_like(dfcb).cuda()
-                if( convscw is not None ): 
-                    ddconvscw = torch.ones_like(convscw).cuda()
-                    ddbnscw = torch.ones_like(bnscw).cuda()
-                    ddbnscb = torch.ones_like(bnscb).cuda()
-                else:
-                    ddconvscw = None
-                    ddbnscw = None
-                    ddbnscb = None  
                 ddx_conv = torch.zeros_like(x).cuda()
-                dd_weights = {
-                    "ddconv1w": ddconv1w,
-                    "ddbn1w":  ddbn1w,
-                    "ddbn1b":  ddbn1b,
-                    "ddconv2w":  ddconv2w,
-                    "ddbn2w":  ddbn2w,
-                    "ddbn2b":  ddbn2b,
-                    "ddconvscw": ddconvscw,
-                    "ddbnscw": ddbnscw,
+                dd_weights_list = [model.init_dd_block_weights(blk) for blk in flat_blocks]
+                del dconvw,dbnw,dbnb,dfcw,dfcb
+                work = {
+                    "dx_bn": dx_bn,
+                    "dx_block": dx_block,
+                    "dx_out": dx_out,
+                    "ddx_conv": ddx_conv,
                 }
-                del ddconv1w, ddbn1w, ddbn1b, ddconv2w, ddbn2w, ddbn2b, ddconvscw, ddbnscw
+                del dx_bn, dx_block, dx_out, ddx_conv
 
+                dx_conv= model.run_double_bwd(
+                    tape=tape,
+                    d_activates_list=d_activates_list,
+                    dd_weights_list=dd_weights_list,
+                    work=work,
+                    ddconvw=ddconvw,
+                    ddbnw=ddbnw,
+                    ddbnb=ddbnb,
+                    ddfcw=ddfcw,
+                    ddfcb=ddfcb,
+                    Fuse=Fuse,
+                )
+                                # ddx_bn, dx_conv_d2, dconvw_d2 = conv_double_bwd(ddx_conv,ddconvw,None,dx_bn, model.conv.weight,x )
+                # del dx_bn, ddx_conv
+                # dx_bn_d2, dbnw_d2, ddx_block = instanceNorm_double_backwards_fn(x_bn, model.bn.weight, None ,ddx_bn,ddbnw,ddbnb,dx_block)
+                # del dx_block, ddx_bn # 可以试试用覆盖的话，这里就不用单独del了更加工整内存也更好。
+                # ddx_block[x_block<=0] = 0
 
-                ddx_bn, dx_conv_d2, dconvw_d2 = conv_double_bwd(ddx_conv,ddconvw,None,dx_bn, model.conv.weight,x )
-                del dx_bn, ddx_conv
-                dx_bn_d2, dbnw_d2, ddx_block = instanceNorm_double_backwards_fn(x_bn, model.bn.weight, None ,ddx_bn,ddbnw,ddbnb,dx_block)
-                del dx_block, ddx_bn # 可以试试用覆盖的话，这里就不用单独del了更加工整内存也更好。
-                ddx_block[x_block<=0] = 0
+                # # double bwd: 因为是循环，涉及到首尾的ddxblcok、 ddxpool两个变量。
+                # # BasicBlock_double_bwd 是inplace 操作。
+                # dd_cur = ddx_block
+                # del ddx_block
+                # for i in range(len(flat_blocks)):
+                #     blk = flat_blocks[i]
+                #     activates_i = tape["blocks"][i]
+                #     d_activates_i = d_activates_list[i]
+                #     weights_i = model.get_block_weights(blk)
+                #     dd_weights_i = dd_weights_list[i]
+                #     stride = blk.conv1.stride[0]
+                #     dd_cur, d2_activates_i = BasicBlock_double_bwd( activates_i, d_activates_i, weights_i, dd_weights_i, ddgrad_in=dd_cur, SCstride=stride)
+                #     clear_tensorlists(dd_weights_i)
+                #     dd_weights_list[i] = None
+                #     del activates_i, d_activates_i, d2_activates_i, weights_i, dd_weights_i
+                # d2_activates_list = d_activates_list
+                # ddx_pool = dd_cur
+                # del dd_cur
 
-                # 这里的dx_block_d2 已经累计了来自sc的梯度。
-                ddx_pool, d2_activates = BasicBlock_double_bwd( activates,d_activates,weights, dd_weights, ddgrad_in = ddx_block, SCstride=stride)
-                del ddx_block # 这里是必要的。但是目前瓶颈不在这里
-                clear_tensorlists(dd_weights)
+                # ddx_lin = adaptivepooling_double_bwd(ddx_pool)
+                # del ddx_pool
+                # ddx_out, dx_lin_d2, _ = linearFused_double_bwd(x_fc,model.fc.weight, dx_out, ddx_lin, ddfcw ,ddfcb ,1)
+                # del ddx_lin
 
-                ddx_lin = adaptivepooling_double_bwd(ddx_pool)
-                del ddx_pool
-                ddx_out, dx_lin_d2, _ = linearFused_double_bwd(x_fc,model.fc.weight, dx_out, ddx_lin, ddfcw ,ddfcb ,1)
-                del ddx_lin
+                # dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, Fuse) # 没有y。也就是说 CrossEntropy 对 logits 的 Hessian 只和 p = softmax(z) 有关，和 target 无关。                
+                # dx_lin_d1, _, _ = linerFused_bwd(x_fc, model.fc.weight, grad_output=dx_out_d1, Fuse=1)
+                # dx_lin_d1 += dx_lin_d2
+                # del dx_lin_d2
+                # dx_lin_d1 = dx_lin_d1.view(x_pool.size(0), x_pool.size(1), 1, 1)
+                # dx_pool_d1 = adaptivepooling_bwd(x_pool, grad_output= dx_lin_d1)
 
-                dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, Fuse) # 没有y。也就是说 CrossEntropy 对 logits 的 Hessian 只和 p = softmax(z) 有关，和 target 无关。                
-                dx_lin_d1, _, _ = linerFused_bwd(x_fc, model.fc.weight, grad_output=dx_out_d1, Fuse=1)
-                dx_lin_d1 += dx_lin_d2
-                del dx_lin_d2
-                dx_lin_d1 = dx_lin_d1.view(batch_size, out_channel,1,1)
-                dx_pool_d1 = adaptivepooling_bwd(x_pool, grad_output= dx_lin_d1)
-
-                dx_block_d1 = BasicBlock_bwd2_1(activates, weights, d2_activates, grad_output=dx_pool_d1, SCstride=stride)
-                clear_tensorlists(activates, d2_activates,weights)
-
-                del dx_pool_d1, x_pool
-                dx_block_d1[x_block <= 0] = 0
-                del x_block
-                dx_bn_d1,dbnw, dbnb,_,_ = instanceNorm_backward(x_bn, model.bn.weight, grad_output=dx_block_d1)
-                dx_bn_d1 +=dx_bn_d2
-                dx_conv,_,_ = conv_bwd(x, model.conv.weight, grad_output=dx_bn_d1)
-                dx_conv+=dx_conv_d2      
+                # g = dx_pool_d1
+                # del dx_pool_d1
+                # for i in reversed(range(len(flat_blocks))):
+                #     blk = flat_blocks[i]
+                #     activates_i = tape["blocks"][i]
+                #     weights_i = model.get_block_weights(blk)
+                #     d2_activates_i = d2_activates_list[i]
+                #     g = BasicBlock_bwd2_1( activates_i, weights_i, d2_activates_i, grad_output=g, SCstride=blk.conv1.stride[0])
+                #     clear_tensorlists(activates_i, d2_activates_i, weights_i)
+                #     tape["blocks"][i] = None
+                #     d2_activates_list[i] = None
+                #     del activates_i, d2_activates_i, weights_i
+                # dx_block_d1 = g
+                # del g
+                
+                # del  x_pool #  TODO: dx_pool_d1 的释放问题 本来在一起del。但是现在已经被g覆盖掉了。
+                # dx_block_d1[x_block <= 0] = 0
+                # del x_block
+                # dx_bn_d1,dbnw, dbnb,_,_ = instanceNorm_backward(x_bn, model.bn.weight, grad_output=dx_block_d1)
+                # dx_bn_d1 +=dx_bn_d2
+                # dx_conv,_,_ = conv_bwd(x, model.conv.weight, grad_output=dx_bn_d1)
+                # dx_conv+=dx_conv_d2      
                 print("----GRAD-----", dx_conv.sum().item())
 
 

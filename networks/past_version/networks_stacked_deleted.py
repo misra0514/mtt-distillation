@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-from networks_stacked_basicblock import LinearStacked, LinearStacked_2 , Conv2d_Stacked, LinearStacked_2_flexFuse
+from networks.past_version.networks_stacked_basicblock import LinearStacked, LinearStacked_2 , Conv2d_Stacked, LinearStacked_2_flexFuse
 
 class ConvNetStacked(nn.Module):
     def __init__(self, channel, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, im_size = (32,32),stack_size=None):

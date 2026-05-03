@@ -1,10 +1,13 @@
 # 11.29 
 # 做了一次更新。只保留了group conv 这一个分支。
-from networks.networks_fused3 import NormActive # fuse+基本优化
+# 这里的三个conv：ConvNet_virticalfuse/ ConvNetStacked 均是测试版。ConvNetStacked只有垂直fusion。 ConvNet_virticalfuse 是norm activate
+# Conv_Flexfuse 现在已经移走到networks_FUse 剩下的两个更接近于做 Ablation Study用，后续会慢慢废弃。
+# from networks.past_version.networks_basicblock_fused3 import NormActive # fuse+基本优化
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-from networks.networks_stacked_basicblock import LinearStacked, LinearStacked_2 , Conv2d_Stacked, LinearStacked_2_flexFuse
+from networks.past_version.networks_stacked_basicblock import LinearStacked , Conv2d_Stacked, LinearStacked_2_flexFuse
+from networks.networks_Fuse import LinearStacked_2,NormActive
 
 class ConvNetStacked(nn.Module):
     def __init__(self, channel, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, im_size = (32,32),stack_size=None):
@@ -226,37 +229,37 @@ class ConvNet_virticalfuse(nn.Module):
 
 
 
-class Conv_Flexfuse(nn.Module):
-    def __init__(self, channel=3, num_classes=10, net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), Fuse=2):
-        super(Conv_Flexfuse, self).__init__()
-        self.Fuse = Fuse
-        self.conv1 = nn.Conv2d(in_channels=channel*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        # self.norm1 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.norm1 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool1 = nn.AvgPool2d(kernel_size=2)
-        self.conv2 = nn.Conv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        # self.norm2 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.norm2 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool2 = nn.AvgPool2d(kernel_size=2)
-        self.conv3 = nn.Conv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
-        # self.norm3 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.norm3 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
-        self.pool3 = nn.AvgPool2d(kernel_size=2)
-        self.linear = LinearStacked_2(net_width * 4 * 4, num_classes,Fuse )
-        self.net_width= net_width
+# class Conv_Flexfuse(nn.Module):
+#     def __init__(self, channel=3, num_classes=10, net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), Fuse=2):
+#         super(Conv_Flexfuse, self).__init__()
+#         self.Fuse = Fuse
+#         self.conv1 = nn.Conv2d(in_channels=channel*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+#         # self.norm1 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+#         self.norm1 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+#         self.pool1 = nn.AvgPool2d(kernel_size=2)
+#         self.conv2 = nn.Conv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+#         # self.norm2 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+#         self.norm2 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+#         self.pool2 = nn.AvgPool2d(kernel_size=2)
+#         self.conv3 = nn.Conv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+#         # self.norm3 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+#         self.norm3 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+#         self.pool3 = nn.AvgPool2d(kernel_size=2)
+#         self.linear = LinearStacked_2(net_width * 4 * 4, num_classes,Fuse )
+#         self.net_width= net_width
 
-    def forward(self, x_conv1):
-        x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
-        x_norm1 = self.conv1(x_conv1)          
-        x_pool1 = F.relu(self.norm1(x_norm1)    )
-        x_conv2 = self.pool1(x_pool1)
-        x_norm2 = self.conv2(x_conv2)          
-        x_pool2 = F.relu(self.norm2(x_norm2) )   
-        x_conv3 = self.pool2(x_pool2)
-        x_norm3 = self.conv3(x_conv3)          
-        x_pool3 = F.relu(self.norm3(x_norm3))    
-        x_lin  = self.pool3(x_pool3)
-        x_out = self.linear(x_lin)    # N x 10
-        x_out = x_out.view(-1,10)
-        return  x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out
+#     def forward(self, x_conv1):
+#         x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
+#         x_norm1 = self.conv1(x_conv1)          
+#         x_pool1 = F.relu(self.norm1(x_norm1)    )
+#         x_conv2 = self.pool1(x_pool1)
+#         x_norm2 = self.conv2(x_conv2)          
+#         x_pool2 = F.relu(self.norm2(x_norm2) )   
+#         x_conv3 = self.pool2(x_pool2)
+#         x_norm3 = self.conv3(x_conv3)          
+#         x_pool3 = F.relu(self.norm3(x_norm3))    
+#         x_lin  = self.pool3(x_pool3)
+#         x_out = self.linear(x_lin)    # N x 10
+#         x_out = x_out.view(-1,10)
+#         return  x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out
 

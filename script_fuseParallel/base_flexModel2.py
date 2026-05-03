@@ -37,7 +37,7 @@ linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossE
     
 
 from networks_fused3 import NormActive
-from networks.networks_flexFuse import Conv_Flexfused, ConvBlock_double_bwd,ConvBlock_bwd2_1
+from networks.past_version.networks_flexFuse_deleted import Conv_Flexfused, ConvBlock_double_bwd,ConvBlock_bwd2_1
 
 def set_random_seed(seed=42):
     random.seed(seed)

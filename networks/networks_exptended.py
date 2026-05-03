@@ -3,9 +3,7 @@ import torch.nn as nn
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
-# from networks_fused3 import NormActive # fuse+基本优化
-# from networks_fused import NormActive # 无fuse
-from networks.networks_fused2 import GeluDrop # 无fuse
+from networks.networks_basicblock_fused3 import GeluDrop # 无fuse
 
 
 class PatchEmbedding(nn.Module):

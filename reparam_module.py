@@ -157,3 +157,7 @@ class ReparamModule(nn.Module):
             return self._forward_with_param(flat_param, *inputs, **kwinputs)
         else:
             return self._forward_with_param_and_buffers(flat_param, tuple(buffers), *inputs, **kwinputs)
+    
+    def call_with_param(self, flat_param, fn, *args, **kwargs):
+        with self.unflattened_param(flat_param):
+            return fn(*args, **kwargs)

@@ -18,9 +18,10 @@ import random
 import numpy as np
 import os
 from typing import Optional, Sequence, Tuple
-from networks.networks_fused3 import instance_norm_backward_triton, instanceNorm_backward_plain
+from networks.networks_basicblock_fused3 import instance_norm_backward_triton, instanceNorm_backward_plain
 # from networks_fused2 import instance_norm_backward_triton
-from networks.networks_fused3 import instanceNorm_double_backwards_triton
+from networks.networks_basicblock_fused3 import instanceNorm_double_backwards_triton
+from networks.networks_basicblock_fused3 import instanceNorm_backward ,instanceNorm_double_backwards_fn, instance_norm_backward_triton,instanceNorm_double_backwards_triton
 
 
 #########################
@@ -135,26 +136,22 @@ def crossEntropy_double_bwd(x_out, v, Fuse = 2,  reduction='mean'):
     手动实现:
         torch.autograd.grad(dx_out, x_out, grad_outputs=v)[0]
     其中 dx_out = d CE / d x_out
-
     x_out: (N, C) logits
     v:     (N, C)  对应 ddx_out
     """
     # softmax 概率
     p = torch.softmax(x_out, dim=1)  # (N, C)
-
     # 对每个样本 n，算 s_n = sum_c p_{n,c} * v_{n,c}
     s = torch.sum(p * v, dim=1, keepdim=True)  # (N, 1)
-
     # Hv = p ⊙ v - s * p   （样本内的 H·v）
     Hv = p * v - s * p     # (N, C)
-
     if reduction == 'mean':
         # PyTorch CrossEntropyLoss 默认是 mean，会多一个 1/N
         N = x_out.size(0)
         Hv = Hv / N 
         Hv*=Fuse # 不用grad_output，只要这里加上就可以了。
-
     return Hv
+
 def linearFused_double_bwd(
     x, w, grad_output,
     gg_grad_input=None,   # same shape as grad_input: (B*F, I)
@@ -165,17 +162,14 @@ def linearFused_double_bwd(
     batch_full, C = grad_output.shape[-2], grad_output.shape[-1]
     F = Fuse
     B = batch_full // F
-
     # 内部布局：与一阶 backward 完全一致
     G = grad_output.view(F, B, C)    # (F, B, O)
     W = w.view(F, C, -1)             # (F, O, I)
     I = W.shape[-1]
     X = x.view(B, F, I).transpose(0, 1)   # (F, B, I)
-
     dG = torch.zeros_like(G)
     dW = torch.zeros_like(W)
     dX = torch.zeros_like(X)
-
     # ---- 1) 来自 grad_input_int = G @ W ----
     if gg_grad_input is not None:
         # 外部 grad_input: (B*F, I)
@@ -183,7 +177,6 @@ def linearFused_double_bwd(
         # 反向映射回内部 GI 的梯度：
         H_ext = gg_grad_input.view(B, F, I)    # (B, F, I)
         H     = H_ext.transpose(0, 1)          # (F, B, I)  对应 GI
-
         # GI = G @ W
         # ∂L/∂G += H @ Wᵀ
         dG = dG + torch.bmm(H, W.transpose(1, 2))       # (F, B, C)
@@ -208,21 +201,15 @@ def linearFused_double_bwd(
         dG = dG + ggb.unsqueeze(1).expand(F, B, C)     # (F, B, O)
 
     # ---- 内部 dX, dW, dG → 外部 dx, dw, dgrad_output ----
-
     # X = x.view(B, F, I).transpose(0,1)
     # 反向：先 transpose 回去，再 reshape
     dx = dX.transpose(0, 1).reshape_as(x)              # (B*F, I)
-
     # W = w.view(F, O, I)
     dw = dW.reshape_as(w)                              # (F*O, I)
-
     # G = grad_output.view(F, B, C)
     dgrad_output = dG.view(batch_full, C).reshape_as(grad_output)  # (B*F, C)
-
     # 顺序：∂L/∂grad_output, ∂L/∂x, ∂L/∂w
     return dgrad_output, dx, dw
-
-
 
 
 
@@ -282,7 +269,6 @@ def avgPool_double_bwd(
         else:
             oh_idx = torch.arange(OH, device=device)
             ow_idx = torch.arange(OW, device=device)
-
             hstart = oh_idx * sh - ph
             hend   = torch.clamp(hstart + kh, max=H)
             hstart_clamped = torch.clamp(hstart, min=0)
@@ -295,7 +281,6 @@ def avgPool_double_bwd(
 
             div_hw = eff_h[:, None] * eff_w[None, :]
             div_hw = div_hw.clamp(min=1)
-
             div = div_hw.unsqueeze(0).unsqueeze(0).to(dtype=dtype)
 
     # 3) 计算 conv_transpose2d 的完整输出尺寸，用 dummy 走一遍
@@ -435,3 +420,11 @@ def conv_double_bwd(ggI_opt, ggW_r_opt, ggb_opt, gO_r, weight_r, input,
     output_mask      # [True, True, True]
     )
     return ggO, gI, gW
+
+
+def adaptivepooling_bwd(x, grad_output):
+    out = torch.ops.aten._adaptive_avg_pool2d_backward(grad_output, x)
+    return out
+
+def adaptivepooling_double_bwd(x,shape = (1, 1)):
+    return F.adaptive_avg_pool2d(x, shape)

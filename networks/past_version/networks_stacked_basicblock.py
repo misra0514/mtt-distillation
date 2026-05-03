@@ -2,6 +2,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
+# 大部分是测试早期的code，包括了linear的两种 data scheme的 fusion。 以及一个einsum的linear。 感觉可以合并到某一个下面。然后这个file 就delete了。
+# 这里面的三个verision要保留。后续说不定要做一些性能优化要用。
+
 class LinearStacked(nn.Module):
     # PARAMS: weight=stack_size * batchNum * outFeats, bias = stack_size, x = stack_size * batch * InFeats
     # 用来做Fusion * batch 的形式。
@@ -43,22 +46,18 @@ class LinearStacked_2(nn.Module):
         """
         # self.weight = self.weight.view(self.Fuse,self.out_features,self.in_features)
         # self.bias = self.bias.view(self.Fuse, self.out_features)
-
         x = x.view(-1,self.Fuse, self.in_features)
-        # print(x.is_contiguous())
 
         # # # # TODO: 这里输入如果是BAD/（而不是ABD）的话，可以得到is_contiguous 的结果。那就很简单只要调整target即可 
         # x = torch.einsum("abc,bcd->abd",x,self.weight.view(self.Fuse,self.out_features,self.in_features).transpose(-1, -2)) 
         # x = x+self.bias.view(self.Fuse,self.out_features)
         # x = x.contiguous()
-
         # 其实也可以用吧bmm。view一下即可。
-
         # TODO: 这里输入如果是BAD/（而不是ABD）的话，可以得到is_contiguous 的结果。那就很简单只要调整target即可
         # 现在是BAD，意味着Fusion，batch的排序，B到了第一位
         x = torch.einsum("abc,bcd->bad",x,self.weight.view(self.Fuse,self.out_features,self.in_features).transpose(-1, -2)) 
         x = x+self.bias.view(self.Fuse,1 ,self.out_features)
-
+        x = x.squeeze(0) #加一个squeeze，为了适配在Fuse=1的时候的模型。
         return x
     
 class LinearStacked_2_flexFuse(nn.Module):

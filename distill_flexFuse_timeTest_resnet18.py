@@ -1,3 +1,7 @@
+# 5.3 Resnet 专用的code。因为bwd等等接口刚刚确定。后续说不定会有时间写一个更加通用的版本
+
+# TODO: NOTE 这个版本。或者前面的flex fuse 在 --fuse_mask_list 1  --> 11 的时候，grad都有问题。没有像Batched 一样成倍。
+
 import os
 import argparse
 import numpy as np
@@ -10,22 +14,22 @@ from utils import get_dataset, get_network, get_eval_pool, evaluate_synset, get_
 import wandb
 import copy
 import random
+import time 
+import warnings
 from reparam_module import ReparamModule
 
-import time
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-def set_random_seed(seed=42):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
+from networks.networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,ConvBlock_bwd1_2,conv3_double_bwd,conv3_bwd
+from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
+linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
+    avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
+
+from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_second_dim,recover_params,set_random_seed
 
 def main(args):
+    args.model = 'ResNet18' # fiexed
+    fuse_mask_list = args.fuse_mask_list 
+    bwd_Fuse = sum(fuse_mask_list)
+    args.Fuse = str(len(fuse_mask_list)) # 对于Flex fuse来说，只用fuse_mask_list控制即可
     if (args.AccTest):
         set_random_seed(42)
         args.Iteration = 0
@@ -33,6 +37,7 @@ def main(args):
     prep_time = 0
     syn_time = 0
     bwd_time = 0
+    Fuse = int(args.Fuse)
   
     torch.cuda.reset_peak_memory_stats()
     torch.cuda.empty_cache()
@@ -95,7 +100,9 @@ def main(args):
     if args.batch_syn is None:
         args.batch_syn = num_classes * args.ipc
 
-    args.distributed = torch.cuda.device_count() > 1
+    # args.distributed = torch.cuda.device_count() > 1
+    args.distributed = False # 多卡情况目前不考虑
+    
 
 
     # print('Hyper-parameters: \n', args.__dict__)
@@ -156,9 +163,12 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
+    # torch.save(image_syn, "./script/in.pt")
+    # exit()
+
+
     if(args.AccTest):
         image_syn = torch.load("./script/in_ip10.pt")
-        # image_syn = torch.load("./script/in.pt")
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)
@@ -232,20 +242,20 @@ def main(args):
     # x = image_syn[these_indices]
     # bind(0.2 ,0, x)
 
-    # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
-    student_net = get_network("ConvStacked"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
-    # student_net = get_network("ConvFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+
+    # Load 的还是resnet。只是model get flex fuse
+    student_net = get_network("ResNetFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
 
     student_net = ReparamModule(student_net)
 
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
-
-    # WARMUP default =3 
     if (args.AccTest):
         warmup = 0
     else:
         warmup = 3
+    warmup = 0
+
     args.Iteration += warmup
 
     pre_end = time.time()
@@ -256,9 +266,119 @@ def main(args):
 
         save_this_it = False
 
+        # writer.add_scalar('Progress', it, it)
+        # wandb.log({"Progress": it}, step=it)
+        # ''' Evaluate synthetic data '''
+        # if it in eval_it_pool:
+        #     for model_eval in model_eval_pool:
+        #         print('-------------------------\nEvaluation\nmodel_train = %s, model_eval = %s, iteration = %d'%(args.model, model_eval, it))
+        #         if args.dsa:
+        #             print('DSA augmentation strategy: \n', args.dsa_strategy)
+        #             print('DSA augmentation parameters: \n', args.dsa_param.__dict__)
+        #         else:
+        #             print('DC augmentation parameters: \n', args.dc_aug_param)
 
+        #         accs_test = []
+        #         accs_train = []
+        #         for it_eval in range(args.num_eval):
+        #             net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
+
+        #             eval_labs = label_syn
+        #             with torch.no_grad():
+        #                 image_save = image_syn
+        #             image_syn_eval, label_syn_eval = copy.deepcopy(image_save.detach()), copy.deepcopy(eval_labs.detach()) # avoid any unaware modification
+
+        #             args.lr_net = syn_lr.item()
+        #             _, acc_train, acc_test = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args, texture=args.texture)
+        #             accs_test.append(acc_test)
+        #             accs_train.append(acc_train)
+        #         accs_test = np.array(accs_test)
+        #         accs_train = np.array(accs_train)
+        #         acc_test_mean = np.mean(accs_test)
+        #         acc_test_std = np.std(accs_test)
+        #         if acc_test_mean > best_acc[model_eval]:
+        #             best_acc[model_eval] = acc_test_mean
+        #             best_std[model_eval] = acc_test_std
+        #             save_this_it = True
+        #         print('Evaluate %d random %s, mean = %.4f std = %.4f\n-------------------------'%(len(accs_test), model_eval, acc_test_mean, acc_test_std))
+        #         wandb.log({'Accuracy/{}'.format(model_eval): acc_test_mean}, step=it)
+        #         wandb.log({'Max_Accuracy/{}'.format(model_eval): best_acc[model_eval]}, step=it)
+        #         wandb.log({'Std/{}'.format(model_eval): acc_test_std}, step=it)
+        #         wandb.log({'Max_Std/{}'.format(model_eval): best_std[model_eval]}, step=it)
+
+
+        # if it in eval_it_pool and (save_this_it or it % 1000 == 0):
+        #     with torch.no_grad():
+        #         image_save = image_syn.cuda()
+
+        #         save_dir = os.path.join(".", "logged_files", args.dataset, wandb.run.name)
+
+        #         if not os.path.exists(save_dir):
+        #             os.makedirs(save_dir)
+
+        #         torch.save(image_save.cpu(), os.path.join(save_dir, "images_{}.pt".format(it)))
+        #         torch.save(label_syn.cpu(), os.path.join(save_dir, "labels_{}.pt".format(it)))
+
+        #         if save_this_it:
+        #             torch.save(image_save.cpu(), os.path.join(save_dir, "images_best.pt".format(it)))
+        #             torch.save(label_syn.cpu(), os.path.join(save_dir, "labels_best.pt".format(it)))
+
+        #         wandb.log({"Pixels": wandb.Histogram(torch.nan_to_num(image_syn.detach().cpu()))}, step=it)
+
+        #         if args.ipc < 50 or args.force_save:
+        #             upsampled = image_save
+        #             if args.dataset != "ImageNet":
+        #                 upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
+        #                 upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
+        #             grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
+        #             wandb.log({"Synthetic_Images": wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
+        #             wandb.log({'Synthetic_Pixels': wandb.Histogram(torch.nan_to_num(image_save.detach().cpu()))}, step=it)
+
+        #             for clip_val in [2.5]:
+        #                 std = torch.std(image_save)
+        #                 mean = torch.mean(image_save)
+        #                 upsampled = torch.clip(image_save, min=mean-clip_val*std, max=mean+clip_val*std)
+        #                 if args.dataset != "ImageNet":
+        #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
+        #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
+        #                 grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
+        #                 wandb.log({"Clipped_Synthetic_Images/std_{}".format(clip_val): wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
+
+        #             if args.zca:
+        #                 image_save = image_save.to(args.device)
+        #                 image_save = args.zca_trans.inverse_transform(image_save)
+        #                 image_save.cpu()
+
+        #                 torch.save(image_save.cpu(), os.path.join(save_dir, "images_zca_{}.pt".format(it)))
+
+        #                 upsampled = image_save
+        #                 if args.dataset != "ImageNet":
+        #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
+        #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
+        #                 grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
+        #                 wandb.log({"Reconstructed_Images": wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
+        #                 wandb.log({'Reconstructed_Pixels': wandb.Histogram(torch.nan_to_num(image_save.detach().cpu()))}, step=it)
+
+        #                 for clip_val in [2.5]:
+        #                     std = torch.std(image_save)
+        #                     mean = torch.mean(image_save)
+        #                     upsampled = torch.clip(image_save, min=mean - clip_val * std, max=mean + clip_val * std)
+        #                     if args.dataset != "ImageNet":
+        #                         upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
+        #                         upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
+        #                     grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
+        #                     wandb.log({"Clipped_Reconstructed_Images/std_{}".format(clip_val): wandb.Image(
+        #                         torch.nan_to_num(grid.detach().cpu()))}, step=it)
+
+        # wandb.log({"Synthetic_LR": syn_lr.detach().cpu()}, step=it)
         student_net.train()
-        num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
+
+        # 这里有两个改动：1 不用student_net.parameters() 这个是前向的，应该直接用load上来的size（而且是在fuse 之前）
+        # 但是因为fuse 之前的starting_params 长度 不太好获取。反正就是一个值而已。在这里处理一下吧。。
+        # num_params 就是一个param的值
+        num_params = sum([np.prod(p.size()) for p in (student_net.parameters())]) / (Fuse)
+        # print(num_params)
+
         if args.load_all:
             expert_trajectory = buffer[np.random.randint(0, len(buffer))]
         else:
@@ -289,7 +409,7 @@ def main(args):
         for index, i in enumerate(target_params):
             if i.ndim  != 0 :
                 # target_params[index] = torch.cat([i, i], dim=0)   
-                target_params[index] = i.repeat((int(args.Fuse),) + (1,) * (i.ndim - 1))  
+                target_params[index] = i.repeat((int(Fuse),) + (1,) * (i.ndim - 1))  
         target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
 
         # TODO: 2 stu param 作为forward 的flat_param传入，要么在这里修改，要么重载forward
@@ -298,15 +418,43 @@ def main(args):
         # expert_trajectory ： 11 * 14 * model Params
         # starting_params   ： 14 * model Params
 
-        # for i in starting_params:
-        for index, i in enumerate(starting_params):
-            # print(i)
-            if i.ndim != 0 :
-                # starting_params[index] = torch.cat([i, i], dim=0) 
-                starting_params[index] = i.repeat((int(args.Fuse),) + (1,) * (i.ndim - 1))         
-        student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
-        # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params  for _ in range(int(args.Fuse))], 0).requires_grad_(True)]
-        # student_params = [torch.cat([item.data.to(args.device).reshape(-1) for p in starting_params  for item in (p, p[0]+"1")], 0).requires_grad_(True)]
+
+        # # shape list 是一个的。后面可能需要expand
+        shape_list = [p.shape for p in starting_params]
+
+        mask_params = []
+        Fuse = len(fuse_mask_list)    # 关键：Fuse = 分组数
+
+        for index, p in enumerate(starting_params):
+            if p.ndim != 0:
+
+                # ===== 1）repeat（第 0 维复制 Fuse 次）=====
+                B0 = p.shape[0]
+                repeat_shape = (Fuse,) + (1,) * (p.ndim - 1)
+                p_rep = p.repeat(repeat_shape)          # shape = [Fuse*B0, ...]
+                starting_params[index] = p_rep
+
+                # ===== 2）构造 mask（和 p_rep 同 shape），按 block 切 =====
+
+                # row_mask.shape = [Fuse*B0]
+                # fuse_mask_list = [1,1,0] → [True,True,False]
+                row_mask = torch.tensor(fuse_mask_list, dtype=torch.bool, device=p.device)
+                row_mask = row_mask.repeat_interleave(B0)
+                # 现在 row_mask = [T,T,...B0 次, T,T,...B0 次, F,F,...B0 次]
+
+                # 扩展成 p_rep 同 shape（广播）
+                view_shape = (Fuse * B0,) + (1,) * (p_rep.ndim - 1)
+                mask_param = row_mask.view(view_shape).expand_as(p_rep)
+
+                mask_params.append(mask_param)
+
+        # ===== flatten =====
+        student_params = [
+            torch.cat([pp.data.to(args.device).reshape(-1) for pp in starting_params], 0)
+            .requires_grad_(True)
+        ]
+        mask = torch.cat([mm.reshape(-1) for mm in mask_params], 0)   # already bool
+        del mask_params
 
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
 
@@ -320,6 +468,8 @@ def main(args):
 
         if it >= warmup:
             syn_start = time.time()
+        # conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0],shape_list, Fuse)
+
         for step in range(args.syn_steps):
 
             if not indices_chunks:
@@ -343,111 +493,70 @@ def main(args):
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
                 forward_params = student_params[-1]
-            # TODO: 3 模型load, 输入一直是一个x，输出的x虽然是两个（因为两个loss），但后续x就会被覆盖，所以这里拿list也没毛病
             # 因为group conv的原因，最开始应该在Channel 维度做cat
-            # x = student_net(x, flat_param=forward_params.repeat(2))
-            # x = torch.cat([x,x],1)
-            # TODO: 这个repeat_interleavez在第一维上复制一遍，正确性可能还需要再检查
-            # x = x.repeat_interleave(int(args.Fuse),dim =1)
-            # print(args.Fuse)
-            x = x.repeat(1,int(args.Fuse), 1, 1).requires_grad_(True)
-            # x1 = x.clone().detach()
-            # x2 = x.clone().detach()
-            # x = torch.cat([x1,x2], dim=1).requires_grad_(True)
-            # syn_images = x
-            this_y = this_y.repeat(int(args.Fuse))
+            x = x.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
+            this_y = this_y.repeat(int(Fuse))
 
-            # x = x.view(-1,3,32,32)
-            # print(forward_params .shape)
+            with torch.no_grad():
+                x_out, tape = student_net(x,flat_param=forward_params)  # forward
 
-            # out = student_net(x, flat_param=forward_params)[-1]
-
-
-            out = student_net(x, flat_param=forward_params)
-            out = out.view(-1,10)
-
-
-            # out = out[:10, :]
-            # this_y = this_y[:10]
-            # print(criterion(out[9:19, :], this_y[9:19]).item())
-            # print(this_y.shape)
-            # print(out.shape)
-
-            ce_loss = criterion(out, this_y)
-            ce_loss *= int(args.Fuse)
-            # TODO: 因为criterion 会求平均
-            # ce_loss *=int(args.Fuse)
-            # criterion 是在batch上求平均的；现在out也是out.view(-1,10) 
-            # 这里要确定两件事： 1 放在batch里求平均事否合理。2如果不合理，事否会影响linear输出shape
-
-            # ce_loss = 0
-            # # TODO: 4 两个loss。这个地方目前两种model的写法不同，所以y shape 不一样...
-            # for out in x:
-            #     ce_loss_temp = criterion(out , this_y)
-            #     ce_loss = ce_loss+ce_loss_temp
-
-            grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
-            # 分开测试一下，到底是哪一半的问题。
-            # print("test", grad[:302848].sum().item())
-            # print("test", grad[302848:598528].sum().item())
-            # print("test", grad[:598528].sum().item())
-
-            # print("celoss:", ce_loss.sum().item())
-            # print("cegrad", grad.sum().item())
-
-            # student_params.append(student_params[-1] - syn_lr * grad.detach())
-            # if(step < args.detachNum):
-            #     student_params.append(student_params[-1] - syn_lr * grad.detach())
-            # else:
+                ce_loss = criterion(x_out, this_y)
+                ce_loss *= int(Fuse)
+                del x_out
+                # d_stem_activates, d_activates_list, d_weights_list, d_weights_list_all = student_net.module.run_first_bwd( tape=tape, target=this_y,Fuse=Fuse )
+                d_stem_activates, d_activates_list, d_weights_list, d_weights_list_all = \
+                    student_net.call_with_param(
+                        forward_params,
+                        student_net.module.run_first_bwd,
+                        tape=tape,
+                        target=this_y,
+                        Fuse=Fuse,
+                    )
+            grad_list = d_weights_list_all
+            grad = torch.cat([g.reshape(-1) for g in grad_list], 0)
             student_params.append(student_params[-1] - syn_lr * grad)
-            # # TODO: Pruning here
-            # if (len(student_params) > 2 ):  
-            #     # print("DETACH")
-            #     student_params[-3] = student_params[-3].detach()
-            # syn_images = x
 
         if it >= warmup:
             syn_end = time.time()
+        with torch.no_grad():
+            weight = student_params[0] # weight是原始参数，不加dw
+            param_loss = torch.tensor(0.0).to(args.device)
+            param_dist = torch.tensor(0.0).to(args.device)
+            param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum") # 好像是因为reduction的原因。。。。
+            param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+            param_loss_list.append(param_loss)
+            param_dist_list.append(param_dist)
+            # param_loss /= num_params # 这里为啥注释掉了...? original 可是没有的
+            # param_dist /= num_params
+            param_loss /= param_dist
+            grand_loss = param_loss # 是为了抵消num_params变化带来的影响。但是flex fuse 之后num_params没有变化（还是Fuse）
+            optimizer_img.zero_grad()
+            optimizer_lr.zero_grad()
+            ddx_conv = torch.zeros_like(x).cuda()
+            ddw = 2*(student_params[-1]- target_params)/param_dist
+            ddw *= (-syn_lr)
 
-        # continue
-        param_loss = torch.tensor(0.0).to(args.device)
-        param_dist = torch.tensor(0.0).to(args.device)
-
-        # TODO: 6 总的loss需要对两个模型分开计算（毕竟target_params也不一样）
-        # 但是这里cat的方法应该和weight保持一致。(在target 初始化的时候改了)
-        # for p in target_params:
-        #     if p.ndim != 0:
-        #         new_tensor = torch.cat([p, p], dim=0)
-        #         p.data = new_tensor  # 原地替换其底层数据
-
-        # target_params_all = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params  for _ in range(int(args.Fuse))], 0).requires_grad_(True)
-        # target_params_all = torch.rand_like(student_params[-1])
-
-
-        param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
-        # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params reduction="sum")
-        param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
-
-        param_loss_list.append(param_loss)
-        param_dist_list.append(param_dist)
-
-
-        param_loss /= num_params
-        param_dist /= num_params
-
-        param_loss /= param_dist
-
-        grand_loss = param_loss * int(args.Fuse) # 虽然上下都是sum。但是要做乘法。
-
-        optimizer_img.zero_grad()
-        optimizer_lr.zero_grad()
-
-
-        grand_loss.backward()
+            dd_tensors_all = recover_params(ddw, shape_list,Fuse ) # TODO: 目前暂时不考虑bwd fuse 和fuse 的差别。
+            dd_stem_tensors, dd_weights_list = student_net.module.pack_recovered_dd(
+                dd_tensors_all=dd_tensors_all,
+                x=x,
+            )
+            dd_stem_tensors['ddx_conv'] = ddx_conv
+            
+            dx_conv = student_net.call_with_param(
+                forward_params,
+                student_net.module.run_double_bwd,
+                tape=tape,
+                d_activates_list=d_activates_list,
+                dd_weights_list=dd_weights_list,
+                d_stem_tensors=d_stem_activates,
+                dd_stem_tensors=dd_stem_tensors,
+                Fuse=bwd_Fuse,
+            )
         if(args.AccTest):
-            print("--Celoss--", ce_loss.item())
+            print("--Celoss--",ce_loss.item())
             print("--GradLoss--",grand_loss.item())
-            print("--GRAD--",image_syn.grad.sum().item())
+            print("----GRAD-----", dx_conv.sum().item()) 
 
         optimizer_img.step()
         optimizer_lr.step()
@@ -464,7 +573,10 @@ def main(args):
             del _
 
         # if it%10 == 0:
-        #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+    #     #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
+    #     print("alloc", torch.cuda.memory_allocated() / 1024**2,
+    #   "reserved", torch.cuda.memory_reserved() / 1024**2)
+
 
     iter_end = time.time()
     print("------------FIN TIME-------------")
@@ -473,14 +585,16 @@ def main(args):
     print("syn_time     (", args.syn_steps ,"): ", syn_time)
     print("backward_time(", args.syn_steps ,"): ", bwd_time)
 
-    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
+    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
+    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
 
     # wandb.finish()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
+
+    parser.add_argument(   '--fuse_mask_list',   type=int,   nargs='+',       required=True,        help='fuse mask list, e.g. 1 1 0')
 
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')

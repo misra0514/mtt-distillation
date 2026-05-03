@@ -1063,7 +1063,7 @@ def instanceNorm_double_backwards_fn(x, gamma, beta, ggX, ggG, ggB, gO,
 #     return gX.view(N, C, H, W) if gX is not None else None, gG, ggO.view(N, C, H, W)
 
 
-class Snd_Order_MyLinearFunction(torch.autograd.Function):
+class Snd_Order_NormActive(torch.autograd.Function):
     '''2 forward: relu+pool+linear.backward '''
     # TODO: 如果做ckpt，那么记得保证forward可以在算完之后全释放掉。 然后backward再重新算一遍。
     # 现在也没有做save ctx，为啥内存消耗还是1483？
@@ -1071,7 +1071,6 @@ class Snd_Order_MyLinearFunction(torch.autograd.Function):
     def forward(ctx, dLdy, input, weight, out):
         ctx.save_for_backward( input, weight, dLdy, out )
         # dLdy[out<=0 ] = 0
-
         grad_output, dw, db = instance_norm_backward_triton(input, weight, dLdy, out)
         # grad_output, dw, db,mean, std = instanceNorm_backward(input, weight, dLdy)
         return grad_output, dw, db
@@ -1087,7 +1086,7 @@ class Snd_Order_MyLinearFunction(torch.autograd.Function):
         return ggO,gx, gG, None
 
 
-class MyLinearFunction(torch.autograd.Function):
+class Fst_Order_NormActive(torch.autograd.Function):
     '''forward: relu+pool+linear '''
     @staticmethod
     def forward(ctx, input, weight, bias):
@@ -1099,19 +1098,258 @@ class MyLinearFunction(torch.autograd.Function):
     @staticmethod
     def backward(ctx, dLdy):
         input, weight, out = ctx.saved_tensors
-        return Snd_Order_MyLinearFunction.apply(dLdy ,input, weight, out)
+        return Snd_Order_NormActive.apply(dLdy ,input, weight, out)
         # db = gin.sum(0)
         # return gin, weight, db
 
 
 
 
-class NormActive(nn.Module):
-    # in_features 应该是1
-    def __init__(self, channel_num, affine=True):
+# class NormActive(nn.Module):
+#     # in_features 应该是1
+#     def __init__(self, channel_num, affine=True):
+#         super().__init__()
+#         self.weight = nn.Parameter(torch.randn([channel_num]))
+#         self.bias = nn.Parameter(torch.randn([channel_num]))
+#     def forward(self, input):
+#         out = Fst_Order_NormActive.apply(input, self.weight, self.bias)
+#         return out
+
+
+# 下面的gelu 部分可能需要找个时间修改一下------- 
+
+
+_INV_SQRT2 = 1.0 / (2.0 ** 0.5)
+_INV_SQRT2PI = 1.0 / math.sqrt(2.0 * math.pi)  # 0.3989422804014327
+
+# ------ Triton kernel: gX = gY * m * gelu'(x) ------
+@triton.jit
+def _gelu_drop_grad_kernel(
+    x_ptr, gy_ptr, m_ptr, gx_ptr,
+    n_elements: tl.constexpr,
+    DTYPE: tl.constexpr,           # tl.float32 / tl.float16 / tl.bfloat16
+    BLOCK_SIZE: tl.constexpr
+):
+    pid = tl.program_id(0)
+    offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    mask = offs < n_elements
+
+    # load -> fp32 计算，提升数值稳定性
+    x  = tl.load(x_ptr  + offs, mask=mask, other=0).to(tl.float32)
+    gy = tl.load(gy_ptr + offs, mask=mask, other=0).to(tl.float32)
+    mm = tl.load(m_ptr  + offs, mask=mask, other=0).to(tl.float32)
+
+    inv_sqrt2   = 0.7071067811865476  # _INV_SQRT2
+    inv_sqrt2pi = 0.3989422804014327  # _INV_SQRT2PI
+
+    # φ(x) = exp(-x^2/2) / sqrt(2π)
+    phi = tl.exp(-0.5 * x * x) * inv_sqrt2pi
+    # gelu'(x) = 0.5*(1+erf(x/√2)) + x*φ(x)
+    gp = 0.5 * (1.0 + tl.erf(x * inv_sqrt2)) + x * phi
+
+    gx = gy * mm * gp
+    tl.store(gx_ptr + offs, gx.to(DTYPE), mask=mask)
+
+
+def gelu_drop_grad_triton(gY: torch.Tensor, x: torch.Tensor, m: torch.Tensor, out: torch.Tensor = None):
+    """
+    计算 gX = gY * m * GELU'(x)
+    - x, gY, m: 同形状张量（m 为已按 1/(1-p) 缩放后的 mask）
+    - 输出 dtype 默认与 gY.dtype 一致
+    """
+    assert x.is_cuda and gY.is_cuda and m.is_cuda, "use CUDA tensors"
+    assert x.shape == gY.shape == m.shape, "shape mismatch"
+
+    # 为了内存访问合并，这里用 1D contiguous 缓冲
+    x_c  = x.contiguous()
+    gy_c = gY.contiguous()
+    m_c  = m.contiguous()
+
+    if out is None:
+        out = torch.empty_like(gy_c)
+    else:
+        assert out.is_cuda and out.dtype == gY.dtype and out.shape == gY.shape
+    gx_c = out.contiguous()
+
+    n = x_c.numel()
+
+    # 选择 Triton 输出 dtype
+    if gx_c.dtype == torch.float16:
+        DTYPE = tl.float16
+    elif gx_c.dtype == torch.bfloat16:
+        DTYPE = tl.bfloat16
+    elif gx_c.dtype == torch.float32:
+        DTYPE = tl.float32
+    else:
+        raise TypeError(f"unsupported dtype: {gx_c.dtype}")
+
+    BLOCK_SIZE = 1024
+    grid = lambda meta: (triton.cdiv(n, meta['BLOCK_SIZE']),)
+
+    _gelu_drop_grad_kernel[grid](
+        x_c, gy_c, m_c, gx_c,
+        n_elements=n,
+        DTYPE=DTYPE,
+        BLOCK_SIZE=BLOCK_SIZE,
+        num_warps=4
+    )
+    return gx_c
+
+
+# -------- 二阶：同时算 ggY 与 ggx ------------
+@triton.jit
+def _gelu_drop_double_grad_kernel(
+    ggx_in_ptr, gy_ptr, x_ptr, m_ptr,     # inputs: ggX, gY, x, m
+    ggy_out_ptr, ggx_out_ptr,             # outputs: ggY, ggx
+    n_elements: tl.constexpr,
+    DTYPE_GGY: tl.constexpr,              # 输出 ggY 的 dtype（通常跟 gY 一致）
+    DTYPE_GGX: tl.constexpr,              # 输出 ggx 的 dtype（通常跟 x 一致）
+    BLOCK_SIZE: tl.constexpr
+):
+    pid  = tl.program_id(0)
+    offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    mask = offs < n_elements
+
+    ggX = tl.load(ggx_in_ptr + offs, mask=mask, other=0).to(tl.float32)
+    gY  = tl.load(gy_ptr     + offs, mask=mask, other=0).to(tl.float32)
+    x   = tl.load(x_ptr      + offs, mask=mask, other=0).to(tl.float32)
+    mm  = tl.load(m_ptr      + offs, mask=mask, other=0).to(tl.float32)
+
+    inv_sqrt2   = 0.7071067811865476
+    inv_sqrt2pi = 0.3989422804014327
+
+    # φ(x), g'(x), g''(x)
+    phi = tl.exp(-0.5 * x * x) * inv_sqrt2pi
+    gp  = 0.5 * (1.0 + tl.erf(x * inv_sqrt2)) + x * phi
+    gpp = (2.0 - x * x) * phi
+
+    # ggY = ggX * m * g'(x)
+    ggY = ggX * mm * gp
+    # ggx = ggX * gY * m * g''(x)
+    ggx = ggX * gY * mm * gpp
+
+    tl.store(ggy_out_ptr + offs, ggY.to(DTYPE_GGY), mask=mask)
+    tl.store(ggx_out_ptr + offs, ggx.to(DTYPE_GGX), mask=mask)
+
+
+def gelu_drop_double_grad_triton(ggX: torch.Tensor, gY: torch.Tensor, x: torch.Tensor, m: torch.Tensor,
+                                 out_ggY: torch.Tensor = None, out_ggx: torch.Tensor = None):
+    """
+    计算 (ggY, ggx)：
+      ggY = ggX * m * GELU'(x)
+      ggx = ggX * gY * m * GELU''(x)
+    - ggX, gY, x, m 需同形状且均在 CUDA
+    - out_ggY dtype 建议与 gY.dtype 对齐；out_ggx dtype 建议与 x.dtype 对齐
+    """
+    assert ggX.is_cuda and gY.is_cuda and x.is_cuda and m.is_cuda
+    assert ggX.shape == gY.shape == x.shape == m.shape
+
+    ggX_c = ggX.contiguous()
+    gY_c  = gY.contiguous()
+    x_c   = x.contiguous()
+    m_c   = m.contiguous()
+
+    if out_ggY is None:
+        out_ggY = torch.empty_like(gY_c)
+    if out_ggx is None:
+        out_ggx = torch.empty_like(x_c)
+    ggy_c  = out_ggY.contiguous()
+    ggx_c2 = out_ggx.contiguous()
+
+    n = ggX_c.numel()
+
+    def _to_tl_dtype(t: torch.Tensor):
+        if t.dtype == torch.float16:  return tl.float16
+        if t.dtype == torch.bfloat16: return tl.bfloat16
+        if t.dtype == torch.float32:  return tl.float32
+        raise TypeError(f"unsupported dtype: {t.dtype}")
+
+    DTYPE_GGY = _to_tl_dtype(ggy_c)
+    DTYPE_GGX = _to_tl_dtype(ggx_c2)
+
+    BLOCK_SIZE = 1024
+    grid = lambda meta: (triton.cdiv(n, meta['BLOCK_SIZE']),)
+
+    _gelu_drop_double_grad_kernel[grid](
+        ggX_c, gY_c, x_c, m_c,
+        ggy_c, ggx_c2,
+        n_elements=n,
+        DTYPE_GGY=DTYPE_GGY,
+        DTYPE_GGX=DTYPE_GGX,
+        BLOCK_SIZE=BLOCK_SIZE,
+        num_warps=4
+    )
+    return ggy_c, ggx_c2
+
+
+def _phi(x):
+    # x 已在 GPU；常数是 Python float，会作为 kernel 的标量传入，不触发 H2D 拷贝
+    return torch.exp(-0.5 * x * x) * _INV_SQRT2PI
+
+def _gelu_prime(x):
+    # GELU'(x) = 0.5(1+erf(x/√2)) + x φ(x)
+    return 0.5 * (1.0 + torch.special.erf(x * _INV_SQRT2)) + x * _phi(x)
+
+def _gelu_double_prime(x):
+    # GELU''(x) = (2 - x^2) φ(x)
+    return (2.0 - x * x) * _phi(x)
+
+
+
+class Snd_Order_GeluDrop(torch.autograd.Function):
+    '''2 forward: relu+pool+linear.backward '''
+    @staticmethod
+    def forward(ctx, gY, x, m):
+        # gX = gY * m * _gelu_prime(x)
+        gX = gelu_drop_grad_triton(gY, x, m)
+        ctx.save_for_backward(gY, x, m)
+        return gX, None
+
+
+    @staticmethod
+    def backward(ctx, ggX, _ggNone):
+        gY, x, m = ctx.saved_tensors
+        # 二阶：单核同时得到 (ggY, ggx)
+        ggY, ggx = gelu_drop_double_grad_triton(ggX, gY, x, m)
+        # 对 y 与 m 不回传梯度
+        return ggY, ggx, None
+
+
+class Fst_Order_GeluDrop(torch.autograd.Function):
+    '''forward: gelu+dropout '''
+    @staticmethod
+    def forward(ctx, x, p):
+        # 生成缩放后掩码：m = mask / (1-p)
+        if p <= 0.0:
+            m = torch.ones_like(x)
+        else:
+            # 为了数值安全，防止 p 接近 1
+            p_clamped = torch.clamp(torch.as_tensor(p, dtype=x.dtype, device=x.device),
+                                    min=0.0, max=1.0 - 1e-6).item()
+            keep_prob = 1.0 - p_clamped
+            mask = (torch.rand_like(x) < keep_prob).to(x.dtype)
+            m = mask / keep_prob
+
+        y_gelu = F.gelu(x)  # 精确 erf 版本
+        y = y_gelu * m
+
+        # 保存必要信息（注意把已缩放的 m 存起来，避免二阶里还要知道 p）
+        ctx.save_for_backward(x, m)
+        return y
+
+    @staticmethod
+    def backward(ctx, dLdy):
+        x, m = ctx.saved_tensors
+        # p = ctx.p
+        return Snd_Order_GeluDrop.apply(dLdy ,x, m)
+
+
+class GeluDrop(nn.Module):
+    def __init__(self,  p=0.1):
+        self.p = p
         super().__init__()
-        self.weight = nn.Parameter(torch.randn([channel_num]))
-        self.bias = nn.Parameter(torch.randn([channel_num]))
     def forward(self, input):
-        out = MyLinearFunction.apply(input, self.weight, self.bias)
+        # out = F.gelu(input)
+        # out = F.dropout(out, p=self.p)
+        out = Fst_Order_GeluDrop.apply(input,self.p)
         return out

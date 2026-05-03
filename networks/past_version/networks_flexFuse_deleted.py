@@ -28,13 +28,13 @@ import os
 
 import sys
 import os
-from networks_stacked_basicblock import LinearStacked_2_flexFuse as linear_flex
-from networks_stacked_basicblock import LinearStacked_2
+from networks.past_version.networks_stacked_basicblock import LinearStacked_2_flexFuse as linear_flex
+from networks.past_version.networks_stacked_basicblock import LinearStacked_2
 from networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd, crossEntropy_bwd
 
-from networks_fused3 import NormActive
+# from networks.past_version.networks_basicblock_fused3 import NormActive
 # from networks_fused2 import NormActive
 
 
