@@ -428,3 +428,559 @@ def adaptivepooling_bwd(x, grad_output):
 
 def adaptivepooling_double_bwd(x,shape = (1, 1)):
     return F.adaptive_avg_pool2d(x, shape)
+
+
+def grouped_layernorm_backward(
+    x,             # original input, [B, Fuse, N, D]
+    weight,        # [Fuse * D]
+    Fuse,
+    grad_output,   # [B, Fuse, N, D]
+    eps=1e-5,
+    # mean,          # from native_layer_norm forward
+    # rstd,          # from native_layer_norm forward
+):
+    B, Fs, N, D = x.shape
+    assert Fs == Fuse
+    normalized_shape = [D]
+    z, mean, rstd = torch.ops.aten.native_layer_norm.default( x, [D], None, None, eps)
+    weight_view = weight.view(1, Fuse, 1, D)
+    dweight = (grad_output * z).sum(dim=(0, 2))      # [Fuse, D]
+    dbias = grad_output.sum(dim=(0, 2))              # [Fuse, D]
+    dweight = dweight.reshape(Fuse * D)
+    dbias = dbias.reshape(Fuse * D)
+    dz = grad_output * weight_view                   # [B, Fuse, N, D]
+    #  LN weight/ bias was None,# only need dx
+    dx, _, _ = torch.ops.aten.native_layer_norm_backward.default( dz, x, normalized_shape, mean, rstd, None, None, [True, False, False] )
+    # dx, dweight, dbias = torch.ops.aten.native_layer_norm_backward.default( grad_output, x, normalized_shape, mean, rstd, weight, None, [True, True, True] )
+    return dx, dweight, dbias
+
+
+def grouped_linear_bwd(x, w, grad_output, Fuse =2 ):
+    in_features = w.shape[1]
+    out_features = w.shape[0] // Fuse
+    W = w.view(Fuse, out_features, in_features)  # [F, O, I]
+    if x.ndim == 3:
+        B, Fs, I = x.shape
+        dx = torch.einsum(
+            "bfo,foi->bfi",
+            grad_output,
+            W,
+        )
+        dw = torch.einsum(
+            "bfo,bfi->foi",
+            grad_output,
+            x,
+        )
+        db = grad_output.sum(dim=0)  # [F, O]
+        dx = dx.reshape_as(x)
+        dw = dw.reshape(Fuse * out_features, in_features)
+        db = db.reshape(Fuse * out_features)
+    elif x.ndim == 4:
+        B, Fs, N, I = x.shape
+        dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+        dw = torch.einsum(   "bfno,bfni->foi", grad_output, x, )
+        db = grad_output.sum(dim=(0, 2))  # [F, O]
+        dw = dw.reshape(Fuse * out_features, in_features)
+        db = db.reshape(Fuse * out_features)
+    return dx, dw, db
+
+def gelu_bwd(x, grad_output):
+    """
+    GELU exact backward.
+    forward: gelu(x) = x * Phi(x)
+    derivative: Phi(x) + x * phi(x)
+    """
+    inv_sqrt2 = 1.0 / math.sqrt(2.0)
+    inv_sqrt2pi = 1.0 / math.sqrt(2.0 * math.pi)
+    cdf = 0.5 * (1.0 + torch.erf(x * inv_sqrt2))
+    pdf = torch.exp(-0.5 * x * x) * inv_sqrt2pi
+    return grad_output * (cdf + x * pdf)
+
+
+def sdpa_no_mask_no_dropout_bwd(q, k, v, grad_output):
+    """
+    q, k, v:     [B, Fuse, H, N, Dh]
+    grad_output: [B, Fuse, H, N, Dh]
+
+    return:
+      dq, dk, dv: [B, Fuse, H, N, Dh]
+    """
+    Dh = q.shape[-1]
+    scale = Dh ** -0.5
+    # 这里需要重新算一下BHNN的attention score，否则没法求导。
+    scores = torch.matmul(q, k.transpose(-2, -1)) * scale
+    prob = torch.softmax(scores, dim=-1)
+    dv = torch.matmul(prob.transpose(-2, -1), grad_output)
+
+    dprob = torch.matmul(grad_output, v.transpose(-2, -1))
+    dscores = prob * (dprob - (dprob * prob).sum(dim=-1, keepdim=True))
+    # scores = q @ k^T * scale
+    dq = torch.matmul(dscores, k) * scale
+    dk = torch.matmul(dscores.transpose(-2, -1), q) * scale
+    return dq, dk, dv, dprob, dscores
+
+####----------------------------------------------------------------
+
+def layerNorm_double_bwd_fn(
+    x,
+    gamma,
+    ggX,
+    ggG,
+    ggB,
+    gO,
+    normalized_shape,
+    eps=1e-5,
+):
+    """
+    LayerNorm double backward.
+    输入:
+        x:      原始 input, shape = outer_shape + normalized_shape
+        gamma:  LayerNorm weight, shape = normalized_shape, 可以是 None
+        ggX:    grad of dX, shape 同 x, 可以是 None
+        ggG:    grad of dGamma, shape 同 gamma, 可以是 None
+        ggB:    grad of dBeta, shape 同 gamma, 可以是 None
+        gO:     grad_output of forward, shape 同 x
+        normalized_shape: LayerNorm 的 normalized_shape
+    返回:
+        gX:   grad wrt x
+        gG:   grad wrt gamma
+        ggO:  grad wrt gO
+    """
+
+    if isinstance(normalized_shape, int):
+        normalized_shape = (normalized_shape,)
+    else:
+        normalized_shape = tuple(normalized_shape)
+
+    assert tuple(x.shape[-len(normalized_shape):]) == normalized_shape, \
+        f"x.shape={tuple(x.shape)} does not end with normalized_shape={normalized_shape}"
+
+    M = math.prod(normalized_shape)
+    K = x.numel() // M
+
+    x_flat = x.reshape(K, M)
+    gO_flat = gO.reshape(K, M)
+
+    with torch.no_grad():
+        mean = x_flat.mean(dim=1, keepdim=True)
+        var = x_flat.var(dim=1, unbiased=False, keepdim=True)
+
+        inv_std = torch.rsqrt(var + eps)
+        x_centered = x_flat - mean
+        x_hat = x_centered * inv_std
+
+        # inv_std ** 3, 写成这个形式更稳一点
+        inv_std3 = inv_std / (var + eps)
+
+    if gamma is not None:
+        gamma_flat = gamma.reshape(1, M)
+    else:
+        gamma_flat = None
+
+    def first_back_no_weight(g):
+        """
+        rP(g) = inv_std * (g - mean(g) - x_hat * mean(g * x_hat))
+
+        这是 LayerNorm backward 中去掉 gamma 之后的线性部分。
+        """
+        return inv_std * (
+            g
+            - g.mean(dim=1, keepdim=True)
+            - x_hat * (g * x_hat).mean(dim=1, keepdim=True)
+        )
+
+    # ------------------------------------------------------------
+    # gX: contribution from ggX
+    # ------------------------------------------------------------
+    gX_flat = None
+
+    if ggX is not None:
+        ggX_flat = ggX.reshape(K, M)
+
+        with torch.no_grad():
+            # 对 LayerNorm 来说，一阶 dX 里真正进入 norm backward 的是:
+            #     b = gO * gamma
+            # 如果 gamma is None，则等价于 gamma = 1
+            if gamma_flat is not None:
+                b = gO_flat * gamma_flat
+            else:
+                b = gO_flat
+
+            a = ggX_flat
+
+            sum_a = a.sum(dim=1, keepdim=True)
+            sum_b = b.sum(dim=1, keepdim=True)
+
+            sum_a_xmu = (a * x_centered).sum(dim=1, keepdim=True)
+            sum_b_xmu = (b * x_centered).sum(dim=1, keepdim=True)
+
+            dot_ab = (a * b).sum(dim=1, keepdim=True)
+
+            A = (
+                (sum_a * sum_b) / M
+                - dot_ab
+                + 3.0 * (inv_std ** 2) * sum_a_xmu * sum_b_xmu / M
+            )
+
+            term0 = x_centered * inv_std3 * A / M
+            term1 = sum_a_xmu * inv_std3 * (sum_b / M - b) / M
+            term2 = sum_b_xmu * inv_std3 * (sum_a / M - a) / M
+
+            gX_flat = term0 + term1 + term2
+
+    # ------------------------------------------------------------
+    # gX: contribution from ggG
+    # dGamma = sum_outer(gO * x_hat)
+    # 所以 ggG 对 x 的贡献是:
+    #     rP(gO * ggG)
+    # 注意这里不能写成 ggG * rP(gO)，因为 LayerNorm 的 ggG 是逐元素的。
+    # ------------------------------------------------------------
+    if ggG is not None:
+        ggG_flat = ggG.reshape(1, M)
+
+        with torch.no_grad():
+            gX_G = first_back_no_weight(gO_flat * ggG_flat)
+
+        gX_flat = gX_G if gX_flat is None else gX_flat + gX_G
+
+    # ------------------------------------------------------------
+    # gG: grad wrt gamma
+    # 只有 ggX 分支会对 gamma 产生梯度
+    #
+    # dX = rP(gO * gamma)
+    # d/dgamma <ggX, dX> = gO * rP(ggX)
+    # 然后对 outer dims 求和。
+    # ------------------------------------------------------------
+    gG = None
+
+    if gamma is not None and ggX is not None:
+        ggX_flat = ggX.reshape(K, M)
+
+        with torch.no_grad():
+            rP_ggX = first_back_no_weight(ggX_flat)
+            gG_flat = (gO_flat * rP_ggX).sum(dim=0)
+
+        gG = gG_flat.reshape(normalized_shape)
+
+    # ------------------------------------------------------------
+    # ggO: grad wrt gO
+    # ------------------------------------------------------------
+    ggO_flat = None
+
+    if ggX is not None:
+        ggX_flat = ggX.reshape(K, M)
+
+        with torch.no_grad():
+            rP_ggX = first_back_no_weight(ggX_flat)
+
+            if gamma_flat is not None:
+                ggO_X = rP_ggX * gamma_flat
+            else:
+                ggO_X = rP_ggX
+
+        ggO_flat = ggO_X
+
+    if ggG is not None:
+        ggG_flat = ggG.reshape(1, M)
+
+        with torch.no_grad():
+            ggO_G = ggG_flat * x_hat
+
+        ggO_flat = ggO_G if ggO_flat is None else ggO_flat + ggO_G
+
+    if ggB is not None:
+        ggB_flat = ggB.reshape(1, M)
+
+        with torch.no_grad():
+            ggO_B = ggB_flat.expand(K, M)
+
+        ggO_flat = ggO_B if ggO_flat is None else ggO_flat + ggO_B
+
+    gX = gX_flat.reshape_as(x) if gX_flat is not None else None
+    ggO = ggO_flat.reshape_as(x) if ggO_flat is not None else None
+
+    return gX, gG, ggO
+
+
+
+def grouped_layernorm_double_bwd_fn(
+    x,          # [B, Fuse, N, D]
+    weight,     # [Fuse * D]
+    ggX,        # grad of dx,      [B, Fuse, N, D] or None
+    ggW,        # grad of dweight, [Fuse * D]       or None
+    ggB,        # grad of dbias,   [Fuse * D]       or None
+    gO,         # original grad_output, [B, Fuse, N, D]
+    Fuse,
+    eps=1e-5,
+):
+    B, Fs, N, D = x.shape
+    assert Fs == Fuse
+    assert weight is not None
+    assert weight.numel() == Fuse * D
+    assert gO.shape == x.shape
+    M = D
+    K = B * Fuse * N
+    x_flat = x.reshape(K, D)
+    gO_flat = gO.reshape(K, D)
+    # 每个 [B, Fuse, N] row 对应一个 Fuse group 的 weight
+    weight_view = weight.reshape(1, Fuse, 1, D)
+    weight_flat = weight_view.expand(B, Fuse, N, D).reshape(K, D)
+    mean = x_flat.mean(dim=1, keepdim=True)
+    var = x_flat.var(dim=1, unbiased=False, keepdim=True)
+    inv_std = torch.rsqrt(var + eps)
+    x_centered = x_flat - mean
+    x_hat = x_centered * inv_std
+    # inv_std ** 3
+    inv_std3 = inv_std / (var + eps)
+    def first_back_no_weight(g):
+        # no-affine LayerNorm backward 的线性部分： rP(g) = inv_std * (g - mean(g) - x_hat * mean(g * x_hat))  g: [K, D]
+        return inv_std * (
+            g
+            - g.mean(dim=1, keepdim=True)
+            - x_hat * (g * x_hat).mean(dim=1, keepdim=True)
+        )
+    gX_flat = None
+    gWeight = None
+    ggO_flat = None
+
+    # 1. ggX 分支 
+    if ggX is not None:
+        assert ggX.shape == x.shape
+        ggX_flat = ggX.reshape(K, D)
+        # with torch.no_grad():
+        # b 是传进 no-affine LN backward 的 grad_out
+        b = gO_flat * weight_flat
+        a = ggX_flat
+        sum_a = a.sum(dim=1, keepdim=True)
+        sum_b = b.sum(dim=1, keepdim=True)
+        sum_a_xmu = (a * x_centered).sum(dim=1, keepdim=True)
+        sum_b_xmu = (b * x_centered).sum(dim=1, keepdim=True)
+        dot_ab = (a * b).sum(dim=1, keepdim=True)
+        A = (
+            (sum_a * sum_b) / M
+            - dot_ab
+            + 3.0 * (inv_std ** 2) * sum_a_xmu * sum_b_xmu / M
+        )
+        term0 = x_centered * inv_std3 * A / M
+        term1 = sum_a_xmu * inv_std3 * (sum_b / M - b) / M
+        term2 = sum_b_xmu * inv_std3 * (sum_a / M - a) / M
+        gX_flat = term0 + term1 + term2
+        # wrt weight:
+        #   <ggX, LN_backward(gO * weight)> 对 weight 求导
+        # = sum_BN(gO * LN_backward(ggX))
+        rP_ggX = first_back_no_weight(ggX_flat)
+        gWeight_full = (
+            gO_flat * rP_ggX
+        ).reshape(B, Fuse, N, D).sum(dim=(0, 2))  # [Fuse, D]
+        gWeight = gWeight_full.reshape(Fuse * D)
+        # wrt gO
+        ggO_X = rP_ggX * weight_flat
+        ggO_flat = ggO_X
+    # 2. ggW 分支 dweight = sum_BN(gO * x_hat)
+    #   gX  += LN_backward(gO * ggW)
+    #   ggO += ggW * x_hat
+    if ggW is not None:
+        assert ggW.numel() == Fuse * D
+        ggW_view = ggW.reshape(1, Fuse, 1, D)
+        ggW_flat = ggW_view.expand(B, Fuse, N, D).reshape(K, D)
+        with torch.no_grad():
+            gX_W = first_back_no_weight(gO_flat * ggW_flat)
+            ggO_W = ggW_flat * x_hat
+        gX_flat = gX_W if gX_flat is None else gX_flat + gX_W
+        ggO_flat = ggO_W if ggO_flat is None else ggO_flat + ggO_W
+    # 3. ggB 分支: ggO += ggB
+    if ggB is not None:
+        assert ggB.numel() == Fuse * D
+        ggB_view = ggB.reshape(1, Fuse, 1, D)
+        ggB_flat = ggB_view.expand(B, Fuse, N, D).reshape(K, D)
+        with torch.no_grad():
+            ggO_B = ggB_flat
+        ggO_flat = ggO_B if ggO_flat is None else ggO_flat + ggO_B
+    gX = gX_flat.reshape_as(x) if gX_flat is not None else None
+    ggO = ggO_flat.reshape_as(gO) if ggO_flat is not None else None
+    return gX, gWeight, ggO
+
+
+
+def grouped_linear_double_bwd(
+    x,
+    w,
+    grad_output,
+    gg_grad_input=None,   # same shape as dx from grouped_linear_bwd
+    gg_grad_w=None,       # same shape as dw: [Fuse * O, I]
+    gg_grad_b=None,       # same shape as db: [Fuse * O]
+    Fuse=2,
+):
+    in_features = w.shape[1]
+    out_features = w.shape[0] // Fuse
+    W = w.view(Fuse, out_features, in_features)  # [F, O, I]
+    dgrad_output = torch.zeros_like(grad_output)
+    dx = torch.zeros_like(x)
+    dW = torch.zeros_like(W)
+
+    if x.ndim == 3:
+        B, Fs, I = x.shape
+        assert Fs == Fuse
+        assert I == in_features
+        G = grad_output                    # [B, F, O]
+        X = x                              # [B, F, I]
+        assert G.shape == (B, Fuse, out_features)
+
+        if gg_grad_input is not None:
+            H = gg_grad_input
+            assert H.shape == X.shape
+            dgrad_output = dgrad_output + torch.einsum( "bfi,foi->bfo", H, W, )
+            dW = dW + torch.einsum( "bfo,bfi->foi", G, H, )
+        # if gg_grad_w is not None:
+        V = gg_grad_w.view(Fuse, out_features, in_features)  # [F, O, I]
+        dgrad_output = dgrad_output + torch.einsum( "foi,bfi->bfo", V, X, )
+        dx = dx + torch.einsum( "bfo,foi->bfi", G, V, )
+        if gg_grad_b is not None:
+            ggb = gg_grad_b.view(Fuse, out_features)  # [F, O]
+            dgrad_output = dgrad_output + ggb.view(1, Fuse, out_features)
+
+    elif x.ndim == 4:
+        #       grad_input = einsum("bfno,foi->bfni", G, W)
+        #       dG += einsum("bfni,foi->bfno", H, W)
+        #       dW += einsum("bfno,bfni->foi", G, H)
+        B, Fs, N, I = x.shape
+        G = grad_output                    # [B, F, N, O]
+        X = x                              # [B, F, N, I]
+        if gg_grad_input is not None:
+            H = gg_grad_input
+            assert H.shape == X.shape
+            dgrad_output = dgrad_output + torch.einsum( "bfni,foi->bfno", H, W )
+            dW = dW + torch.einsum( "bfno,bfni->foi", G, H, )
+        if gg_grad_w is not None:
+            V = gg_grad_w.view(Fuse, out_features, in_features)  # [F, O, I]
+
+            dgrad_output = dgrad_output + torch.einsum( "foi,bfni->bfno", V, X )
+            dx = dx + torch.einsum(  "bfno,foi->bfni",  G,  V, )
+        if gg_grad_b is not None:
+            ggb = gg_grad_b.view(Fuse, out_features)  # [F, O]
+            dgrad_output = dgrad_output + ggb.view(1, Fuse, 1, out_features)
+    else:
+        raise ValueError(f"Unsupported x.ndim={x.ndim}, expected 3 or 4")
+    dw = dW.reshape_as(w)
+    return dgrad_output, dx, dw
+
+
+
+def gelu_double_bwd(
+    x,
+    grad_output,
+    gg_grad_input=None,
+):
+    if gg_grad_input is None:
+        return None, None
+    inv_sqrt2 = 1.0 / math.sqrt(2.0)
+    inv_sqrt2pi = 1.0 / math.sqrt(2.0 * math.pi)
+    cdf = 0.5 * (1.0 + torch.erf(x * inv_sqrt2))
+    pdf = torch.exp(-0.5 * x * x) * inv_sqrt2pi
+    # gelu'(x)
+    gelu_grad = cdf + x * pdf
+    # gelu''(x)
+    gelu_double_grad = pdf * (2.0 - x * x)
+    # grad wrt x
+    dx = gg_grad_input * grad_output * gelu_double_grad
+    # grad wrt grad_output
+    dgrad_output = gg_grad_input * gelu_grad
+    return dx, dgrad_output
+
+
+def sdpa_no_mask_no_dropout_double_bwd(
+    q,
+    k,
+    v,
+    grad_output,
+    ggQ=None,
+    ggK=None,
+    ggV=None,
+    ggDprob=None,
+    ggDscores=None,
+):
+    """
+    Double backward for:
+
+        scores = q @ k.T * scale
+        prob = softmax(scores)
+        dprob = grad_output @ v.T
+        dv = prob.T @ grad_output
+        dscores = prob * (dprob - sum(dprob * prob))
+        dq = dscores @ k * scale
+        dk = dscores.T @ q * scale
+
+    q, k, v, grad_output:
+        [B, Fuse, H, N, Dh]
+
+    ggQ, ggK, ggV:
+        upstream grads of dq, dk, dv.
+
+    Optional:
+        ggDprob:   upstream grad of returned dprob, if you expose dprob as output.
+        ggDscores: upstream grad of returned dscores, if you expose dscores as output.
+
+    Return:
+        gQ, gK, gV, ggO
+    where:
+        gQ  = grad wrt q
+        gK  = grad wrt k
+        gV  = grad wrt v
+        ggO = grad wrt grad_output
+    """
+
+    Dh = q.shape[-1]
+    scale = Dh ** -0.5
+    # Recompute forward pieces used by backward
+    scores = torch.matmul(q, k.transpose(-2, -1)) * scale
+    prob = torch.softmax(scores, dim=-1)
+    dprob = torch.matmul(grad_output, v.transpose(-2, -1))
+    alpha = (dprob * prob).sum(dim=-1, keepdim=True)
+    dscores = prob * (dprob - alpha)
+    # Initialize cotangents
+    gQ = torch.zeros_like(q)
+    gK = torch.zeros_like(k)
+    gV = torch.zeros_like(v)
+    ggO = torch.zeros_like(grad_output)
+    bar_dscores = torch.zeros_like(dscores)
+    # dq = dscores @ k * scale
+    if ggQ is not None:
+        bar_dscores = bar_dscores + torch.matmul( ggQ, k.transpose(-2, -1) ) * scale
+        gK = gK + torch.matmul( dscores.transpose(-2, -1), ggQ ) * scale
+    # dk = dscores.T @ q * scale
+    if ggK is not None:
+        bar_dscores = bar_dscores + torch.matmul( q, ggK.transpose(-2, -1) ) * scale
+        gQ = gQ + torch.matmul( dscores, ggK  ) * scale
+    # If dscores itself is exposed as an output
+    if ggDscores is not None:
+        bar_dscores = bar_dscores + ggDscores
+    # dv = prob.T @ grad_output
+    bar_prob = torch.zeros_like(prob)
+    if ggV is not None:
+        bar_prob = bar_prob + torch.matmul( grad_output, ggV.transpose(-2, -1) )
+        ggO = ggO + torch.matmul(prob, ggV)
+    # dscores = prob * (dprob - sum(dprob * prob))
+    #
+    # Given R = bar_dscores:
+    #
+    # beta = sum(R * prob)
+    # bar_dprob = prob * (R - beta)
+    # bar_prob += R * (dprob - alpha) - beta * dprob
+    beta = (bar_dscores * prob).sum(dim=-1, keepdim=True)
+    bar_dprob = prob * (bar_dscores - beta)
+    bar_prob = bar_prob + (   bar_dscores * (dprob - alpha) - beta * dprob)
+    # If dprob itself is exposed as an output
+    if ggDprob is not None:
+        bar_dprob = bar_dprob + ggDprob
+    # dprob = grad_output @ v.T
+    ggO = ggO + torch.matmul(bar_dprob, v)
+    gV = gV + torch.matmul(  bar_dprob.transpose(-2, -1), grad_output )
+    # prob = softmax(scores)
+    tau = (bar_prob * prob).sum(dim=-1, keepdim=True)
+    bar_scores = prob * (bar_prob - tau)
+    # scores = q @ k.T * scale
+    gQ = gQ + torch.matmul(bar_scores, k) * scale
+    gK = gK + torch.matmul(
+        bar_scores.transpose(-2, -1), q
+    ) * scale
+    return gQ, gK, gV, ggO

@@ -523,7 +523,19 @@ def main(args):
             param_loss = torch.tensor(0.0).to(args.device)
             param_dist = torch.tensor(0.0).to(args.device)
             param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum") # 好像是因为reduction的原因。。。。
-            param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+            # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+            # 不可以直接用param dist ！ 对每个层，分别对每个 fuse 计算 MSE
+            # TODO: 后面可以优化一下，直接在init的时候把param_dist 算好。反正只是一个数值
+            start_param_list = recover_params(starting_params, shape_list, Fuse)
+            target_param_list = recover_params(target_params, shape_list, Fuse)
+            fuse_losses = []
+            for sp, tp in zip(start_param_list, target_param_list):
+                B0 = sp.shape[0] // Fuse
+                for f in range(Fuse):
+                    sp_f = sp[f*B0:(f+1)*B0].reshape(-1)
+                    tp_f = tp[f*B0:(f+1)*B0].reshape(-1)
+                    fuse_losses.append(F.mse_loss(sp_f, tp_f, reduction="mean"))
+            param_dist = torch.stack(fuse_losses).mean()
             param_loss_list.append(param_loss)
             param_dist_list.append(param_dist)
             # param_loss /= num_params # 这里为啥注释掉了...? original 可是没有的

@@ -25,6 +25,45 @@ linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossE
 
 from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_second_dim,recover_params,set_random_seed
 
+def compute_param_dist_fuse_mean(starting_params_flat, target_params_flat, shape_list, Fuse):
+    """
+    starting_params_flat: 已经 fuse 后、flatten 的 starting_params
+    target_params_flat:   已经 fuse 后、flatten 的 target_params
+    shape_list:           原始（未 fuse）参数 shape 列表
+    Fuse:                 分支数
+
+    return:
+        param_dist_raw_mean: 先对每个 fuse 的整套参数做 sum，再对 fuse 求平均
+        base_num_params:     原始单模型参数总数（未 fuse）
+    """
+    start_param_list = recover_params(starting_params_flat, shape_list, Fuse)
+    target_param_list = recover_params(target_params_flat, shape_list, Fuse)
+
+    fuse_dists = []
+    device = starting_params_flat.device
+    dtype = starting_params_flat.dtype
+
+    for f in range(Fuse):
+        dist_f = torch.zeros((), device=device, dtype=dtype)
+
+        for sp, tp, base_shape in zip(start_param_list, target_param_list, shape_list):
+            # 标量参数一般不会有，但为了稳一点还是兼容一下
+            if len(base_shape) == 0:
+                dist_f = dist_f + F.mse_loss(sp, tp, reduction="sum")
+            else:
+                B0 = base_shape[0]   # 原始未 fuse 的第 0 维
+                sp_f = sp.narrow(0, f * B0, B0)
+                tp_f = tp.narrow(0, f * B0, B0)
+                dist_f = dist_f + F.mse_loss(sp_f, tp_f, reduction="sum")
+
+        fuse_dists.append(dist_f)
+
+    param_dist_raw_mean = torch.stack(fuse_dists).mean()
+
+    # 原始单模型参数个数（未 fuse）
+    base_num_params = sum(int(np.prod(s)) for s in shape_list)
+
+    return param_dist_raw_mean, base_num_params
 
 def main(args):
     args.model = 'ConvNet' # conv file 目前写死比较好。
@@ -575,7 +614,6 @@ def main(args):
                 dx_norm1 = split_half_second_dim([dx_norm1 ],fuse_mask_list)[0]
                 grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
             grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
-
             student_params.append(student_params[-1] - syn_lr *  grad)
 
         if it >= warmup:
@@ -595,7 +633,26 @@ def main(args):
             param_dist = torch.tensor(0.0).to(args.device)
 
             param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum") # 好像是因为reduction的原因。。。。
-            param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+            # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
+            # 不可以直接用param dist ！ 对每个层，分别对每个 fuse 计算 MSE
+            # # TODO: 后面可以优化一下，直接在init的时候把param_dist 算好。反正只是一个数值
+            # start_param_list = recover_params(starting_params, shape_list, Fuse)
+            # target_param_list = recover_params(target_params, shape_list, Fuse)
+            # fuse_losses = []
+            # for sp, tp in zip(start_param_list, target_param_list):
+            #     B0 = sp.shape[0] // Fuse
+            #     for f in range(Fuse):
+            #         sp_f = sp[f*B0:(f+1)*B0].reshape(-1)
+            #         tp_f = tp[f*B0:(f+1)*B0].reshape(-1)
+            #         fuse_losses.append(F.mse_loss(sp_f, tp_f, reduction="mean"))
+            # param_dist = torch.stack(fuse_losses).mean()
+            param_dist_raw_mean, base_num_params = compute_param_dist_fuse_mean(
+                starting_params,
+                target_params,
+                shape_list,
+                Fuse
+            )
+            param_dist = param_dist + param_dist_raw_mean
 
             param_loss_list.append(param_loss)
             param_dist_list.append(param_dist)

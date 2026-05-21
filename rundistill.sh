@@ -13,10 +13,10 @@
 # WANDB_SILENT=true python distill_flexFuse_timeTest_temp.py  --fuse_mask_list 1 0 \
 # WANDB_SILENT=true python distill_flexFuse_timeTest_v2.py  --fuse_mask_list 1 0 \
 # WANDB_SILENT=true python distill_ckpt_flex_conv_timetest.py --fuse_mask_list 1 1 \
+# WANDB_SILENT=true python distill_flexFuse_timeTest_resnet18.py  --fuse_mask_list 1 \
 # WANDB_SILENT=true python distill_original_timeTest.py  \
-# WANDB_SILENT=true python distill_flexFuse_timeTest_conv.py  --fuse_mask_list 1 1  \
 # WANDB_SILENT=true python distill_batched_timeTest.py   \
-WANDB_SILENT=true python distill_flexFuse_timeTest_resnet18.py  --fuse_mask_list 1 1 \
+WANDB_SILENT=true python distill_flexFuse_timeTest_conv.py  --fuse_mask_list 1 1\
    --dataset=CIFAR10 --pix_init=real --ipc=10 \
     --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=0 \
     --detachNum=0  \
@@ -24,7 +24,7 @@ WANDB_SILENT=true python distill_flexFuse_timeTest_resnet18.py  --fuse_mask_list
     --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer  --data_path=/scratch/yguo25/files/mtt-distillation/dataset \
     --AccTest=True \
     --model=ConvNet \
-    # --Fuse=1 \
+    --Fuse=1 \
     # --model=ResNet18 \
     # --mem_profile --mem_snapshot_dir=./prof-conv3 \
     # --zca \
