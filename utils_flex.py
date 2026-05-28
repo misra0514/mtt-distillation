@@ -130,3 +130,13 @@ def set_random_seed(seed=42):
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
 
 
+def unflatten_like_reparam(flat_tensor, reparam_model):
+    """
+    Recover flat tensor using exactly the same shapes/order as ReparamModule.
+    This avoids recover_params' old Fuse-specific assumptions.
+    """
+    pieces = flat_tensor.split(reparam_model._param_numels)
+    return [
+        p.view(shape)
+        for p, shape in zip(pieces, reparam_model._param_shapes)
+    ]

@@ -1,6 +1,4 @@
-# 5.3 Resnet 专用的code。因为bwd等等接口刚刚确定。后续说不定会有时间写一个更加通用的版本
-
-# TODO: NOTE 这个版本。或者前面的flex fuse 在 --fuse_mask_list 1  --> 11 的时候，grad都有问题。没有像Batched 一样成倍。
+# 5.23 从resnet复制而来。改成Vit模型。
 
 import os
 import argparse
@@ -23,10 +21,27 @@ from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNorm
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
 
-from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_second_dim,recover_params,set_random_seed
+from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_second_dim,recover_params,set_random_seed,unflatten_like_reparam
+
+def iter_vit_fuse_chunks(t, Fuse):
+    """
+    Return a list of per-fuse flattened chunks for ViT_Fused parameters.
+    Most parameters use dim=0 as fused dimension.
+    cls_token / pos_embed use dim=1: [1, Fuse, ..., D].
+    """
+    if Fuse == 1:
+        return [t.reshape(-1)]
+
+    if t.ndim >= 4 and t.shape[0] == 1 and t.shape[1] == Fuse:
+        chunks = torch.chunk(t, Fuse, dim=1)
+    else:
+        assert t.shape[0] % Fuse == 0, f"Cannot split tensor shape={tuple(t.shape)} by Fuse={Fuse}"
+        chunks = torch.chunk(t, Fuse, dim=0)
+
+    return [c.reshape(-1) for c in chunks]
 
 def main(args):
-    args.model = 'ResNet18' # fiexed
+    args.model = 'ViT' # fiexed
     fuse_mask_list = args.fuse_mask_list 
     bwd_Fuse = sum(fuse_mask_list)
     args.Fuse = str(len(fuse_mask_list)) # 对于Flex fuse来说，只用fuse_mask_list控制即可
@@ -244,7 +259,7 @@ def main(args):
 
 
     # Load 的还是resnet。只是model get flex fuse
-    student_net = get_network("ResNetFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False, v_fuse=args.v_fuse).to(args.device)  
+    student_net = get_network("ViTFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False, v_fuse=args.v_fuse).to(args.device)  # get a random model
 
     student_net = ReparamModule(student_net)
 
@@ -495,7 +510,8 @@ def main(args):
                 forward_params = student_params[-1]
             # 因为group conv的原因，最开始应该在Channel 维度做cat
             x = x.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
-            this_y = this_y.repeat(int(Fuse))
+            # this_y = this_y.repeat(int(Fuse))
+            this_y = this_y.repeat_interleave(int(Fuse)) # TODO: 重要！ 因为linear改成groupedlinear了。这里不能在使用repeat
 
             with torch.no_grad():
                 x_out, tape = student_net(x,flat_param=forward_params)  # forward
@@ -504,8 +520,8 @@ def main(args):
                 ce_loss *= int(Fuse)
                 del x_out
                 # d_stem_activates, d_activates_list, d_weights_list, d_weights_list_all = student_net.module.run_first_bwd( tape=tape, target=this_y,Fuse=Fuse )
-                d_stem_activates, d_activates_list, d_weights_list, d_weights_list_all = \
-                    student_net.call_with_param(
+                # d_stem_activates, d_activates_list, d_weights_list, d_weights_list_all = \
+                dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
                         forward_params,
                         student_net.module.run_first_bwd,
                         tape=tape,
@@ -516,59 +532,88 @@ def main(args):
             grad = torch.cat([g.reshape(-1) for g in grad_list], 0)
             student_params.append(student_params[-1] - syn_lr * grad)
 
-        if it >= warmup:
-            syn_end = time.time()
-        with torch.no_grad():
-            weight = student_params[0] # weight是原始参数，不加dw
-            param_loss = torch.tensor(0.0).to(args.device)
-            param_dist = torch.tensor(0.0).to(args.device)
-            param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum") # 好像是因为reduction的原因。。。。
-            # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
-            # 不可以直接用param dist ！ 对每个层，分别对每个 fuse 计算 MSE
-            # TODO: 后面可以优化一下，直接在init的时候把param_dist 算好。反正只是一个数值
-            start_param_list = recover_params(starting_params, shape_list, Fuse)
-            target_param_list = recover_params(target_params, shape_list, Fuse)
-            fuse_losses = []
-            for sp, tp in zip(start_param_list, target_param_list):
-                B0 = sp.shape[0] // Fuse
-                for f in range(Fuse):
-                    sp_f = sp[f*B0:(f+1)*B0].reshape(-1)
-                    tp_f = tp[f*B0:(f+1)*B0].reshape(-1)
-                    fuse_losses.append(F.mse_loss(sp_f, tp_f, reduction="mean"))
-            param_dist = torch.stack(fuse_losses).mean()
-            param_loss_list.append(param_loss)
-            param_dist_list.append(param_dist)
-            # param_loss /= num_params # 这里为啥注释掉了...? original 可是没有的
-            # param_dist /= num_params
-            param_loss /= param_dist
-            grand_loss = param_loss # 是为了抵消num_params变化带来的影响。但是flex fuse 之后num_params没有变化（还是Fuse）
-            optimizer_img.zero_grad()
-            optimizer_lr.zero_grad()
-            ddx_conv = torch.zeros_like(x).cuda()
-            ddw = 2*(student_params[-1]- target_params)/param_dist
-            ddw *= (-syn_lr)
+            if it >= warmup:
+                syn_end = time.time()
 
-            dd_tensors_all = recover_params(ddw, shape_list,Fuse ) # TODO: 目前暂时不考虑bwd fuse 和fuse 的差别。
-            dd_stem_tensors, dd_weights_list = student_net.module.pack_recovered_dd(
-                dd_tensors_all=dd_tensors_all,
-                x=x,
-            )
-            dd_stem_tensors['ddx_conv'] = ddx_conv
-            
-            dx_conv = student_net.call_with_param(
-                forward_params,
-                student_net.module.run_double_bwd,
-                tape=tape,
-                d_activates_list=d_activates_list,
-                dd_weights_list=dd_weights_list,
-                d_stem_tensors=d_stem_activates,
-                dd_stem_tensors=dd_stem_tensors,
-                Fuse=bwd_Fuse,
-            )
+            with torch.no_grad():
+                param_loss = torch.tensor(0.0, device=args.device)
+                param_dist = torch.tensor(0.0, device=args.device)
+
+                param_loss += torch.nn.functional.mse_loss(
+                    student_params[-1],
+                    target_params,
+                    reduction="sum",
+                )
+
+                start_param_list = recover_params(starting_params, shape_list, Fuse)
+                target_param_list = recover_params(target_params, shape_list, Fuse)
+
+                fuse_losses = []
+                for sp, tp in zip(start_param_list, target_param_list):
+                    sp_chunks = iter_vit_fuse_chunks(sp, Fuse)
+                    tp_chunks = iter_vit_fuse_chunks(tp, Fuse)
+
+                    assert len(sp_chunks) == Fuse
+                    assert len(tp_chunks) == Fuse
+
+                    for sp_f, tp_f in zip(sp_chunks, tp_chunks):
+                        fuse_losses.append(F.mse_loss(sp_f, tp_f, reduction="mean"))
+
+                param_dist = torch.stack(fuse_losses).mean()
+
+                param_loss_list.append(param_loss)
+                param_dist_list.append(param_dist)
+
+                param_loss /= param_dist
+                grand_loss = param_loss
+
+                optimizer_img.zero_grad()
+                optimizer_lr.zero_grad()
+
+                # cotangent wrt final student params
+                ddw = 2 * (student_params[-1] - target_params) / param_dist
+                ddw *= (-syn_lr)
+
+                assert ddw.numel() == student_params[-1].numel(), (
+                    f"ddw numel mismatch: ddw={ddw.numel()}, params={student_params[-1].numel()}"
+                )
+
+                # dd_tensors_all = recover_params(ddw, shape_list, Fuse)
+                dd_tensors_all = unflatten_like_reparam(ddw, student_net)
+
+                # ViT: parse recovered dd tensors into dd_weights dict
+                dd_weights = student_net.module.pack_recovered_dd(
+                    dd_tensors_all=dd_tensors_all,
+                )
+
+                # cotangent wrt first-bwd output dx_in.
+                # grand_loss only comes from parameter gradients, not dx_in.
+                ddgrad_in = torch.zeros_like(x)
+
+                # Stage 1: double-bwd through first-bwd graph
+                dd_dx_out, d_activates = student_net.call_with_param(
+                    forward_params,
+                    student_net.module.run_double_bwd,
+                    tape=tape,
+                    d_activates=d_activates,
+                    dd_weights=dd_weights,
+                    ddgrad_in=ddgrad_in,
+                    Fuse=Fuse,
+                )
+
+                # Stage 2: corrected first-bwd / bwd2_1 to get d grand_loss / d x
+                dx_vit = student_net.call_with_param(
+                    forward_params,
+                    student_net.module.run_bwd2_1,
+                    tape=tape,
+                    d_activates=d_activates,
+                    dd_dx_out=dd_dx_out,
+                    Fuse=Fuse,
+                )
         if(args.AccTest):
             print("--Celoss--",ce_loss.item())
             print("--GradLoss--",grand_loss.item())
-            print("----GRAD-----", dx_conv.sum().item()) 
+            print("----GRAD-----", dx_vit.sum().item()) 
 
         optimizer_img.step()
         optimizer_lr.step()

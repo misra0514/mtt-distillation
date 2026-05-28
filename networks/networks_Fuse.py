@@ -10,18 +10,29 @@ import torchvision
 import math
 import torchvision.transforms as transforms
 import torch
+from torch.nn.attention import sdpa_kernel, SDPBackend
 
 # from networks.networks_stacked import LinearStacked_2 # NOTE: 这里取消注释了。因为Fuse->stacked->stacked_basicblock 太长了。不好。
-from networks.networks_basicblock_fused3 import batchNorm2d_backward, batchnorm_double_backwards_fn, batchnorm_double_backwards_fn_new
-from networks.networks_basicblock_fused3 import instanceNorm_backward ,instanceNorm_double_backwards_fn, instance_norm_backward_triton,instanceNorm_double_backwards_triton
+from networks.networks_basicblock_tritonwrapper import batchNorm2d_backward, batchnorm_double_backwards_fn, batchnorm_double_backwards_fn_new
+from networks.networks_basicblock_tritonwrapper import instanceNorm_backward ,instanceNorm_double_backwards_fn, instance_norm_backward_triton,instanceNorm_double_backwards_triton
+from networks.utils import clear_tensorlists
+from networks.networks_stateless import BasicBlock_double_bwd,BasicBlock_bwd,BasicBlock_bwd2_1, conv_norm_relu_bwd
+from networks.networks_basicblock_tritonwrapper import Fst_Order_NormActive # fuse+基本优化
 from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd, \
-    adaptivepooling_bwd, adaptivepooling_double_bwd
-from networks.utils import clear_tensorlists
-from networks.networks_stateless import BasicBlock_double_bwd,BasicBlock_bwd,BasicBlock_bwd2_1, conv_norm_relu_bwd
-from networks.networks_basicblock_fused3 import Fst_Order_NormActive # fuse+基本优化
+    adaptivepooling_bwd, adaptivepooling_double_bwd,\
+    grouped_layernorm_double_bwd_fn, grouped_linear_double_bwd,gelu_double_bwd,sdpa_no_mask_no_dropout_double_bwd,\
+    grouped_layernorm_backward, grouped_linear_bwd, gelu_bwd,sdpa_no_mask_no_dropout_bwd
 
+
+from networks.networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,ConvBlock_bwd1_2,conv3_double_bwd,conv3_bwd
+from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
+linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
+    avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd,\
+        dropout_fwd,dropout_bwd, dropout_double_bwd,geluDropout_bwd,geluDropout_double_bwd
+
+from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_second_dim,recover_params,set_random_seed
 
 class GroupedLayerNorm(nn.Module):
     def __init__(self, embed_dim, Fuse=1, eps=1e-5):
@@ -99,10 +110,71 @@ class NormActive(nn.Module):
 
 
 
+class Conv_Flexfuse_backup(nn.Module):
+    def __init__(self, channel=3, num_classes=10, net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), Fuse=2, v_fuse=True):
+        super(Conv_Flexfuse_backup, self).__init__()
+        self.Fuse = Fuse
+        self.v_fuse = v_fuse
+        self.conv1 = nn.Conv2d(in_channels=channel*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+        if v_fuse:
+            self.norm1 = NormActive(net_width*Fuse, affine=True) 
+        else:
+            self.norm1 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+            # self.norm1 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+        self.pool1 = nn.AvgPool2d(kernel_size=2)
+        self.conv2 = nn.Conv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+        if v_fuse:
+            self.norm2 = NormActive(net_width*Fuse,affine=True) #BN在channel上单独计算，所以目前不用管。
+        else:
+            self.norm2 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+            # self.norm2 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+        self.pool2 = nn.AvgPool2d(kernel_size=2)
+        self.conv3 = nn.Conv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+        if v_fuse:
+            self.norm3 = NormActive(net_width*Fuse,affine=True) #BN在channel上单独计算，所以目前不用管。
+        else:
+            self.norm3 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+            # self.norm3 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+        self.pool3 = nn.AvgPool2d(kernel_size=2)
+        self.linear = LinearStacked_2(net_width * 4 * 4, num_classes,Fuse )
+        self.net_width= net_width
+
+    def forward(self, x_conv1):
+        if self.v_fuse:
+            x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
+            x_norm1 = self.conv1(x_conv1)          
+            x_pool1 = self.norm1(x_norm1)    
+            x_conv2 = self.pool1(x_pool1)
+            x_norm2 = self.conv2(x_conv2)          
+            x_pool2 = self.norm2(x_norm2)
+            x_conv3 = self.pool2(x_pool2)
+            x_norm3 = self.conv3(x_conv3)          
+            x_pool3 = self.norm3(x_norm3)  
+            x_lin  = self.pool3(x_pool3)
+            x_out = self.linear(x_lin)    # N x 10
+            x_out = x_out.view(-1,10)
+        else:
+            x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
+            x_norm1 = self.conv1(x_conv1)          
+            x_pool1 = F.relu(self.norm1(x_norm1)    )
+            x_conv2 = self.pool1(x_pool1)
+            x_norm2 = self.conv2(x_conv2)          
+            x_pool2 = F.relu(self.norm2(x_norm2) )   
+            x_conv3 = self.pool2(x_pool2)
+            x_norm3 = self.conv3(x_conv3)          
+            x_pool3 = F.relu(self.norm3(x_norm3))    
+            x_lin  = self.pool3(x_pool3)
+            x_out = self.linear(x_lin)    # N x 10
+            x_out = x_out.view(-1,10)
+        return  x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out
+
+
+
 class Conv_Flexfuse(nn.Module):
     def __init__(self, channel=3, num_classes=10, net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), Fuse=2):
         super(Conv_Flexfuse, self).__init__()
         self.Fuse = Fuse
+        self.num_classes = num_classes
         self.conv1 = nn.Conv2d(in_channels=channel*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
         self.norm1 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
         # self.norm1 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
@@ -119,26 +191,419 @@ class Conv_Flexfuse(nn.Module):
         self.net_width= net_width
 
     def forward(self, x_conv1):
-        x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
-        x_norm1 = self.conv1(x_conv1)          
-        x_pool1 = F.relu(self.norm1(x_norm1)    )
+        x_conv1 = x_conv1.view(-1, self.Fuse * 3, 32, 32)
+        x_norm1 = self.conv1(x_conv1)
+        x_pool1 = F.relu(self.norm1(x_norm1))
         x_conv2 = self.pool1(x_pool1)
-        x_norm2 = self.conv2(x_conv2)          
-        x_pool2 = F.relu(self.norm2(x_norm2) )   
+        x_norm2 = self.conv2(x_conv2)
+        x_pool2 = F.relu(self.norm2(x_norm2))
         x_conv3 = self.pool2(x_pool2)
-        x_norm3 = self.conv3(x_conv3)          
-        x_pool3 = F.relu(self.norm3(x_norm3))    
-        x_lin  = self.pool3(x_pool3)
-        x_out = self.linear(x_lin)    # N x 10
-        x_out = x_out.view(-1,10)
-        return  x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out
+        x_norm3 = self.conv3(x_conv3)
+        x_pool3 = F.relu(self.norm3(x_norm3))
+        x_lin = self.pool3(x_pool3)
+        x_out = self.linear(x_lin).view(-1, self.num_classes)
+        tape = {
+            "blocks": [
+                {"x_conv": x_conv1, "x_norm": x_norm1, "x_pool": x_pool1},
+                {"x_conv": x_conv2, "x_norm": x_norm2, "x_pool": x_pool2},
+                {"x_conv": x_conv3, "x_norm": x_norm3, "x_pool": x_pool3},
+            ],
+            "head": {
+                "x_lin": x_lin,
+                "x_out": x_out,
+            },
+        }
+        return x_out, tape
+
+
+    def get_weight_pack(self):
+        return {
+            "blocks": [
+                {
+                    "convw": self.conv1.weight,
+                    "convb": self.conv1.bias,
+                    "normw": self.norm1.weight,
+                    "normb": self.norm1.bias,
+                },
+                {
+                    "convw": self.conv2.weight,
+                    "convb": self.conv2.bias,
+                    "normw": self.norm2.weight,
+                    "normb": self.norm2.bias,
+                },
+                {
+                    "convw": self.conv3.weight,
+                    "convb": self.conv3.bias,
+                    "normw": self.norm3.weight,
+                    "normb": self.norm3.bias,
+                },
+            ],
+            "head": {
+                "linw": self.linear.weight,
+                "linb": getattr(self.linear, "bias", None),
+            },
+        }
+
+    def pack_recovered_weights(self, tensors_all):
+        """
+        用于 ReparamModule 场景。
+
+        tensors_all 的顺序必须和 recover_params / grad 顺序一致：
+        conv1_w, conv1_b, norm1_w, norm1_b,
+        conv2_w, conv2_b, norm2_w, norm2_b,
+        conv3_w, conv3_b, norm3_w, norm3_b,
+        lin_w, lin_b
+        """
+        (
+            conv1_w, conv1_b, norm1_w, norm1_b,
+            conv2_w, conv2_b, norm2_w, norm2_b,
+            conv3_w, conv3_b, norm3_w, norm3_b,
+            lin_w, lin_b,
+        ) = tensors_all
+
+        return {
+            "blocks": [
+                {"convw": conv1_w, "convb": conv1_b, "normw": norm1_w, "normb": norm1_b},
+                {"convw": conv2_w, "convb": conv2_b, "normw": norm2_w, "normb": norm2_b},
+                {"convw": conv3_w, "convb": conv3_b, "normw": norm3_w, "normb": norm3_b},
+            ],
+            "head": {
+                "linw": lin_w,
+                "linb": lin_b,
+            },
+        }
+
+    def collect_ordered_grads(self, d_weights_list, dlin_w, dlin_b):
+        grads = []
+        for dw in d_weights_list:
+            grads.extend([
+                dw["dconvw"], dw["dconvb"],
+                dw["dnormw"], dw["dnormb"],
+            ])
+        grads.extend([dlin_w, dlin_b])
+        return grads
+
+    def _split_saved_for_double_bwd(self, tape, d_activates_list, d_head_tensors, fuse_mask_list):
+        """
+        first-bwd 必须用完整 Fuse 算 dW；
+        但是 double-bwd 如果只跑 bwd_Fuse，就要把 tape / d_activates / dx_out 切到 bwd_Fuse。
+        """
+        if fuse_mask_list is None:
+            return
+        for b in tape["blocks"]:
+            b["x_conv"], b["x_norm"], b["x_pool"] = split_half_second_dim(
+                [b["x_conv"], b["x_norm"], b["x_pool"]],
+                fuse_mask_list,
+            )
+        for da in d_activates_list:
+            da["dx_norm"], da["dx_pool"] = split_half_second_dim(
+                [da["dx_norm"], da["dx_pool"]],
+                fuse_mask_list,
+            )
+        head = tape["head"]
+        head["x_lin"], head["x_out"], d_head_tensors["dx_out"] = split_half_second_dim(
+            [head["x_lin"], head["x_out"], d_head_tensors["dx_out"]],
+            fuse_mask_list,
+        )
+
+    def _convblock_first_bwd(self, block, weights, grad_output, Fuse):
+        dx_conv, dx_norm, dx_pool, dconv_w, dconv_b, dnorm_w, dnorm_b = ConvBlock_bwd1_2(
+            block["x_conv"],
+            block["x_norm"],
+            block["x_pool"],
+            weights["convw"],
+            weights["normw"],
+            grad_output,
+            Fuse=Fuse,
+        )
+        d_acts = {
+            "dx_norm": dx_norm,
+            "dx_pool": dx_pool,
+        }
+        d_w = {
+            "dconvw": dconv_w,
+            "dconvb": dconv_b,
+            "dnormw": dnorm_w,
+            "dnormb": dnorm_b,
+        }
+        return dx_conv, d_acts, d_w
+
+
+    def run_first_bwd(self, tape, target, Fuse=1, weights=None, fuse_mask_list=None):
+        """
+        返回：
+        d_head_tensors: 主要存 dx_out
+        d_activates_list: 每层存 dx_norm / dx_pool
+        d_weights_list: 每层参数梯度 dict
+        d_weights_list_all: 按 recover_params 顺序排列的 grad list
+        """
+        if weights is None:
+            weights = self.get_weight_pack()
+
+        blocks = tape["blocks"]
+        head = tape["head"]
+        x_lin = head["x_lin"]
+        x_out = head["x_out"]
+        d_activates_list = [None, None, None]
+        d_weights_list = [None, None, None]
+        dx_out = crossEntropy_bwd(x_out, target, Fuse)
+        dx_lin, dlin_w, dlin_b = linerFused_bwd(
+            x_lin,
+            weights["head"]["linw"],
+            grad_output=dx_out,
+            Fuse=Fuse,
+        )
+        dx_lin = dx_lin.view_as(x_lin)
+
+        # block3
+        g, d_activates_list[2], d_weights_list[2] = self._convblock_first_bwd(
+            blocks[2],
+            weights["blocks"][2],
+            dx_lin,
+            Fuse,
+        )
+        # block2
+        g, d_activates_list[1], d_weights_list[1] = self._convblock_first_bwd(
+            blocks[1],
+            weights["blocks"][1],
+            g,
+            Fuse,
+        )
+        # block1：这里保持你原来的特殊写法，而不是强行用 ConvBlock_bwd1_2
+        b1 = blocks[0]
+        w1 = weights["blocks"][0]
+
+        dx_pool1 = avgPool_bwd(b1["x_pool"], grad_output=g)
+        dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(
+            b1["x_norm"],
+            w1["normw"],
+            b1["x_pool"],
+            grad_output=dx_pool1,
+        )
+        _, dconv1_w, dconv1_b = conv_bwd(
+            b1["x_conv"],
+            w1["convw"],
+            grad_output=dx_norm1,
+            groups=Fuse,
+        )
+        d_activates_list[0] = {
+            "dx_norm": dx_norm1,
+            "dx_pool": dx_pool1,
+        }
+        d_weights_list[0] = {
+            "dconvw": dconv1_w,
+            "dconvb": dconv1_b,
+            "dnormw": dnorm1_w,
+            "dnormb": dnorm1_b,
+        }
+        d_head_tensors = {
+            "dx_out": dx_out,
+        }
+        # 如果 Fuse != bwd_Fuse，就在 first-bwd 完成之后切 tape 和 d_activates。
+        self._split_saved_for_double_bwd(
+            tape,
+            d_activates_list,
+            d_head_tensors,
+            fuse_mask_list,
+        )
+        d_weights_list_all = self.collect_ordered_grads(
+            d_weights_list,
+            dlin_w,
+            dlin_b,
+        )
+        return d_head_tensors, d_activates_list, d_weights_list, d_weights_list_all
+
+
+    def pack_recovered_dd(self, dd_tensors_all, tape=None, x=None):
+        """
+        dd_tensors_all 来自：
+            recover_params(ddw, shape_list, bwd_Fuse)
+        顺序必须和 collect_ordered_grads 一致。
+        """
+        (
+            ddconv1_w, ddconv1_b, ddnorm1_w, ddnorm1_b,
+            ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b,
+            ddconv3_w, ddconv3_b, ddnorm3_w, ddnorm3_b,
+            ddlin_w, ddlin_b,
+        ) = dd_tensors_all
+        dd_weights_list = [
+            {
+                "ddconvw": ddconv1_w,
+                "ddconvb": ddconv1_b,
+                "ddnormw": ddnorm1_w,
+                "ddnormb": ddnorm1_b,
+            },
+            {
+                "ddconvw": ddconv2_w,
+                "ddconvb": ddconv2_b,
+                "ddnormw": ddnorm2_w,
+                "ddnormb": ddnorm2_b,
+            },
+            {
+                "ddconvw": ddconv3_w,
+                "ddconvb": ddconv3_b,
+                "ddnormw": ddnorm3_w,
+                "ddnormb": ddnorm3_b,
+            },
+        ]
+
+        if x is None and tape is not None:
+            x = tape["blocks"][0]["x_conv"]
+
+        dd_head_tensors = {
+            "ddlinw": ddlin_w,
+            "ddlinb": ddlin_b,
+        }
+
+        if x is not None:
+            dd_head_tensors["ddx_conv"] = torch.zeros_like(x)
+
+        return dd_head_tensors, dd_weights_list
+
+
+    def run_double_bwd(
+        self,
+        tape,
+        d_activates_list,
+        dd_weights_list,
+        d_head_tensors,
+        dd_head_tensors,
+        Fuse=1,
+        weights=None,
+    ):
+        """
+        返回 dx_conv1_d1，也就是 synthetic image/input 方向的最终梯度。
+        这里的 Fuse 应该传 bwd_Fuse。
+        """
+        if weights is None:
+            weights = self.get_weight_pack()
+
+        blocks = tape["blocks"]
+        head = tape["head"]
+
+        x_lin = head["x_lin"]
+        x_out = head["x_out"]
+
+        dx_out = d_head_tensors.pop("dx_out")
+
+        ddx_conv = dd_head_tensors.pop("ddx_conv")
+        ddlin_w = dd_head_tensors.pop("ddlinw")
+        ddlin_b = dd_head_tensors.pop("ddlinb")
+
+        # ------------------------------------------------------------
+        # 1. forward-order double-bwd:
+        #    conv1 -> block2 -> block3 -> linear/head
+        # ------------------------------------------------------------
+
+        b1 = blocks[0]
+        w1 = weights["blocks"][0]
+        da1 = d_activates_list[0]
+        dd1 = dd_weights_list[0]
+
+        ddx_norm1, dxconv1_d2, _ = conv_double_bwd(
+            ddx_conv,
+            dd1["ddconvw"],
+            dd1["ddconvb"],
+            da1["dx_norm"],
+            w1["convw"],
+            b1["x_conv"],
+            groups_=Fuse,
+        )
+
+        ddx_pool1, dx_norm1_d2, _ = insNormNRelu_double_bwd(
+            ddx_norm1,
+            dd1["ddnormw"],
+            dd1["ddnormb"],
+            da1["dx_pool"],
+            b1["x_pool"],
+            w1["normw"],
+            b1["x_norm"],
+        )
+
+        dd_cur = avgPool_double_bwd(ddx_pool1)
+
+        d2_cache = [None, None, None]
+        d2_cache[0] = {
+            "dxconv_d2": dxconv1_d2,
+            "dx_norm_d2": dx_norm1_d2,
+        }
+
+        # block2, block3
+        for idx in (1, 2):
+            b = blocks[idx]
+            w = weights["blocks"][idx]
+            da = d_activates_list[idx]
+            dd = dd_weights_list[idx]
+            dd_cur, dxconv_d2, _, dx_norm_d2, _ = ConvBlock_double_bwd(
+                b["x_conv"],
+                b["x_norm"],
+                b["x_pool"],
+                da["dx_norm"],
+                da["dx_pool"],
+                dd_cur,
+                w["convw"],
+                w["normw"],
+                dd["ddconvw"],
+                dd["ddconvb"],
+                dd["ddnormw"],
+                dd["ddnormb"],
+                Fuse,
+            )
+            d2_cache[idx] = {
+                "dxconv_d2": dxconv_d2,
+                "dx_norm_d2": dx_norm_d2,
+            }
+        ddx_lin = dd_cur
+        # ------------------------------------------------------------
+        # 2. head double-bwd
+        # -----------------------------------------------------------
+        ddx_out, dx_lin_d2, _ = linearFused_double_bwd(
+            x_lin,
+            weights["head"]["linw"],
+            dx_out,
+            ddx_lin,
+            ddlin_w,
+            ddlin_b,
+            Fuse,
+        )
+        dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, Fuse)
+        dx_lin_d1, _, _ = linerFused_bwd(
+            x_lin,
+            weights["head"]["linw"],
+            grad_output=dx_out_d1,
+            Fuse=Fuse,
+        )
+        dx_lin_d1 = dx_lin_d1.view_as(x_lin)
+        dx_lin_d1 = dx_lin_d1 + dx_lin_d2.view_as(x_lin)
+        # ------------------------------------------------------------
+        # 3. backward-order bwd2_1:
+        #    block3 -> block2 -> block1
+        # -----------------------------------------------------------
+        g = dx_lin_d1
+        for idx in (2, 1, 0):
+            b = blocks[idx]
+            w = weights["blocks"][idx]
+            c = d2_cache[idx]
+            g, _, _, _, _ = ConvBlock_bwd2_1(
+                b["x_conv"],
+                b["x_norm"],
+                b["x_pool"],
+                w["convw"],
+                w["normw"],
+                g,
+                c["dx_norm_d2"],
+                c["dxconv_d2"],
+                Fuse=Fuse,
+            )
+        return g
 
 
 
-class BasicBlock_Flex_fuse(nn.Module):
-    def __init__(self, in_channels, out_channels,   net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), stride=1, Fuse = 1):
+class BasicBlock_Flexfuse(nn.Module):
+    def __init__(self, in_channels, out_channels,   net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), stride=1, Fuse = 1,v_fuse=True):
         # 注意一下这个basic block已经把 fuse隔离在外面了。内部init的时候再扩充in out channel
         super().__init__()
+        self.v_fuse = v_fuse
         self.conv1 = nn.Conv2d(in_channels*Fuse, out_channels*Fuse, 3, stride, 1, bias=False, groups=Fuse)
         # self.bn1 = nn.InstanceNorm2d(out_channels*Fuse, affine=True)
         self.bn1 = nn.GroupNorm(out_channels*Fuse, out_channels*Fuse, affine=True) 
@@ -174,9 +639,10 @@ class BasicBlock_Flex_fuse(nn.Module):
         return out, activates
 
 class ResNet18_FlexFuse(nn.Module):
-    def __init__(self, channel=3, num_classes=10, Fuse=1):
+    def __init__(self, channel=3, num_classes=10, Fuse=1,v_fuse=True):
         super().__init__()
         self.Fuse = Fuse
+        self.v_fuse = v_fuse
         self.num_classes = num_classes
         blk_in_ch = 64   # 这里仍然是逻辑通道数
         cfg = [ (blk_in_ch,  2, 1), (128, 2, 2), (256, 2, 2), (512, 2, 2), ]
@@ -188,7 +654,7 @@ class ResNet18_FlexFuse(nn.Module):
             stage = nn.ModuleList()
             for block_id in range(num_blocks):
                 stride = first_stride if block_id == 0 else 1
-                stage.append(BasicBlock_Flex_fuse(blk_in_ch, out_ch, stride=stride, Fuse=Fuse))
+                stage.append(BasicBlock_Flexfuse(blk_in_ch, out_ch, stride=stride, Fuse=Fuse,v_fuse=v_fuse))
                 blk_in_ch = out_ch
             self.stages.append(stage)
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
@@ -274,7 +740,6 @@ class ResNet18_FlexFuse(nn.Module):
         grads_all.extend([dfcw, dfcb])
         return grads_all
 
-
     def run_first_bwd(self, tape, target, Fuse = 1):
         flat_blocks = self.get_flat_blocks()
         # 这里只读，不 pop。double-bwd 还要继续用 tape
@@ -299,7 +764,7 @@ class ResNet18_FlexFuse(nn.Module):
             blk = flat_blocks[i]
             activates_i = tape["blocks"][i]
             weights_i = self.get_block_weights(blk)
-            g, d_activates_i, d_weights_i = BasicBlock_bwd( activates_i, weights_i, grad_output=g, SCstride=blk.conv1.stride[0],Fuse=Fuse )
+            g, d_activates_i, d_weights_i = BasicBlock_bwd( activates_i, weights_i, grad_output=g, SCstride=blk.conv1.stride[0],Fuse=Fuse,v_fuse=self.v_fuse)
             d_activates_list[i] = d_activates_i
             d_weights_list[i]   = d_weights_i
             # 这里只删局部引用，不动 tape 里的本体
@@ -309,11 +774,8 @@ class ResNet18_FlexFuse(nn.Module):
         dx_bn, dbnw, dbnb, dconvw = conv_norm_relu_bwd( x_conv, x_bn, x_block, self.conv.weight, self.bn.weight, grad_output=dx_block, Fuse=Fuse )
         d_stem_tensors = { "dx_bn": dx_bn, "dx_block": dx_block, "dx_out": dx_out, }
 
-        print(d_weights_list[-1]['dbn2w'].sum().item())
         d_weights_list_all = self.collect_ordered_grads( dconvw, dbnw, dbnb, d_weights_list, dfcw, dfcb)
         return  d_stem_tensors, d_activates_list, d_weights_list, d_weights_list_all
-            
-
         
     def run_double_bwd(
         self,
@@ -360,7 +822,7 @@ class ResNet18_FlexFuse(nn.Module):
             dd_weights_i = dd_weights_list[i]
             dd_cur, _ = BasicBlock_double_bwd(
                 activates_i, d_activates_i, weights_i, dd_weights_i, ddgrad_in=dd_cur,
-                SCstride=blk.conv1.stride[0], Fuse= Fuse )
+                SCstride=blk.conv1.stride[0], Fuse= Fuse,  v_fuse=self.v_fuse )
             clear_tensorlists(dd_weights_i)
             dd_weights_list[i] = None
             del activates_i, d_activates_i, weights_i, dd_weights_i
@@ -390,7 +852,7 @@ class ResNet18_FlexFuse(nn.Module):
             d2_activates_i = d_activates_list[i]
             if weights_i["convscw"] is None:
                 d2_activates_i.setdefault("dx_bnsc_d2", None)
-            g = BasicBlock_bwd2_1( activates_i, weights_i, d2_activates_i,grad_output=g, SCstride=blk.conv1.stride[0], Fuse = Fuse)
+            g = BasicBlock_bwd2_1( activates_i, weights_i, d2_activates_i,grad_output=g, SCstride=blk.conv1.stride[0], Fuse = Fuse, v_fuse=self.v_fuse)
             clear_tensorlists(activates_i, d2_activates_i, weights_i)
             tape["blocks"][i] = None
             d_activates_list[i] = None
@@ -407,7 +869,6 @@ class ResNet18_FlexFuse(nn.Module):
         del dx_bn_d1
         dx_conv += dx_conv_d2
         return dx_conv
-
 
     def pack_recovered_dd(self, dd_tensors_all, x):
         ptr = 0
@@ -457,6 +918,8 @@ class ResNet18_FlexFuse(nn.Module):
 
 
 
+
+
 class MultiHeadSelfAttention_Fused(nn.Module):
     def __init__(self, embed_dim, num_heads, dropout=0.0, Fuse=1):
         super().__init__()
@@ -477,48 +940,22 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         H = self.num_heads
         Dh = self.head_dim
         tape = {}
-        # --------------------------------------------------
-        # qkv projection
-        # --------------------------------------------------
         qkv_in = x
-        qkv = self.qkv(qkv_in)
-        # [B, Fuse, N, 3C]
-        qkv_view = qkv.view(B, Fs, N, 3, H, Dh)
-        # [B, Fuse, N, 3, H, Dh]
-        qkv_perm = qkv_view.permute(3, 0, 1, 4, 2, 5).contiguous()
-        # [3, B, Fuse, H, N, Dh]
-        q, k, v = qkv_perm[0], qkv_perm[1], qkv_perm[2]
-        # each: [B, Fuse, H, N, Dh]
-        # --------------------------------------------------
-        # scaled dot-product attention
-        # --------------------------------------------------
+        qkv = self.qkv(qkv_in)        # [B, Fuse, N, 3C]
+        qkv_view = qkv.view(B, Fs, N, 3, H, Dh)        # [B, Fuse, N, 3, H, Dh]
+        qkv_perm = qkv_view.permute(3, 0, 1, 4, 2, 5).contiguous()        # [3, B, Fuse, H, N, Dh]
+        q, k, v = qkv_perm[0], qkv_perm[1], qkv_perm[2]        # each: [B, Fuse, H, N, Dh]
         with sdpa_kernel(SDPBackend.MATH):
-            attn_out = F.scaled_dot_product_attention(q, k, v)
-        # [B, Fuse, H, N, Dh]
-        # --------------------------------------------------
-        # merge heads
-        # --------------------------------------------------
-        attn_out_perm = attn_out.permute(0, 1, 3, 2, 4).contiguous()
-        # [B, Fuse, N, H, Dh]
-        out_merge = attn_out_perm.view(B, Fs, N, C)
-        # [B, Fuse, N, C]
-        # -------------------------------------------------
-        # output projection
-        # --------------------------------------------------
-        out = self.out_proj(out_merge)
-        # [B, Fuse, N, C]
+            attn_out = F.scaled_dot_product_attention(q, k, v)        # [B, Fuse, H, N, Dh]
+        attn_out_perm = attn_out.permute(0, 1, 3, 2, 4).contiguous()        # [B, Fuse, N, H, Dh]
+        attn_out = attn_out_perm.view(B, Fs, N, C)    
+        out = self.out_proj(attn_out)   # [B, Fuse, N, C]
         tape = {
             "x": qkv_in,
             "q": q,
             "k": k,
             "v": v,
-            "out_merge": out_merge,
-            "B": B,
-            "Fs": Fs,
-            "N": N,
-            "C": C,
-            "H": H,
-            "Dh": Dh,
+            "attn_out": attn_out,
         }
         return out, tape
     
@@ -539,36 +976,24 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         q = tape["q"]
         k = tape["k"]
         v = tape["v"]
-        out_merge = tape["out_merge"]
-        B = tape["B"]
-        Fs = tape["Fs"]
-        N = tape["N"]
-        C = tape["C"]
-        H = tape["H"]
-        Dh = tape["Dh"]
+        attn_out = tape["attn_out"]
+        B, Fs, N, C = x.shape
+        _, _, H, N_q, Dh = q.shape
         assert Fs == Fuse
         assert C == H * Dh
         assert grad_output.shape == (B, Fs, N, C)
-        dout_merge, doutprojw, doutprojb = grouped_linear_bwd(
-            out_merge,
-            module.out_proj.weight,
-            grad_output=grad_output,
-            Fuse=Fuse,
-        )
+        dout_merge, doutprojw, doutprojb = grouped_linear_bwd( attn_out, module.out_proj.weight,
+            grad_output=grad_output, Fuse=Fuse,)
         # dout_merge: [B, Fuse, N, C]
         # 2. reverse head merge
         dattn_out_perm = dout_merge.view(B, Fs, N, H, Dh)
         # [B, Fuse, N, H, Dh]
         dattn_out = dattn_out_perm.permute(0, 1, 3, 2, 4).contiguous()
+        del dout_merge, dattn_out_perm
         # [B, Fuse, H, N, Dh]
-        # 3. SDPA bwd
+        # 3. SDPA bwd。 因为目前double bwd是重新算了attention score， 所以dprob和dscore 没有用上。
         #   attn_out = softmax(q @ k^T / sqrt(Dh)) @ v
-        dq, dk, dv, dprob, dscores = sdpa_no_mask_no_dropout_bwd(
-            q=q,
-            k=k,
-            v=v,
-            grad_output=dattn_out,
-        )
+        dq, dk, dv, dprob, dscores = sdpa_no_mask_no_dropout_bwd( q=q, k=k, v=v, grad_output=dattn_out )
         # each dq/dk/dv: [B, Fuse, H, N, Dh]
         # 4. reverse qkv split + permute + view
         dqkv_perm = torch.stack((dq, dk, dv), dim=0)
@@ -578,30 +1003,11 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         dqkv_linear = dqkv_view.reshape(B, Fs, N, 3 * C)
         # [B, Fuse, N, 3C]
         # 5. qkv linear bwd
-        dx, dqkvw, dqkvb = grouped_linear_bwd(
-            x,
-            module.qkv.weight,
-            grad_output=dqkv_linear,
-            Fuse=Fuse,
-        )
+        dx, dqkvw, dqkvb = grouped_linear_bwd( x, module.qkv.weight, grad_output=dqkv_linear, Fuse=Fuse )
         # dx: [B, Fuse, N, C]
         d_activates = {
-            # original grad_output of attention module
-            # shape: [B, Fuse, N, C]
             "grad_output": grad_output,
-
-            # out_proj side
-            "dout_merge": dout_merge,
             "dattn_out": dattn_out,
-
-            # attention side
-            "dq": dq,
-            "dk": dk,
-            "dv": dv,
-            "dprob": dprob,
-            "dscores": dscores,
-
-            # qkv side
             "dqkv_linear": dqkv_linear,
         }
         d_weights = {
@@ -616,7 +1022,6 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         d_weights_all.append(doutprojw)
         if doutprojb is not None:
             d_weights_all.append(doutprojb)
-
         return dx, d_activates, d_weights, d_weights_all
 
     def run_double_bwd(
@@ -627,225 +1032,63 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         ddgrad_in=None,
         Fuse=None,
     ):
-        """
-        Double backward for MultiHeadSelfAttention_Fused.
-
-        first-bwd 结构是:
-
-            dout_merge, doutprojw, doutprojb
-                = grouped_linear_bwd(out_merge, out_proj.weight, grad_output)
-
-            dattn_out = reshape/permute(dout_merge)
-
-            dq, dk, dv, dprob, dscores
-                = sdpa_bwd(q, k, v, dattn_out)
-
-            dqkv_linear = pack(dq, dk, dv)
-
-            dx, dqkvw, dqkvb
-                = grouped_linear_bwd(x, qkv.weight, dqkv_linear)
-
-        输入:
-            ddgrad_in:
-                cotangent wrt first-bwd output dx.
-                shape [B, Fuse, N, C]
-
-            dd_weights:
-                cotangents wrt first-bwd parameter grads:
-                    ddqkvw, ddqkvb, ddoutprojw, ddoutprojb
-
-        返回:
-            dd_grad_output:
-                cotangent wrt original attention first-bwd grad_output.
-                shape [B, Fuse, N, C]
-
-            d_activates:
-                会补充:
-                    dx_d2
-                    dqkv_linear_d2
-                    dout_merge_d2
-        """
         if Fuse is None:
             Fuse = self.Fuse
-
         if dd_weights is None:
             dd_weights = {}
-
-        # --------------------------------------------------
-        # unpack forward tape
-        # --------------------------------------------------
         x = tape["x"]
         q = tape["q"]
         k = tape["k"]
         v = tape["v"]
-        out_merge = tape["out_merge"]
-
-        B = tape["B"]
-        Fs = tape["Fs"]
-        N = tape["N"]
-        C = tape["C"]
-        H = tape["H"]
-        Dh = tape["Dh"]
-
+        attn_out = tape["attn_out"]
+        B, Fs, N, C = x.shape
+        _, _, H, N_q, Dh = q.shape
         assert Fs == Fuse
+        assert N_q == N
         assert C == H * Dh
-
-        # --------------------------------------------------
-        # unpack first-bwd intermediates
-        # --------------------------------------------------
-        grad_output = d_activates["grad_output"]
-        # original attention bwd grad_output, [B, Fuse, N, C]
-
-        dqkv_linear = d_activates["dqkv_linear"]
-        # [B, Fuse, N, 3C]
-
-        dattn_out = d_activates["dattn_out"]
-        # [B, Fuse, H, N, Dh]
-
+        grad_output = d_activates.pop("grad_output")
+        dqkv_linear = d_activates.pop("dqkv_linear")
+        dattn_out = d_activates.pop("dattn_out")
         if ddgrad_in is None:
             ddgrad_in = torch.zeros_like(x)
-
-        assert ddgrad_in.shape == x.shape
-        assert grad_output.shape == (B, Fs, N, C)
-        assert dqkv_linear.shape == (B, Fs, N, 3 * C)
-        assert dattn_out.shape == (B, Fs, H, N, Dh)
-
-        # helper: allow several possible key names
         def get_dd(*names):
             for name in names:
                 if name in dd_weights:
                     return dd_weights[name]
             return None
-
         ddqkvw = get_dd("ddqkvw", "dqkvw", "qkvw")
         ddqkvb = get_dd("ddqkvb", "dqkvb", "qkvb")
         ddoutprojw = get_dd("ddoutprojw", "doutprojw", "outprojw")
         ddoutprojb = get_dd("ddoutprojb", "doutprojb", "outprojb")
-
-        # ==================================================
-        # 1. Double of qkv linear bwd
-        #
-        # first-bwd:
-        #   dx, dqkvw, dqkvb =
-        #       grouped_linear_bwd(x, qkv.weight, dqkv_linear)
-        #
-        # double-bwd returns:
-        #   dd_dqkv_linear: cotangent wrt dqkv_linear
-        #   dx_d2:          contribution wrt forward x
-        # ==================================================
-        dd_dqkv_linear, dx_d2, dqkvw_d2 = grouped_linear_double_bwd(
-            x=x,
-            w=self.qkv.weight,
-            grad_output=dqkv_linear,
-            gg_grad_input=ddgrad_in,
-            gg_grad_w=ddqkvw,
-            gg_grad_b=ddqkvb,
-            Fuse=Fuse,
-        )
-        # dd_dqkv_linear: [B, Fuse, N, 3C]
-        # dx_d2:          [B, Fuse, N, C]
-
-        d_activates["dx_d2"] = dx_d2
-        d_activates["dd_dqkv_linear"] = dd_dqkv_linear
-
-        # ==================================================
-        # 2. Reverse pack(dq, dk, dv)
-        #
-        # first-bwd:
-        #   dqkv_perm = stack((dq, dk, dv), dim=0)
-        #   dqkv_view = dqkv_perm.permute(1, 2, 4, 0, 3, 5)
-        #   dqkv_linear = dqkv_view.reshape(B, Fuse, N, 3C)
-        #
-        # reverse:
-        #   dd_dqkv_linear -> ggQ, ggK, ggV
-        # ==================================================
+        # 1. qkv linear double-bwd
+        dd_dqkv_linear, dx_d2, _ = grouped_linear_double_bwd( x=x, w=self.qkv.weight, grad_output=dqkv_linear,\
+              gg_grad_input=ddgrad_in,  gg_grad_w=ddqkvw,  gg_grad_b=ddqkvb,  Fuse=Fuse, )
+        # dqkv_linear 用完，可以显式删局部引用
+        del dqkv_linear
+        # 2. unpack dd_dqkv_linear -> ggQ, ggK, ggV
         dd_dqkv_view = dd_dqkv_linear.reshape(B, Fs, N, 3, H, Dh)
-        # [B, Fuse, N, 3, H, Dh]
-
         dd_dqkv_perm = dd_dqkv_view.permute(3, 0, 1, 4, 2, 5).contiguous()
-        # [3, B, Fuse, H, N, Dh]
-
         ggQ = dd_dqkv_perm[0]
         ggK = dd_dqkv_perm[1]
         ggV = dd_dqkv_perm[2]
-        # each: [B, Fuse, H, N, Dh]
+        del dd_dqkv_linear, dd_dqkv_view, dd_dqkv_perm
+        # 3. SDPA double-bwd
+        gQ, gK, gV, dd_dattn_out = sdpa_no_mask_no_dropout_double_bwd( q=q, k=k, v=v, grad_output=dattn_out,
+            ggQ=ggQ, ggK=ggK, ggV=ggV, ggDprob=None, ggDscores=None, )
 
-        # ==================================================
-        # 3. Double of SDPA bwd
-        #
-        # first-bwd:
-        #   dq, dk, dv, dprob, dscores =
-        #       sdpa_bwd(q, k, v, dattn_out)
-        #
-        # double-bwd returns:
-        #   gQ, gK, gV:      contributions wrt forward q, k, v
-        #   dd_dattn_out:    cotangent wrt dattn_out
-        # ==================================================
-        gQ, gK, gV, dd_dattn_out = sdpa_no_mask_no_dropout_double_bwd(
-            q=q,
-            k=k,
-            v=v,
-            grad_output=dattn_out,
-            ggQ=ggQ,
-            ggK=ggK,
-            ggV=ggV,
-            ggDprob=None,
-            ggDscores=None,
-        )
-        # gQ/gK/gV:       [B, Fuse, H, N, Dh]
-        # dd_dattn_out:   [B, Fuse, H, N, Dh]
-
-        d_activates["dd_dattn_out"] = dd_dattn_out
-
-        # --------------------------------------------------
-        # Pack gQ/gK/gV into dqkv_linear_d2.
-        #
-        # This is a forward-activation d2 contribution wrt the qkv
-        # linear output. In attention bwd2_1, add this after SDPA bwd
-        # and before qkv linear bwd.
-        # --------------------------------------------------
+        del dattn_out, ggQ, ggK, ggV
+        # pack gQ/gK/gV -> dqkv_linear_d2
         dqkv_d2_perm = torch.stack((gQ, gK, gV), dim=0)
-        # [3, B, Fuse, H, N, Dh]
-
         dqkv_d2_view = dqkv_d2_perm.permute(1, 2, 4, 0, 3, 5).contiguous()
-        # [B, Fuse, N, 3, H, Dh]
-
         dqkv_linear_d2 = dqkv_d2_view.reshape(B, Fs, N, 3 * C)
-        # [B, Fuse, N, 3C]
-
-        d_activates["dqkv_linear_d2"] = dqkv_linear_d2
-
-        # ==================================================
-        # 4. Reverse reshape/permute from dout_merge to dattn_out
-        #
-        # first-bwd:
-        #   dattn_out_perm = dout_merge.view(B, Fuse, N, H, Dh)
-        #   dattn_out = dattn_out_perm.permute(0, 1, 3, 2, 4)
-        #
-        # reverse:
-        #   dd_dattn_out -> dd_dout_merge
-        # ==================================================
+        del gQ, gK, gV, dqkv_d2_perm, dqkv_d2_view
+        # 4. reverse dattn_out reshape -> dd_dout_merge
         dd_dattn_out_perm = dd_dattn_out.permute(0, 1, 3, 2, 4).contiguous()
-        # [B, Fuse, N, H, Dh]
-
         dd_dout_merge = dd_dattn_out_perm.reshape(B, Fs, N, C)
-        # [B, Fuse, N, C]
-
-        d_activates["dd_dout_merge"] = dd_dout_merge
-
-        # ==================================================
-        # 5. Double of out_proj linear bwd
-        #
-        # first-bwd:
-        #   dout_merge, doutprojw, doutprojb =
-        #       grouped_linear_bwd(out_merge, out_proj.weight, grad_output)
-        #
-        # double-bwd returns:
-        #   dd_grad_output: cotangent wrt original attention grad_output
-        #   dout_merge_d2:  contribution wrt forward out_merge
-        # ==================================================
-        dd_grad_output, dout_merge_d2, doutprojw_d2 = grouped_linear_double_bwd(
-            x=out_merge,
+        del dd_dattn_out, dd_dattn_out_perm
+        # 5. out_proj linear double-bwd
+        dd_grad_output, dout_merge_d2, _ = grouped_linear_double_bwd(
+            x=attn_out,
             w=self.out_proj.weight,
             grad_output=grad_output,
             gg_grad_input=dd_dout_merge,
@@ -853,16 +1096,13 @@ class MultiHeadSelfAttention_Fused(nn.Module):
             gg_grad_b=ddoutprojb,
             Fuse=Fuse,
         )
-        # dd_grad_output: [B, Fuse, N, C]
-        # dout_merge_d2:  [B, Fuse, N, C]
-
+        del grad_output, dd_dout_merge
+        # 到这里，first-bwd 的激活都已经 pop 掉了。
+        # 清空后只留下 bwd2_1 真正需要的三个。
+        d_activates.clear()
+        d_activates["dx_d2"] = dx_d2
+        d_activates["dqkv_linear_d2"] = dqkv_linear_d2
         d_activates["dout_merge_d2"] = dout_merge_d2
-        d_activates["dd_grad_output"] = dd_grad_output
-
-        # optional debug entries
-        d_activates["dqkvw_d2"] = dqkvw_d2
-        d_activates["doutprojw_d2"] = doutprojw_d2
-
         return dd_grad_output, d_activates
 
     def run_bwd2_1(
@@ -893,27 +1133,22 @@ class MultiHeadSelfAttention_Fused(nn.Module):
             -> SDPA bwd gives dq, dk, dv
             -> pack gives dqkv_linear
             -> qkv linear bwd gives dx
-
         bwd2_1 injections:
             dout_merge += dout_merge_d2
             dqkv_linear += dqkv_linear_d2
             dx += dx_d2
-
         Inputs:
             tape:
                 forward tape from attention forward.
-
             d_activates:
                 first-bwd activation dict, already updated by run_double_bwd.
                 Expected optional keys:
                     "dout_merge_d2"
                     "dqkv_linear_d2"
                     "dx_d2"
-
             grad_output:
                 current corrected upstream grad wrt attention output,
                 shape [B, Fuse, N, C].
-
         Return:
             dx:
                 corrected grad wrt attention input x,
@@ -921,141 +1156,1421 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         """
         if Fuse is None:
             Fuse = self.Fuse
-
-        # --------------------------------------------------
-        # unpack forward tape
-        # --------------------------------------------------
         x = tape["x"]
         q = tape["q"]
         k = tape["k"]
         v = tape["v"]
-        out_merge = tape["out_merge"]
-
-        B = tape["B"]
-        Fs = tape["Fs"]
-        N = tape["N"]
-        C = tape["C"]
-        H = tape["H"]
-        Dh = tape["Dh"]
-
+        attn_out = tape["attn_out"]
+        B, Fs, N, C = x.shape
+        _, _, H, N_q, Dh = q.shape
         assert Fs == Fuse
         assert C == H * Dh
         assert grad_output.shape == (B, Fs, N, C)
-
-        # ==================================================
         # 1. out_proj bwd
-        #
         # forward:
-        #   out = out_proj(out_merge)
-        #
+        #   out = out_proj(attn_out)
         # first-bwd:
         #   dout_merge = dL/dout_merge
-        # ==================================================
         dout_merge, _, _ = grouped_linear_bwd(
-            out_merge,
+            attn_out,
             self.out_proj.weight,
             grad_output=grad_output,
-            Fuse=Fuse,
-        )
+            Fuse=Fuse, )
         # [B, Fuse, N, C]
-
-        # --------------------------------------------------
-        # Inject d2 contribution wrt forward out_merge.
+        # Inject d2 contribution wrt forward attn_out.
         # This comes from double-bwd of out_proj bwd.
-        # --------------------------------------------------
-        dout_merge_d2 = d_activates.get("dout_merge_d2", None)
-        if dout_merge_d2 is not None:
-            assert dout_merge_d2.shape == dout_merge.shape
-            dout_merge = dout_merge + dout_merge_d2
-
-        # ==================================================
+        dout_merge_d2 = d_activates.pop("dout_merge_d2")
+        dqkv_linear_d2 = d_activates.pop("dqkv_linear_d2")
+        dx_d2 = d_activates.pop("dx_d2")
+        assert dout_merge_d2.shape == dout_merge.shape
+        dout_merge = dout_merge + dout_merge_d2
         # 2. reverse merge-head reshape
-        #
         # forward:
         #   attn_out:      [B, Fuse, H, N, Dh]
         #   attn_out_perm: [B, Fuse, N, H, Dh]
-        #   out_merge:     [B, Fuse, N, C]
+        #   attn_out:     [B, Fuse, N, C]
         #
         # backward:
         #   dout_merge -> dattn_out
-        # ==================================================
         dattn_out_perm = dout_merge.view(B, Fs, N, H, Dh)
         # [B, Fuse, N, H, Dh]
-
         dattn_out = dattn_out_perm.permute(0, 1, 3, 2, 4).contiguous()
         # [B, Fuse, H, N, Dh]
-
-        # ==================================================
         # 3. SDPA bwd
-        #
         # forward:
         #   attn_out = softmax(q @ k^T / sqrt(Dh)) @ v
-        #
         # first-bwd:
         #   dq, dk, dv
-        # ==================================================
-        dq, dk, dv, _, _ = sdpa_no_mask_no_dropout_bwd(
-            q=q,
-            k=k,
-            v=v,
-            grad_output=dattn_out,
-        )
-        # each: [B, Fuse, H, N, Dh]
-
-        # ==================================================
+        dq, dk, dv, _, _ = sdpa_no_mask_no_dropout_bwd( q=q, k=k, v=v, grad_output=dattn_out  )
         # 4. pack dq, dk, dv back to qkv-linear grad
-        #
         # forward:
         #   qkv:      [B, Fuse, N, 3C]
         #   qkv_view: [B, Fuse, N, 3, H, Dh]
         #   qkv_perm: [3, B, Fuse, H, N, Dh]
-        #
         # backward:
         #   dq,dk,dv -> dqkv_linear [B, Fuse, N, 3C]
-        # ==================================================
-        dqkv_perm = torch.stack((dq, dk, dv), dim=0)
-        # [3, B, Fuse, H, N, Dh]
-
-        dqkv_view = dqkv_perm.permute(1, 2, 4, 0, 3, 5).contiguous()
-        # [B, Fuse, N, 3, H, Dh]
-
+        dqkv_perm = torch.stack((dq, dk, dv), dim=0)         # [3, B, Fuse, H, N, Dh]
+        dqkv_view = dqkv_perm.permute(1, 2, 4, 0, 3, 5).contiguous()        # [B, Fuse, N, 3, H, Dh]
         dqkv_linear = dqkv_view.reshape(B, Fs, N, 3 * C)
         # [B, Fuse, N, 3C]
-
-        # --------------------------------------------------
-        # Inject d2 contribution wrt forward qkv output.
-        # This comes from double-bwd of SDPA bwd.
-        # --------------------------------------------------
-        dqkv_linear_d2 = d_activates.get("dqkv_linear_d2", None)
-        if dqkv_linear_d2 is not None:
-            assert dqkv_linear_d2.shape == dqkv_linear.shape
-            dqkv_linear = dqkv_linear + dqkv_linear_d2
-
-        # ==================================================
+        del dq, dk, dv, dqkv_perm, dqkv_view
+        # Inject d2 contribution wrt forward qkv output. This comes from double-bwd of SDPA bwd.
+        dqkv_linear = dqkv_linear + dqkv_linear_d2
         # 5. qkv linear bwd
-        #
         # forward:
         #   qkv = qkv_linear(x)
-        #
         # first-bwd:
         #   dx = dL/dx
-        # ==================================================
-        dx, _, _ = grouped_linear_bwd(
-            x,
-            self.qkv.weight,
-            grad_output=dqkv_linear,
-            Fuse=Fuse,
-        )
-        # [B, Fuse, N, C]
-
-        # --------------------------------------------------
-        # Inject d2 contribution wrt forward attention input x.
-        # This comes from double-bwd of qkv linear bwd.
-        # --------------------------------------------------
-        dx_d2 = d_activates.get("dx_d2", None)
+        dx, _, _ = grouped_linear_bwd(x,self.qkv.weight,grad_output=dqkv_linear,Fuse=Fuse )
         if dx_d2 is not None:
             assert dx_d2.shape == dx.shape
             dx = dx + dx_d2
 
         return dx
 
+
+
+class TransformerBlock_Fused(nn.Module):
+    def __init__(
+        self,
+        emb_size=128,
+        heads=4,
+        mlp_dim=256,
+        dropout=0.0,
+        Fuse=1,
+        v_fuse=False,
+    ):
+        super().__init__()
+        self.Fuse = Fuse
+        self.v_fuse = v_fuse
+        self.embed_dim = emb_size
+        self.emb_size = emb_size
+        self.heads = heads
+        self.mlp_dim = mlp_dim
+        self.dropout = dropout
+        self.norm1 = GroupedLayerNorm(emb_size, Fuse)
+        self.attn = MultiHeadSelfAttention_Fused(
+            embed_dim=emb_size,
+            num_heads=heads,
+            dropout=dropout,
+            Fuse=Fuse,
+        )
+        self.norm2 = GroupedLayerNorm(emb_size, Fuse)
+        self.fc1 = GroupedLinear(emb_size, mlp_dim, Fuse)
+        self.act = nn.GELU()
+        self.dp1 = nn.Dropout(dropout)
+        self.fc2 = GroupedLinear(mlp_dim, emb_size, Fuse)
+        self.dp2 = nn.Dropout(dropout)
+
+    def forward(self, x):
+        tape = {}
+        # residual branch 1:  x_res1 = x + attn(norm1(x))
+        x_in = x
+        x_norm1 = self.norm1(x_in)
+        x_attn, attn_tape = self.attn(x_norm1)
+        x_res1 = x_in + x_attn
+        # MLP branch:
+        #   y = fc2(gelu(fc1(norm2(x_res1))))
+        #   x_out = x_res1 + y
+        x_norm2 = self.norm2(x_res1)
+        x_fc1 = self.fc1(x_norm2)
+        x_gelu = self.act(x_fc1)
+
+        # dp1: after GELU
+        x_dp1, dp1_mask = dropout_fwd(
+            x_gelu,
+            p=self.dropout,
+            training=self.training,
+        )
+        x_fc2 = self.fc2(x_dp1)
+        # dp2: after fc2
+        x_dp2, dp2_mask = dropout_fwd(
+            x_fc2,
+            p=self.dropout,
+            training=self.training,
+        )
+        x_out = x_res1 + x_dp2
+        tape = {
+            "x_in": x_in,
+            "attn": attn_tape,
+            "x_res1": x_res1,
+            "x_norm2": x_norm2,
+            "x_fc1": x_fc1,
+            "x_gelu": x_gelu,
+            "x_dp1": x_dp1,
+            "dp1_mask": dp1_mask,
+            "dp2_mask": dp2_mask,
+        }
+        return x_out, tape
+
+    def run_first_bwd(self, tape, grad_output, Fuse=None):
+        """
+        TransformerBlock_Fused first backward with dp1/dp2.
+
+        forward MLP path:
+            x_res1
+            -> norm2
+            -> fc1
+            -> gelu
+            -> dp1
+            -> fc2
+            -> dp2
+            -> residual add
+
+        dropout has no parameters, but its masks must come from tape.
+        """
+        if Fuse is None:
+            Fuse = self.Fuse
+
+        x_in = tape["x_in"]
+        attn_tape = tape["attn"]
+        x_res1 = tape["x_res1"]
+        x_norm2 = tape["x_norm2"]
+        x_fc1 = tape["x_fc1"]
+        x_gelu = tape["x_gelu"]
+        x_dp1 = tape["x_dp1"]
+        dp1_mask = tape["dp1_mask"]
+        dp2_mask = tape["dp2_mask"]
+
+        assert grad_output.shape == x_in.shape
+
+        # ==================================================
+        # 1. x_out = x_res1 + x_dp2
+        # ==================================================
+        dx_res1 = grad_output
+        dx_dp2 = grad_output
+
+        # ==================================================
+        # 2. x_dp2 = dropout(x_fc2)
+        # ==================================================
+        dx_fc2 = dropout_bwd(
+            dx_dp2,
+            dp2_mask,
+        )
+
+        # ==================================================
+        # 3. x_fc2 = fc2(x_dp1)
+        # ==================================================
+        dx_dp1, dfc2w, dfc2b = grouped_linear_bwd(
+            x_dp1,
+            self.fc2.weight,
+            grad_output=dx_fc2,
+            Fuse=Fuse,
+        )
+
+        # ==================================================
+        # 4. x_dp1 = dropout(x_gelu) + gelu
+        # ==================================================
+        dx_fc1 = geluDropout_bwd(
+            x=x_fc1,
+            mask=dp1_mask,
+            dout=dx_dp1,
+            v_fuse=self.v_fuse,
+        )
+
+        # ==================================================
+        # 6. x_fc1 = fc1(x_norm2)
+        # ==================================================
+        dx_norm2, dfc1w, dfc1b = grouped_linear_bwd(
+            x_norm2,
+            self.fc1.weight,
+            grad_output=dx_fc1,
+            Fuse=Fuse,
+        )
+
+        # ==================================================
+        # 7. x_norm2 = norm2(x_res1)
+        # ==================================================
+        dx_res1_from_norm2, dnorm2w, dnorm2b = grouped_layernorm_backward(
+            x_res1,
+            self.norm2.weight,
+            Fuse=Fuse,
+            grad_output=dx_norm2,
+        )
+
+        # x_res1 has two outgoing paths:
+        #   1. residual skip to output
+        #   2. norm2 -> MLP branch
+        dx_res1_total = dx_res1 + dx_res1_from_norm2
+
+        # ==================================================
+        # 8. x_res1 = x_in + x_attn
+        # ==================================================
+        dx_in_from_skip = dx_res1_total
+        dx_attn = dx_res1_total
+
+        # ==================================================
+        # 9. x_attn = attn(norm1(x_in))
+        # ==================================================
+        dx_norm1, d_attn_activates, d_attn_weights, d_attn_weights_all = self.attn.run_first_bwd(
+            attn_tape,
+            grad_output=dx_attn,
+            Fuse=Fuse,
+        )
+
+        # ==================================================
+        # 10. x_norm1 = norm1(x_in)
+        # ==================================================
+        dx_in_from_norm1, dnorm1w, dnorm1b = grouped_layernorm_backward(
+            x_in,
+            self.norm1.weight,
+            Fuse=Fuse,
+            grad_output=dx_norm1,
+        )
+
+        dx_in = dx_in_from_skip + dx_in_from_norm1
+
+        # Only keep first-bwd activations that double-bwd needs.
+        d_activates = {
+            "dx_dp2": dx_dp2,
+            "dx_fc2": dx_fc2,
+            "dx_dp1": dx_dp1,
+            "dx_fc1": dx_fc1,
+            "dx_norm2": dx_norm2,
+            "dx_norm1": dx_norm1,
+            "attn": d_attn_activates,
+        }
+
+        d_weights = {
+            "dnorm1w": dnorm1w,
+            "dnorm1b": dnorm1b,
+            "attn": d_attn_weights,
+            "dnorm2w": dnorm2w,
+            "dnorm2b": dnorm2b,
+            "dfc1w": dfc1w,
+            "dfc1b": dfc1b,
+            "dfc2w": dfc2w,
+            "dfc2b": dfc2b,
+        }
+
+        # Parameter order unchanged:
+        # norm1, attn, norm2, fc1, fc2.
+        # Dropout has no parameters.
+        d_weights_all = []
+        d_weights_all.append(dnorm1w)
+        d_weights_all.append(dnorm1b)
+
+        for g in d_attn_weights_all:
+            if g is not None:
+                d_weights_all.append(g)
+
+        d_weights_all.append(dnorm2w)
+        d_weights_all.append(dnorm2b)
+        d_weights_all.append(dfc1w)
+        d_weights_all.append(dfc1b)
+        d_weights_all.append(dfc2w)
+        d_weights_all.append(dfc2b)
+
+        return dx_in, d_activates, d_weights, d_weights_all
+
+
+    def run_double_bwd(
+        self,
+        tape,
+        d_activates,
+        dd_weights,
+        ddgrad_in=None,
+        Fuse=None,
+    ):
+        """
+        TransformerBlock_Fused double backward with dp1/dp2.
+
+        first-bwd MLP path:
+            grad_output
+            -> dp2_bwd
+            -> fc2_bwd
+            -> dp1_bwd
+            -> gelu_bwd
+            -> fc1_bwd
+            -> norm2_bwd
+            -> residual / attn / norm1
+
+        Dropout mask is fixed from forward.
+        Therefore dropout double-bwd only propagates cotangent to its first-bwd
+        grad_output. It does not create forward-activation d2.
+        """
+        if Fuse is None:
+            Fuse = self.Fuse
+
+        x_in = tape["x_in"]
+        attn_tape = tape["attn"]
+        x_res1 = tape["x_res1"]
+        x_norm2 = tape["x_norm2"]
+        x_fc1 = tape["x_fc1"]
+        x_dp1 = tape["x_dp1"]
+        dp1_mask = tape["dp1_mask"]
+        dp2_mask = tape["dp2_mask"]
+
+        dx_norm1 = d_activates.pop("dx_norm1")
+        dx_norm2 = d_activates.pop("dx_norm2")
+        dx_fc1 = d_activates.pop("dx_fc1")
+        dx_dp1 = d_activates.pop("dx_dp1")
+        dx_fc2 = d_activates.pop("dx_fc2")
+        dx_dp2 = d_activates.pop("dx_dp2")
+        d_attn_activates = d_activates.pop("attn")
+        d_activates.clear()
+
+        if ddgrad_in is None:
+            ddgrad_in = torch.zeros_like(x_in)
+
+        # ==================================================
+        # dx_in = dx_in_from_skip + dx_in_from_norm1
+        # ==================================================
+        dd_dx_in_from_skip = ddgrad_in
+        dd_dx_in_from_norm1 = ddgrad_in
+
+        # ==================================================
+        # norm1 double-bwd:
+        #   dx_in_from_norm1 = LN_bwd(x_in, norm1.weight, dx_norm1)
+        # ==================================================
+        dx_in_d2_from_norm1, _, dd_dx_norm1 = grouped_layernorm_double_bwd_fn(
+            x=x_in,
+            weight=self.norm1.weight,
+            ggX=dd_dx_in_from_norm1,
+            ggW=dd_weights.get("ddnorm1w", None),
+            ggB=dd_weights.get("ddnorm1b", None),
+            gO=dx_norm1,
+            Fuse=Fuse,
+        )
+
+        d_activates["dx_in_d2"] = dx_in_d2_from_norm1
+
+        # ==================================================
+        # attention double-bwd:
+        #   dx_norm1 = attn_bwd(..., dx_attn)
+        # returns cotangent wrt dx_attn
+        # ==================================================
+        dd_attn_weights = dd_weights.get("attn", None)
+
+        dd_dx_attn, d_attn_activates = self.attn.run_double_bwd(
+            tape=attn_tape,
+            d_activates=d_attn_activates,
+            dd_weights=dd_attn_weights,
+            ddgrad_in=dd_dx_norm1,
+            Fuse=Fuse,
+        )
+
+        d_activates["attn"] = d_attn_activates
+
+        # ==================================================
+        # dx_in_from_skip = dx_res1_total
+        # dx_attn         = dx_res1_total
+        # ==================================================
+        dd_dx_res1_total = dd_dx_in_from_skip + dd_dx_attn
+
+        # ==================================================
+        # dx_res1_total = dx_res1 + dx_res1_from_norm2
+        # ==================================================
+        dd_dx_res1 = dd_dx_res1_total
+        dd_dx_res1_from_norm2 = dd_dx_res1_total
+
+        # ==================================================
+        # norm2 double-bwd:
+        #   dx_res1_from_norm2 = LN_bwd(x_res1, norm2.weight, dx_norm2)
+        # ==================================================
+        dx_res1_d2_from_norm2, _, dd_dx_norm2 = grouped_layernorm_double_bwd_fn(
+            x=x_res1,
+            weight=self.norm2.weight,
+            ggX=dd_dx_res1_from_norm2,
+            ggW=dd_weights.get("ddnorm2w", None),
+            ggB=dd_weights.get("ddnorm2b", None),
+            gO=dx_norm2,
+            Fuse=Fuse,
+        )
+
+        d_activates["dx_res1_d2"] = dx_res1_d2_from_norm2
+
+        # ==================================================
+        # fc1 double-bwd:
+        #   dx_norm2, dfc1w, dfc1b = linear_bwd(x_norm2, fc1.weight, dx_fc1)
+        # ==================================================
+        dd_dx_fc1, dx_norm2_d2, _ = grouped_linear_double_bwd(
+            x=x_norm2,
+            w=self.fc1.weight,
+            grad_output=dx_fc1,
+            gg_grad_input=dd_dx_norm2,
+            gg_grad_w=dd_weights.get("ddfc1w", None),
+            gg_grad_b=dd_weights.get("ddfc1b", None),
+            Fuse=Fuse,
+        )
+
+        d_activates["dx_norm2_d2"] = dx_norm2_d2
+
+        # ==================================================
+        # GELU double-bwd:
+        #   dx_fc1 = gelu_bwd(x_fc1, dx_gelu)
+        # ==================================================
+        dx_fc1_d2, dd_dx_dp1 = geluDropout_double_bwd(
+            x=x_fc1,
+            mask=dp1_mask,
+            dout=dx_dp1,
+            ddx=dd_dx_fc1,
+            v_fuse=self.v_fuse,
+        )
+
+        d_activates["dx_fc1_d2"] = dx_fc1_d2
+        # ==================================================
+        # fc2 double-bwd:
+        #   dx_dp1, dfc2w, dfc2b = linear_bwd(x_dp1, fc2.weight, dx_fc2)
+        #
+        # Important:
+        #   forward input of fc2 is x_dp1, not x_gelu.
+        #   So the d2 contribution is dx_dp1_d2.
+        # ==================================================
+        dd_dx_fc2, dx_dp1_d2, _ = grouped_linear_double_bwd(
+            x=x_dp1,
+            w=self.fc2.weight,
+            grad_output=dx_fc2,
+            gg_grad_input=dd_dx_dp1,
+            gg_grad_w=dd_weights.get("ddfc2w", None),
+            gg_grad_b=dd_weights.get("ddfc2b", None),
+            Fuse=Fuse,
+        )
+
+        d_activates["dx_dp1_d2"] = dx_dp1_d2
+        # ==================================================
+        # dp2 double-bwd:
+        #   dx_fc2 = dropout_bwd(dx_dp2, dp2_mask)
+        #
+        # No forward-activation d2 is produced by dropout.
+        # It only propagates cotangent wrt dx_fc2 back to dx_dp2.
+        # ==================================================
+        dd_dx_dp2 = dropout_double_bwd(
+            dd_dx_fc2,
+            dp2_mask,
+        )
+
+        # ==================================================
+        # first-bwd:
+        #   dx_res1 = grad_output
+        #   dx_dp2  = grad_output
+        #
+        # Therefore cotangent wrt original grad_output is summed.
+        # ==================================================
+        dd_grad_output = dd_dx_res1 + dd_dx_dp2
+
+        return dd_grad_output, d_activates
+
+
+    def run_bwd2_1(
+        self,
+        tape,
+        d_activates,
+        grad_output,
+        Fuse=None,
+    ):
+        """
+        Re-run corrected first backward with dp1/dp2 injections.
+
+        bwd2_1 MLP path:
+            grad_output
+            -> dp2_bwd
+            -> fc2_bwd
+            -> inject dx_dp1_d2
+            -> dp1_bwd
+            -> gelu_bwd
+            -> inject dx_fc1_d2
+            -> fc1_bwd
+            -> inject dx_norm2_d2
+            -> norm2_bwd
+            -> inject dx_res1_d2 before residual split
+            -> attn_bwd2_1
+            -> norm1_bwd
+            -> inject dx_in_d2
+        """
+        if Fuse is None:
+            Fuse = self.Fuse
+
+        x_in = tape["x_in"]
+        attn_tape = tape["attn"]
+        x_res1 = tape["x_res1"]
+        x_norm2 = tape["x_norm2"]
+        x_fc1 = tape["x_fc1"]
+        x_dp1 = tape["x_dp1"]
+        dp1_mask = tape["dp1_mask"]
+        dp2_mask = tape["dp2_mask"]
+
+        assert grad_output.shape == x_in.shape
+
+        # ==================================================
+        # 1. x_out = x_res1 + x_dp2
+        # ==================================================
+        dx_res1 = grad_output
+        dx_dp2 = grad_output
+
+        # ==================================================
+        # 2. x_dp2 = dropout(x_fc2)
+        # ==================================================
+        dx_fc2 = dropout_bwd(
+            dx_dp2,
+            dp2_mask,
+        )
+
+        # ==================================================
+        # 3. x_fc2 = fc2(x_dp1)
+        # ==================================================
+        dx_dp1, _, _ = grouped_linear_bwd(
+            x_dp1,
+            self.fc2.weight,
+            grad_output=dx_fc2,
+            Fuse=Fuse,
+        )
+
+        # Inject d2 wrt forward x_dp1.
+        # This must happen after fc2 bwd and before dp1 bwd.
+        dx_dp1_d2 = d_activates.pop("dx_dp1_d2")
+        assert dx_dp1_d2.shape == dx_dp1.shape
+        dx_dp1 = dx_dp1 + dx_dp1_d2
+
+        # ==================================================
+        # 4. x_dp1 = dropout(x_gelu)
+        # ==================================================
+        dx_fc1 = geluDropout_bwd(
+            x=x_fc1,
+            mask=dp1_mask,
+            dout=dx_dp1,
+            v_fuse=self.v_fuse,
+        )
+        
+        # Inject d2 wrt forward x_fc1.
+        dx_fc1_d2 = d_activates.pop("dx_fc1_d2")
+        assert dx_fc1_d2.shape == dx_fc1.shape
+        dx_fc1 = dx_fc1 + dx_fc1_d2
+
+        # ==================================================
+        # 6. x_fc1 = fc1(x_norm2)
+        # ==================================================
+        dx_norm2, _, _ = grouped_linear_bwd(
+            x_norm2,
+            self.fc1.weight,
+            grad_output=dx_fc1,
+            Fuse=Fuse,
+        )
+
+        # Inject d2 wrt forward x_norm2.
+        dx_norm2_d2 = d_activates.pop("dx_norm2_d2")
+        assert dx_norm2_d2.shape == dx_norm2.shape
+        dx_norm2 = dx_norm2 + dx_norm2_d2
+
+        # ==================================================
+        # 7. x_norm2 = norm2(x_res1)
+        # ==================================================
+        dx_res1_from_norm2, _, _ = grouped_layernorm_backward(
+            x_res1,
+            self.norm2.weight,
+            Fuse=Fuse,
+            grad_output=dx_norm2,
+        )
+
+        # x_res1 has two outgoing paths:
+        #   1. output residual
+        #   2. norm2 -> MLP
+        dx_res1_total = dx_res1 + dx_res1_from_norm2
+
+        # Inject d2 wrt forward x_res1.
+        # Important: before residual split into skip and attention.
+        dx_res1_d2 = d_activates.pop("dx_res1_d2")
+        assert dx_res1_d2.shape == dx_res1_total.shape
+        dx_res1_total = dx_res1_total + dx_res1_d2
+
+        # ==================================================
+        # 8. x_res1 = x_in + x_attn
+        # ==================================================
+        dx_in_from_skip = dx_res1_total
+        dx_attn = dx_res1_total
+
+        # ==================================================
+        # 9. x_attn = attn(norm1(x_in))
+        # ==================================================
+        d_attn_activates = d_activates.pop("attn")
+
+        dx_norm1 = self.attn.run_bwd2_1(
+            tape=attn_tape,
+            d_activates=d_attn_activates,
+            grad_output=dx_attn,
+            Fuse=Fuse,
+        )
+
+        # ==================================================
+        # 10. x_norm1 = norm1(x_in)
+        # ==================================================
+        dx_in_from_norm1, _, _ = grouped_layernorm_backward(
+            x_in,
+            self.norm1.weight,
+            Fuse=Fuse,
+            grad_output=dx_norm1,
+        )
+
+        dx_in = dx_in_from_skip + dx_in_from_norm1
+
+        # Inject d2 wrt forward x_in.
+        dx_in_d2 = d_activates.pop("dx_in_d2")
+        d_activates.clear()
+
+        assert dx_in_d2.shape == dx_in.shape
+        dx_in = dx_in + dx_in_d2
+
+        return dx_in
+
+
+        def init_dd_weights(self):
+            dd_weights = {
+                "ddnorm1w": torch.ones_like(self.norm1.weight),
+                "ddnorm1b": torch.ones_like(self.norm1.bias),
+                "attn": {
+                    "ddqkvw": torch.ones_like(self.attn.qkv.weight),
+                    "ddqkvb": torch.ones_like(self.attn.qkv.bias),
+                    "ddoutprojw": torch.ones_like(self.attn.out_proj.weight),
+                    "ddoutprojb": torch.ones_like(self.attn.out_proj.bias),
+                },
+                "ddnorm2w": torch.ones_like(self.norm2.weight),
+                "ddnorm2b": torch.ones_like(self.norm2.bias),
+                "ddfc1w": torch.ones_like(self.fc1.weight),
+                "ddfc1b": torch.ones_like(self.fc1.bias),
+                "ddfc2w": torch.ones_like(self.fc2.weight),
+                "ddfc2b": torch.ones_like(self.fc2.bias),
+            }
+            return dd_weights
+
+
+
+class ViT_FlexFuse(nn.Module):
+    # 请注意一下，ViT的fuse 规则和传统的不太一样。cls token不是在第一维做fuse
+    def __init__(
+        self,
+        img_size=32,
+        patch_size=4,
+        in_channels=3,
+        num_classes=10,
+        emb_size=128,
+        depth=6,
+        heads=4,
+        mlp_dim=256,
+        dropout=0.0,
+        Fuse=1,
+        v_fuse=False,
+    ):
+        super().__init__()
+        self.Fuse = Fuse
+        self.in_channels = in_channels
+        self.num_classes = num_classes
+        # 保留旧名字，避免你后面的 bwd 代码要大改
+        self.embed_dim = emb_size
+        self.emb_size = emb_size
+        assert img_size % patch_size == 0
+        self.image_size = img_size
+        self.img_size = img_size
+        self.patch_size = patch_size
+        self.num_patches = (img_size // patch_size) ** 2
+        self.patch_embed = nn.Conv2d(
+            in_channels=in_channels * Fuse,
+            out_channels=emb_size * Fuse,
+            kernel_size=patch_size,
+            stride=patch_size,
+            groups=Fuse,
+        )
+        self.cls_token = nn.Parameter(torch.zeros(1, Fuse, 1, emb_size))
+        self.pos_embed = nn.Parameter(torch.zeros(1, Fuse, self.num_patches + 1, emb_size))
+        self.blocks = nn.ModuleList([
+            TransformerBlock_Fused(
+                emb_size=emb_size,
+                heads=heads,
+                mlp_dim=mlp_dim,
+                dropout=dropout,
+                Fuse=Fuse,
+                v_fuse=v_fuse
+            )
+            for _ in range(depth)
+        ])
+
+        self.norm = GroupedLayerNorm(emb_size, Fuse)
+        self.head = GroupedLinear(emb_size, num_classes, Fuse)
+        self._init_weights()
+
+    def get_flat_blocks(self):
+        return list(self.blocks)
+    def forward(self, x):
+        Fuse = self.Fuse
+        B = x.shape[0]
+        D = self.embed_dim
+        tape = {  "patch": {},  "blocks": [],  "head": {},}
+        x_in = x
+        # [B, C*Fuse, H, W]
+        x_patch = self.patch_embed(x_in)
+        # [B, D*Fuse, H/P, W/P]
+        x_flat = x_patch.flatten(2).transpose(1, 2)
+        # [B, N, D*Fuse]
+        x_reshape = x_flat.reshape(B, self.num_patches, Fuse, D)
+        # [B, N, Fuse, D]
+        x_tokens = x_reshape.permute(0, 2, 1, 3).contiguous()
+        # [B, Fuse, N, D]
+        tape["patch"] = {
+            "x_in": x_in,
+            "x_patch": x_patch,
+        }
+        cls_token = self.cls_token.expand(B, -1, -1, -1)
+        # [B, Fuse, 1, D]
+        x_cat = torch.cat((cls_token, x_tokens), dim=2)
+        # [B, Fuse, N+1, D]
+        x_pos = x_cat + self.pos_embed
+        # [B, Fuse, N+1, D]
+        # x_block, block_tape = self.block(x_pos)
+        # tape["block"] = block_tape
+        h = x_pos
+        for blk in self.blocks:
+            h, block_tape = blk(h)
+            tape["blocks"].append(block_tape)
+        x_norm_in = h
+        # [B, Fuse, N+1, D]
+        # x_norm_in = x_block
+        x_norm = self.norm(x_norm_in)
+        # [B, Fuse, N+1, D]
+        x_cls = x_norm[:, :, 0]
+        # [B, Fuse, D]
+        x_head = self.head(x_cls)
+        # [B, Fuse, num_classes]
+        # 重要：保留你的原始约定。
+        # 无 permute，直接 reshape。所以 target 要用 repeat_interleave(Fuse)。
+        x_out = x_head.reshape(B * Fuse, self.num_classes)
+        # [B*Fuse, num_classes]
+        # 顺序是 b0f0, b0f1, b1f0, b1f1, ...
+        tape["head"] = {
+            "x_norm_in": x_norm_in,
+            "x_cls": x_cls,
+            "x_out": x_out,
+        }
+        return x_out, tape
+    
+    def run_first_bwd(self, tape, target, Fuse=None):
+        if Fuse is None:
+            Fuse = self.Fuse
+        patch = tape["patch"]
+        head = tape["head"]
+        # block_tape = tape["block"]
+        block_tapes = tape["blocks"]
+        x_cls = head["x_cls"]
+        x_out = head["x_out"]
+        x_patch = patch["x_patch"]
+        B, Fs, D = x_cls.shape
+        C = x_out.shape[-1]
+        N = x_patch.shape[-2] * x_patch.shape[-1]
+        x_in = patch["x_in"]
+        x_patch = patch["x_patch"]
+        x_norm_in = head["x_norm_in"]
+        x_cls = head["x_cls"]
+        x_out = head["x_out"]
+
+        # 1. CE bwd
+        dx_out = crossEntropy_bwd(x_out, target, Fuse = Fuse)
+        # forward: x_out = x_head.reshape(B*Fuse, C)
+        dx_head = dx_out.reshape(B, Fuse, C)
+        dx_cls, dheadw, dheadb = grouped_linear_bwd(
+            x_cls,
+            self.head.weight,
+            grad_output=dx_head,
+            Fuse=Fuse,
+        )
+        # dx_cls: [B, Fuse, D]
+        # forward:  x_cls = x_norm[:, :, 0]
+        # backward:  only cls position receives dx_cls
+        # dx_norm = torch.zeros_like(x_norm)
+        dx_norm = torch.zeros_like(x_norm_in)
+        dx_norm[:, :, 0, :] = dx_cls # [B, Fuse, N+1, D]
+        dx_block, dnormw, dnormb = grouped_layernorm_backward( x_norm_in, self.norm.weight, grad_output=dx_norm, Fuse=Fuse )
+        # dx_block: [B, Fuse, N+1, D]
+        # dx_pos, d_block_activates, d_block_weights, d_block_weights_all = self.block.run_first_bwd( block_tape, grad_output=dx_block, Fuse=Fuse )
+        flat_blocks = self.get_flat_blocks()
+        d_block_activates_list = [None] * len(flat_blocks)
+        d_block_weights_list = [None] * len(flat_blocks)
+        d_block_weights_all_list = [None] * len(flat_blocks)
+        g = dx_block
+        for i in reversed(range(len(flat_blocks))):
+            g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+                tape=block_tapes[i],
+                grad_output=g,
+                Fuse=Fuse,
+            )
+            d_block_activates_list[i] = d_act_i
+            d_block_weights_list[i] = d_w_i
+            d_block_weights_all_list[i] = d_w_all_i
+        dx_pos = g
+        
+        # dx_pos: [B, Fuse, N+1, D]
+        # forward: x_pos = x_cat + self.pos_embed
+        # self.pos_embed: [1, Fuse, N+1, D]
+        dpos_embed = dx_pos.sum(dim=0, keepdim=True)
+        dx_cat = dx_pos
+        # dx_cat: [B, Fuse, N+1, D]
+        # forward: x_cat = cat(cls_token_expand, x_tokens, dim=2)
+        dcls_expand = dx_cat[:, :, 0:1, :]
+        dx_tokens = dx_cat[:, :, 1:, :]
+        # dcls_expand: [B, Fuse, 1, D]
+        # dx_tokens:   [B, Fuse, N, D]
+        # cls_token 是 expand 出来的，所以 batch 维度求和
+        dcls_token = dcls_expand.sum(dim=0, keepdim=True)
+        # [1, Fuse, 1, D]
+        dx_reshape = dx_tokens.permute(0, 2, 1, 3).contiguous()
+        # [B, N, Fuse, D]
+        dx_flat = dx_reshape.reshape(B, N, Fuse * D)
+        # [B, N, Fuse*D]
+        dx_patch = dx_flat.transpose(1, 2).contiguous().view_as(x_patch)
+        # [B, Fuse*D, Hp, Wp]
+        dx_in, dpatchw, _ = conv_bwd( x_in, self.patch_embed.weight, grad_output=dx_patch,
+            stride=self.patch_embed.stride[0],  padding=self.patch_embed.padding[0], groups=Fuse )
+        if self.patch_embed.bias is not None:
+            dpatchb = dx_patch.sum(dim=(0, 2, 3))
+        else:
+            dpatchb = None
+        d_activates = {
+            "dx_head": dx_head,
+            "dx_norm": dx_norm,
+            "dx_patch": dx_patch,
+            "blocks": d_block_activates_list,
+        }
+        d_weights = {
+            "dpatchw": dpatchw,
+            "dpatchb": dpatchb,
+            "dcls_token": dcls_token,
+            "dpos_embed": dpos_embed,
+            "blocks": d_block_weights_list,
+            "dnormw": dnormw,
+            "dnormb": dnormb,
+            "dheadw": dheadw,
+            "dheadb": dheadb,
+        }
+        # 这个 list 用来做你后面的  weight_sum = [d.sum() for d in d_weights_list_all]
+        d_weights_list_all = []
+        # root parameters first
+        d_weights_list_all.append(dcls_token)
+        d_weights_list_all.append(dpos_embed)
+        # then child modules in assignment order
+        d_weights_list_all.append(dpatchw)
+        if dpatchb is not None:
+            d_weights_list_all.append(dpatchb)
+        # blocks
+        for block_grad_list in d_block_weights_all_list:
+            for g_blk in block_grad_list:
+                if g_blk is not None:
+                    d_weights_list_all.append(g_blk)
+        # norm, head
+        d_weights_list_all.append(dnormw)
+        d_weights_list_all.append(dnormb)
+        d_weights_list_all.append(dheadw)
+        if dheadb is not None:
+            d_weights_list_all.append(dheadb)
+        return dx_in, d_activates, d_weights, d_weights_list_all
+
+    def init_dd_weights(self):
+        return {
+            "ddpatchw": torch.ones_like(self.patch_embed.weight),
+            "ddpatchb": torch.ones_like(self.patch_embed.bias) if self.patch_embed.bias is not None else None,
+            "ddcls_token": torch.ones_like(self.cls_token),
+            "ddpos_embed": torch.ones_like(self.pos_embed),
+            "blocks": [
+                blk.init_dd_weights()
+                for blk in self.get_flat_blocks()
+            ],
+            "ddnormw": torch.ones_like(self.norm.weight),
+            "ddnormb": torch.ones_like(self.norm.bias),
+            "ddheadw": torch.ones_like(self.head.weight),
+            "ddheadb": torch.ones_like(self.head.bias) if self.head.bias is not None else None,
+        }
+
+    def _init_weights(self):
+        nn.init.trunc_normal_(self.cls_token, std=0.02)
+        nn.init.trunc_normal_(self.pos_embed, std=0.02)
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.trunc_normal_(m.weight, std=0.02)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out")
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, GroupedLayerNorm):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+
+    def run_double_bwd(
+        self,
+        tape,
+        d_activates,
+        dd_weights,
+        ddgrad_in=None,
+        Fuse=None):
+        """
+            ViT_Fused double backward stage.
+    `       沿着 first-bwd graph 反向传播 cotangent.并把 activation-level d2 contribution 写入 d_activates。
+            输入:
+                ddgrad_in:   cotangent wrt first-bwd output dx_in。
+                    如果 grand_loss 只来自参数梯度 sum，通常传 zeros_like(dx_in)。
+                dd_weights:  cotangent wrt first-bwd 产生的参数梯度。
+                    对于 grad_loss = sum(d.sum() for d in d_weights_list_all)，
+                    通常就是 init_dd_weights() 里面的 ones_like。
+            返回:
+            dd_dx_out:  cotangent wrt CE first-bwd output dx_out。 
+                后面 run_bwd2_1 里会传给 crossEntropy_double_bwd。
+            d_activates 会被补充:  "x_in_d2"     "x_norm_in_d2"     "x_cls_d2"     block 内部的 *_d2
+        """
+        if Fuse is None:
+            Fuse = self.Fuse
+        patch = tape["patch"]
+        head = tape["head"]
+        # block_tape = tape["block"]
+        block_tapes = tape["blocks"]
+        D = self.embed_dim
+        C = self.num_classes
+        N = self.num_patches
+        x_cls = head["x_cls"]
+        x_out = head["x_out"]
+        x_patch = patch["x_patch"]
+        B= x_cls.shape[0]
+        C = x_out.shape[-1]
+        N = x_patch.shape[-2] * x_patch.shape[-1]
+        x_in = patch["x_in"]
+        x_patch = patch["x_patch"]
+        x_pos = block_tapes[0]["x_in"]
+        x_norm_in = head["x_norm_in"]
+        x_cls = head["x_cls"]
+        x_out = head["x_out"]
+        dx_head = d_activates.pop("dx_head")
+        dx_norm = d_activates.pop("dx_norm")
+        dx_patch = d_activates.pop("dx_patch")
+        # d_block_activates = d_activates.pop("blocks")
+
+        if ddgrad_in is None:
+            ddgrad_in = torch.zeros_like(x_in)
+        assert ddgrad_in.shape == x_in.shape
+        assert dx_patch.shape == x_patch.shape
+        assert dx_head.shape == (B, Fuse, C)
+        def get_dd(*keys):
+            for k in keys:
+                if k in dd_weights:
+                    return dd_weights[k]
+            return None
+        # ==================================================
+        # 1. Double of patch_embed conv bwd
+        # first-bwd:
+        #   dx_in, dpatchw = conv_bwd(x_in, patch_weight, grad_output=dx_patch)
+        #   dpatchb = dx_patch.sum(...)
+        # double-bwd returns:
+        #   dd_dx_patch: cotangent wrt dx_patch
+        #   x_in_d2:     contribution wrt forward x_in
+        # ==================================================
+        ddpatchw = get_dd("ddpatchw", "dpatchw")
+        ddpatchb = get_dd("ddpatchb", "dpatchb")
+        dd_dx_patch, x_in_d2, _ = conv_double_bwd( ddgrad_in, ddpatchw, ddpatchb, dx_patch, self.patch_embed.weight,
+            x_in, stride_=list(self.patch_embed.stride), padding_=list(self.patch_embed.padding), groups_=Fuse,  )
+        d_activates["x_in_d2"] = x_in_d2
+        # ==================================================
+        # 2. Reverse patch reshape path
+        # first-bwd path:
+        #   dx_tokens -> dx_patch
+        # reverse cotangent:
+        #   dd_dx_patch -> dd_dx_tokens
+        # ==================================================
+        dd_dx_flat = dd_dx_patch.view(B, Fuse * D, N).transpose(1, 2).contiguous()
+        # [B, N, Fuse*D]
+        dd_dx_reshape = dd_dx_flat.reshape(B, N, Fuse, D)
+        # [B, N, Fuse, D]
+        dd_dx_tokens = dd_dx_reshape.permute(0, 2, 1, 3).contiguous()
+        # [B, Fuse, N, D]
+        # ==================================================
+        # 3. Reverse cat + pos gradients
+        #
+        # first-bwd:
+        #   dpos_embed = dx_pos.sum(dim=0)
+        #   dcls_token = dx_pos[:, :, 0:1, :].sum(dim=0)
+        #   dx_tokens  = dx_pos[:, :, 1:, :]
+        #
+        # So dd wrt dx_pos receives:
+        #   dd_dx_tokens at patch-token positions
+        #   ddcls_token broadcast to cls position
+        #   ddpos_embed broadcast to all positions
+        # ==================================================
+        dd_dx_pos = torch.zeros_like(x_pos)
+        dd_dx_pos[:, :, 1:, :] = dd_dx_pos[:, :, 1:, :] + dd_dx_tokens
+        ddcls_token = get_dd("ddcls_token", "dcls_token")
+        if ddcls_token is not None:
+            assert ddcls_token.shape == self.cls_token.shape
+            dd_dx_pos[:, :, 0:1, :] = dd_dx_pos[:, :, 0:1, :] + ddcls_token.expand(B, -1, -1, -1)
+
+        ddpos_embed = get_dd("ddpos_embed", "dpos_embed")
+        if ddpos_embed is not None:
+            assert ddpos_embed.shape == self.pos_embed.shape
+            dd_dx_pos = dd_dx_pos + ddpos_embed.expand(B, -1, -1, -1)
+
+        # ==================================================
+        # 4. Double of TransformerBlock bwd
+        #
+        # first-bwd:
+        #   dx_pos, d_block_weights = self.block.run_first_bwd(...)
+        #
+        # double-bwd:
+        #   dd_dx_pos -> dd_dx_block
+        # ==================================================
+        # dd_dx_block, d_block_activates = self.block.run_double_bwd(
+        #     tape=block_tape,
+        #     d_activates=d_block_activates,
+        #     dd_weights=dd_weights["block"],
+        #     ddgrad_in=dd_dx_pos,
+        #     Fuse=Fuse,
+        # )
+        flat_blocks = self.get_flat_blocks()
+        d_block_activates_list = d_activates.pop("blocks")
+        dd_block_weights_list = dd_weights["blocks"]
+        # double-bwd direction through first-bwd graph is forward block order.
+        dd_cur = dd_dx_pos
+        for i in range(len(flat_blocks)):
+            dd_cur, d_block_activates_list[i] = flat_blocks[i].run_double_bwd(
+                tape=block_tapes[i],
+                d_activates=d_block_activates_list[i],
+                dd_weights=dd_block_weights_list[i],
+                ddgrad_in=dd_cur,
+                Fuse=Fuse,
+            )
+        dd_dx_block = dd_cur
+        # d_activates["block"] = d_block_activates
+        # ==================================================
+        # 5. Double of final LayerNorm bwd
+        #
+        # first-bwd:
+        #   dx_block, dnormw, dnormb =
+        #       grouped_layernorm_backward(x_norm_in, norm.weight, grad_output=dx_norm)
+        #
+        # double-bwd:
+        #   dd_dx_block -> dd_dx_norm
+        #   also produces x_norm_in_d2 wrt forward block output
+        # ==================================================
+        x_norm_in_d2, _, dd_dx_norm = grouped_layernorm_double_bwd_fn(
+            x=x_norm_in,
+            weight=self.norm.weight,
+            ggX=dd_dx_block,
+            ggW=get_dd("ddnormw", "dnormw"),
+            ggB=get_dd("ddnormb", "dnormb"),
+            gO=dx_norm,
+            Fuse=Fuse,
+        )
+        d_activates["x_norm_in_d2"] = x_norm_in_d2
+        d_activates["blocks"] = d_block_activates_list
+        # ==================================================
+        # 6. Reverse cls slice
+        #
+        # first-bwd:
+        #   dx_norm[:, :, 0, :] = dx_cls
+        #
+        # only cls position flows back to dx_cls.
+        # non-cls positions in dd_dx_norm are discarded here.
+        # ==================================================
+        dd_dx_cls = dd_dx_norm[:, :, 0, :].contiguous()
+        # [B, Fuse, D]
+
+        # ==================================================
+        # 7. Double of head grouped linear bwd
+        #
+        # first-bwd:
+        #   dx_cls, dheadw, dheadb =
+        #       grouped_linear_bwd(x_cls, head.weight, grad_output=dx_head)
+        #
+        # double-bwd:
+        #   dd_dx_cls -> dd_dx_head
+        #   also produces x_cls_d2 wrt forward x_cls
+        # ==================================================
+        dd_dx_head, x_cls_d2, _ = grouped_linear_double_bwd(
+            x=x_cls,
+            w=self.head.weight,
+            grad_output=dx_head,
+            gg_grad_input=dd_dx_cls,
+            gg_grad_w=get_dd("ddheadw", "dheadw"),
+            gg_grad_b=get_dd("ddheadb", "dheadb"),
+            Fuse=Fuse,
+        )
+        d_activates["x_cls_d2"] = x_cls_d2
+        # ==================================================
+        # 8. Reverse head reshape
+        #
+        # first-bwd:
+        #   dx_head = dx_out.reshape(B, Fuse, C)
+        #
+        # reverse:
+        #   dd_dx_head -> dd_dx_out
+        # ==================================================
+        dd_dx_out = dd_dx_head.reshape(B * Fuse, C).contiguous()
+        assert dd_dx_out.shape == x_out.shape
+        # d_activates["dd_dx_out"] = dd_dx_out
+        return dd_dx_out, d_activates
+
+    def run_bwd2_1(
+        self,
+        tape,
+        d_activates,
+        dd_dx_out,
+        Fuse=None,
+    ):
+        """
+        ViT_Fused bwd2_1 stage.
+        这个函数重新跑一遍 ViT first-bwd，
+        但是在正确位置加回 run_double_bwd 产生的 activation-level d2。
+        输入: dd_dx_out: run_double_bwd 返回的 cotangent wrt CE first-bwd output dx_out。
+        返回:  dx_in: d grand_loss / d input。
+        """
+        if Fuse is None:
+            Fuse = self.Fuse
+
+        patch = tape["patch"]
+        head = tape["head"]
+        # block_tape = tape["block"]
+        D = self.embed_dim
+        C = self.num_classes
+        N = self.num_patches
+        x_in = patch["x_in"]
+        x_patch = patch["x_patch"]
+        x_norm_in = head["x_norm_in"]
+        x_cls = head["x_cls"]
+        B= x_cls.shape[0]
+        x_out = head["x_out"]
+        assert dd_dx_out.shape == x_out.shape
+
+        # ==================================================
+        # 1. CE double-bwd
+        #
+        # first-bwd:
+        #   dx_out = crossEntropy_bwd(x_out, target, Fuse=Fuse)
+        #
+        # double-bwd gives corrected grad wrt logits x_out.
+        # CE Hessian 不依赖 target，所以你的 crossEntropy_double_bwd
+        # 和 ResNet 里一样只需要 x_out, dd_dx_out, Fuse。
+        # ==================================================
+        dx_out_d1 = crossEntropy_double_bwd(
+            x_out,
+            dd_dx_out,
+            Fuse,
+        )
+        # [B*Fuse, C]
+        # forward:
+        #   x_out = x_head.reshape(B*Fuse, C)
+        dx_head = dx_out_d1.reshape(B, Fuse, C)
+        # [B, Fuse, C]
+        # ==================================================
+        # 2. head bwd
+        # ==================================================
+        dx_cls, _, _ = grouped_linear_bwd(
+            x_cls,
+            self.head.weight,
+            grad_output=dx_head,
+            Fuse=Fuse,
+        )
+        # [B, Fuse, D]
+        # Inject d2 wrt forward x_cls from head double-bwd.
+        x_cls_d2 = d_activates.pop("x_cls_d2")
+        assert x_cls_d2.shape == dx_cls.shape
+        dx_cls = dx_cls + x_cls_d2
+        # ==================================================
+        # 3. cls slice bwd
+        #
+        # forward:
+        #   x_cls = x_norm[:, :, 0]
+        # ==================================================
+        dx_norm = torch.zeros_like(x_norm_in)
+        dx_norm[:, :, 0, :] = dx_cls
+        # ==================================================
+        # 4. final LayerNorm bwd
+        # ==================================================
+        dx_block, _, _ = grouped_layernorm_backward(
+            x_norm_in,
+            self.norm.weight,
+            Fuse=Fuse,
+            grad_output=dx_norm,
+        )
+        # Inject d2 wrt forward x_norm_in, i.e. block output.
+        # x_norm_in_d2 = d_activates.get("x_norm_in_d2", None)
+        x_norm_in_d2 = d_activates.pop("x_norm_in_d2")
+        # d_block_activates = d_activates.pop("block")
+        assert x_norm_in_d2.shape == dx_block.shape
+        dx_block = dx_block + x_norm_in_d2
+        # ==================================================
+        # 5. TransformerBlock bwd2_1
+        # ==================================================
+        # dx_pos = self.block.run_bwd2_1(
+        #     tape=block_tape,
+        #     d_activates=d_block_activates,
+        #     grad_output=dx_block,
+        #     Fuse=Fuse,
+        # )
+        flat_blocks = self.get_flat_blocks()
+        block_tapes = tape["blocks"]
+        d_block_activates_list = d_activates.pop("blocks")
+
+        assert len(block_tapes) == len(flat_blocks)
+        assert len(d_block_activates_list) == len(flat_blocks)
+
+        # bwd2_1 follows normal backward direction: reverse block order.
+        g = dx_block
+
+        for i in reversed(range(len(flat_blocks))):
+            g = flat_blocks[i].run_bwd2_1(
+                tape=block_tapes[i],
+                d_activates=d_block_activates_list[i],
+                grad_output=g,
+                Fuse=Fuse,
+            )
+
+        dx_pos = g
+        # ==================================================
+        # 6. pos add + cat bwd
+        #
+        # forward:
+        #   x_pos = cat(cls_token_expand, x_tokens) + pos_embed
+        #
+        # For bwd2_1, no direct d2 injection here because add/cat/expand
+        # are linear. Their parameter cotangents were already propagated
+        # inside run_double_bwd through dd_dx_pos.
+        # ==================================================
+        dx_cat = dx_pos
+        dx_tokens = dx_cat[:, :, 1:, :]
+        # [B, Fuse, N, D]
+        # ==================================================
+        # 7. reverse patch token reshape
+        #
+        # forward:
+        #   x_patch:   [B, Fuse*D, Hp, Wp]
+        #   x_flat:    [B, N, Fuse*D]
+        #   x_reshape: [B, N, Fuse, D]
+        #   x_tokens:  [B, Fuse, N, D]
+        # ==================================================
+        dx_reshape = dx_tokens.permute(0, 2, 1, 3).contiguous()
+        # [B, N, Fuse, D]
+        dx_flat = dx_reshape.reshape(B, N, Fuse * D)
+        # [B, N, Fuse*D]
+        dx_patch = dx_flat.transpose(1, 2).contiguous().view_as(x_patch)
+        # [B, Fuse*D, Hp, Wp]
+        # ==================================================
+        # 8. patch_embed conv bwd
+        # ==================================================
+        dx_in, _, _ = conv_bwd( x_in, self.patch_embed.weight, grad_output=dx_patch,
+            stride=self.patch_embed. stride[0], padding=self.patch_embed.padding[0],groups=Fuse )
+        # Inject d2 wrt forward input x_in from patch conv double-bwd.
+        x_in_d2 = d_activates.pop("x_in_d2")
+        assert x_in_d2.shape == dx_in.shape
+        dx_in = dx_in + x_in_d2
+        return dx_in
+
+
+
+    def pack_recovered_dd(self, dd_tensors_all):
+        """
+        Parse flat recovered dd tensors into the dd_weights dict expected by
+        ViT_Fused.run_double_bwd.
+
+        This assumes dd_tensors_all has the same order as d_weights_list_all:
+
+            cls_token, pos_embed,
+            patch_embed.weight, patch_embed.bias,
+            blocks...
+            norm.weight, norm.bias,
+            head.weight, head.bias
+        """
+        ptr = 0
+
+        ddcls_token = dd_tensors_all[ptr]
+        ptr += 1
+
+        ddpos_embed = dd_tensors_all[ptr]
+        ptr += 1
+
+        ddpatchw = dd_tensors_all[ptr]
+        ptr += 1
+
+        if self.patch_embed.bias is not None:
+            ddpatchb = dd_tensors_all[ptr]
+            ptr += 1
+        else:
+            ddpatchb = None
+
+        dd_blocks = []
+        for blk in self.get_flat_blocks():
+            dd_blk = {}
+
+            dd_blk["ddnorm1w"] = dd_tensors_all[ptr]
+            ptr += 1
+            dd_blk["ddnorm1b"] = dd_tensors_all[ptr]
+            ptr += 1
+
+            dd_blk["attn"] = {}
+            dd_blk["attn"]["ddqkvw"] = dd_tensors_all[ptr]
+            ptr += 1
+
+            if blk.attn.qkv.bias is not None:
+                dd_blk["attn"]["ddqkvb"] = dd_tensors_all[ptr]
+                ptr += 1
+            else:
+                dd_blk["attn"]["ddqkvb"] = None
+
+            dd_blk["attn"]["ddoutprojw"] = dd_tensors_all[ptr]
+            ptr += 1
+
+            if blk.attn.out_proj.bias is not None:
+                dd_blk["attn"]["ddoutprojb"] = dd_tensors_all[ptr]
+                ptr += 1
+            else:
+                dd_blk["attn"]["ddoutprojb"] = None
+
+            dd_blk["ddnorm2w"] = dd_tensors_all[ptr]
+            ptr += 1
+            dd_blk["ddnorm2b"] = dd_tensors_all[ptr]
+            ptr += 1
+
+            dd_blk["ddfc1w"] = dd_tensors_all[ptr]
+            ptr += 1
+
+            if blk.fc1.bias is not None:
+                dd_blk["ddfc1b"] = dd_tensors_all[ptr]
+                ptr += 1
+            else:
+                dd_blk["ddfc1b"] = None
+
+            dd_blk["ddfc2w"] = dd_tensors_all[ptr]
+            ptr += 1
+
+            if blk.fc2.bias is not None:
+                dd_blk["ddfc2b"] = dd_tensors_all[ptr]
+                ptr += 1
+            else:
+                dd_blk["ddfc2b"] = None
+
+            dd_blocks.append(dd_blk)
+
+        ddnormw = dd_tensors_all[ptr]
+        ptr += 1
+        ddnormb = dd_tensors_all[ptr]
+        ptr += 1
+
+        ddheadw = dd_tensors_all[ptr]
+        ptr += 1
+
+        if self.head.bias is not None:
+            ddheadb = dd_tensors_all[ptr]
+            ptr += 1
+        else:
+            ddheadb = None
+
+        assert ptr == len(dd_tensors_all), (
+            f"ViT dd tensor parse mismatch: used {ptr}, total={len(dd_tensors_all)}"
+        )
+
+        return {
+            "ddcls_token": ddcls_token,
+            "ddpos_embed": ddpos_embed,
+
+            "ddpatchw": ddpatchw,
+            "ddpatchb": ddpatchb,
+
+            "blocks": dd_blocks,
+
+            "ddnormw": ddnormw,
+            "ddnormb": ddnormb,
+
+            "ddheadw": ddheadw,
+            "ddheadb": ddheadb,
+        }

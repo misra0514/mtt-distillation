@@ -18,10 +18,11 @@ import random
 import numpy as np
 import os
 from typing import Optional, Sequence, Tuple
-from networks.networks_basicblock_fused3 import instance_norm_backward_triton, instanceNorm_backward_plain
+from networks.networks_basicblock_tritonwrapper import instance_norm_backward_triton, instanceNorm_backward_plain
 # from networks_fused2 import instance_norm_backward_triton
-from networks.networks_basicblock_fused3 import instanceNorm_double_backwards_triton
-from networks.networks_basicblock_fused3 import instanceNorm_backward ,instanceNorm_double_backwards_fn, instance_norm_backward_triton,instanceNorm_double_backwards_triton
+from networks.networks_basicblock_tritonwrapper import instanceNorm_double_backwards_triton
+from networks.networks_basicblock_tritonwrapper import instanceNorm_backward ,instanceNorm_double_backwards_fn,\
+     instance_norm_backward_triton,instanceNorm_double_backwards_plain, gelu_drop_double_grad_triton,gelu_drop_grad_triton
 
 
 #########################
@@ -29,8 +30,11 @@ from networks.networks_basicblock_fused3 import instanceNorm_backward ,instanceN
 #########################
 
 
-def insNormNRelu_bwd( x, weight, output, grad_output):
-    grad_x, grad_weight, grad_bias = instance_norm_backward_triton(x, weight, grad_output, output)
+def insNormNRelu_bwd( x, weight, output, grad_output, v_fuse = True):
+    if(v_fuse):
+        grad_x, grad_weight, grad_bias = instance_norm_backward_triton(x, weight, grad_output, output)
+    else:
+        grad_x, grad_weight, grad_bias =  instanceNorm_backward_plain(x, weight, grad_output, output)
     return grad_x, grad_weight, grad_bias
 
 
@@ -321,9 +325,14 @@ def avgPool_double_bwd(
 
 
 
-def insNormNRelu_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x):
-    gx, gw, ggO = instanceNorm_double_backwards_triton(x=x, gamma=weight, ggX=ggI, ggG=ggw, ggB=ggb, gO= grad_output,out= output,eps= 1e-5)
-    ggO = ggO.view_as(grad_output)
+def insNormNRelu_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse=True):
+    if v_fuse:
+        gx, gw, ggO = instanceNorm_double_backwards_triton(x=x, gamma=weight, ggX=ggI, ggG=ggw, ggB=ggb, gO= grad_output,out= output,eps= 1e-5)
+        ggO = ggO.view_as(grad_output)
+    else:
+        # gx, gw, ggO = instanceNorm_double_backwards_triton(x=x, gamma=weight, ggX=ggI, ggG=ggw, ggB=ggb, gO= grad_output,out= output,eps= 1e-5)
+        gx, gw, ggO = instanceNorm_double_backwards_plain(x=x, gamma=weight, ggX=ggI, ggG=ggw, ggB=ggb, gO= grad_output,out= output,eps= 1e-5)
+        ggO = ggO.view_as(grad_output)
     # gG是d_gamma , 也就是weight。
     return ggO, gx, gw
 
@@ -984,3 +993,140 @@ def sdpa_no_mask_no_dropout_double_bwd(
         bar_scores.transpose(-2, -1), q
     ) * scale
     return gQ, gK, gV, ggO
+
+
+
+
+
+
+def _to_float_p(p):
+    # p 需要是 Python float，native_dropout 不适合直接传 Tensor
+    if isinstance(p, torch.Tensor):
+        p_float = float(p.detach().item())
+    else:
+        p_float = float(p)
+
+    # 数值安全：避免 p >= 1 导致除 0
+    p_clamped = min(max(p_float, 0.0), 1.0 - 1e-6)
+    return p_clamped
+
+
+def dropout_fwd(x, p,training =True):
+    p_clamped = _to_float_p(p)
+    keep_prob = 1.0 - p_clamped
+
+    if p_clamped <= 0.0:
+        out = x
+        m = torch.ones_like(x)
+    else:
+        # native_dropout returns:
+        # out  = x * mask / (1 - p)
+        # mask = bool mask, not scaled
+        out, mask = torch.ops.aten.native_dropout(x, p_clamped, True)
+        m = mask.to(dtype=x.dtype) / keep_prob
+    return out, m
+
+
+def dropout_bwd(dout, m):
+    dx = dout * m
+    return dx
+
+def dropout_double_bwd(ddx, m):
+    ddout = ddx * m
+    return ddout
+
+
+def geluDropout_fwd(x, p, training=True):
+    p_clamped = _to_float_p(p)
+    keep_prob = 1.0 - p_clamped
+    if p_clamped <= 0.0:
+        out = F.gelu(x)
+        mask = torch.ones_like(x, dtype=torch.bool)
+    else:
+        gelu_x = F.gelu(x)
+        out, mask = torch.ops.aten.native_dropout(gelu_x, p_clamped, True)
+    return out, mask
+
+
+def geluDropout_bwd( x, mask, dout, out=None,v_fuse=False,):
+    if v_fuse:
+        dx = gelu_drop_grad_triton( gY=dout, x=x, m=mask, out=out,)
+    else:
+        # y = dropout(gelu(x))
+        # dgelu_out = dout * mask
+        dgelu_out = dropout_bwd( dout, mask )
+        # dx = dgelu_out * gelu'(x)
+        dx = gelu_bwd( x, dgelu_out, )
+    return dx
+
+def geluDropout_double_bwd(
+    x,
+    mask,
+    dout,
+    ddx,
+    out_dd_dout=None,
+    out_x_d2=None,
+    v_fuse=False,
+):
+    """
+    Double backward for fused:
+        y = dropout(gelu(x)) = gelu(x) * mask
+
+    First backward:
+        dx = dout * mask * gelu'(x)
+
+    Given:
+        ddx = cotangent wrt dx
+
+    Return:
+        x_d2:
+            contribution wrt forward input x:
+                ddx * dout * mask * gelu''(x)
+
+        dd_dout:
+            cotangent wrt first-bwd input dout:
+                ddx * mask * gelu'(x)
+
+    These names match usage in TransformerBlock:
+        x_d2    -> add to dx_fc1 in bwd2_1
+        dd_dout -> pass backward to fc2 double-bwd as cotangent wrt dx_dp1
+    """
+    if ddx is None:
+        return None, None
+
+    if v_fuse:
+        # Your Triton function returns:
+        #   ggY  = ddx * mask * gelu'(x)        wrt dout
+        #   ggx  = ddx * dout * mask * gelu''   wrt x
+        dd_dout, x_d2 = gelu_drop_double_grad_triton(
+            ggX=ddx,
+            gY=dout,
+            x=x,
+            m=mask,
+            out_ggY=out_dd_dout,
+            out_ggx=out_x_d2,
+        )
+    else:
+        dz = dropout_bwd(
+            dout,
+            mask,
+        )
+
+        # Double of GELU backward:
+        #   x_d2  = ddx * dz * gelu''(x)
+        #   dd_dz = ddx * gelu'(x)
+        x_d2, dd_dz = gelu_double_bwd(
+            x=x,
+            grad_output=dz,
+            gg_grad_input=ddx,
+        )
+
+        # Double of dropout backward:
+        #   dz = dout * mask
+        #   dd_dout = dd_dz * mask
+        dd_dout = dropout_double_bwd(
+            dd_dz,
+            mask,
+        )
+
+    return x_d2, dd_dout

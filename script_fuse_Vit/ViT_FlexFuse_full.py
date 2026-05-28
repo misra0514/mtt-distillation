@@ -1,5 +1,4 @@
-# 5.3 尝试写一个Forward 可以fuse 的code。 目前先对照原版和fused（autograd）
-# 5.8 加入manuel bwd
+# 5.22: 已经核对了正确性。现在需要写成正式的，有嵌套多个TransformerBlock_Fused的结构
 
 
 import torch 
@@ -63,7 +62,6 @@ def grouped_layernorm_backward(
     dx, _, _ = torch.ops.aten.native_layer_norm_backward.default( dz, x, normalized_shape, mean, rstd, None, None, [True, False, False] )
     # dx, dweight, dbias = torch.ops.aten.native_layer_norm_backward.default( grad_output, x, normalized_shape, mean, rstd, weight, None, [True, True, True] )
     return dx, dweight, dbias
-
 
 def grouped_linear_bwd(x, w, grad_output, Fuse =2 ):
     in_features = w.shape[1]
@@ -498,6 +496,7 @@ def gelu_double_bwd(
     return dx, dgrad_output
 
 
+
 def sdpa_no_mask_no_dropout_double_bwd(
     q,
     k,
@@ -907,25 +906,292 @@ class MultiHeadSelfAttention_Fused(nn.Module):
 
 
 
+# class MLPResidual_Fused(nn.Module):
+#     def __init__(self, embed_dim, hidden_dim, Fuse=1):
+#         super().__init__()
+#         self.Fuse = Fuse
+#         self.embed_dim = embed_dim
+#         self.hidden_dim = hidden_dim
+
+#         self.norm = GroupedLayerNorm(embed_dim, Fuse)
+#         self.fc1 = GroupedLinear(embed_dim, hidden_dim, Fuse)
+#         self.act = nn.GELU()
+#         self.fc2 = GroupedLinear(hidden_dim, embed_dim, Fuse)
+
+#     def forward(self, x):
+#         """
+#         x: [B, Fuse, N, C]
+#         return: [B, Fuse, N, C], tape
+#         """
+#         x_in = x
+
+#         x_norm = self.norm(x_in)
+#         x_fc1 = self.fc1(x_norm)
+#         x_gelu = self.act(x_fc1)
+#         x_fc2 = self.fc2(x_gelu)
+
+#         x_out = x_in + x_fc2
+
+#         tape = {
+#             "x_in": x_in,
+#             "x_norm": x_norm,
+#             "x_fc1": x_fc1,
+#             "x_gelu": x_gelu,
+#         }
+
+#         return x_out, tape
+
+#     def run_first_bwd(self, tape, grad_output, Fuse=None):
+#         if Fuse is None:
+#             Fuse = self.Fuse
+
+#         x_in = tape["x_in"]
+#         x_norm = tape["x_norm"]
+#         x_fc1 = tape["x_fc1"]
+#         x_gelu = tape["x_gelu"]
+
+#         # x_out = x_in + x_fc2
+#         dx_in_skip = grad_output
+#         dx_fc2 = grad_output
+
+#         # x_fc2 = fc2(x_gelu)
+#         dx_gelu, dfc2w, dfc2b = grouped_linear_bwd(
+#             x_gelu,
+#             self.fc2.weight,
+#             grad_output=dx_fc2,
+#             Fuse=Fuse,
+#         )
+
+#         # x_gelu = gelu(x_fc1)
+#         dx_fc1 = gelu_bwd(x_fc1, dx_gelu)
+
+#         # x_fc1 = fc1(x_norm)
+#         dx_norm, dfc1w, dfc1b = grouped_linear_bwd(
+#             x_norm,
+#             self.fc1.weight,
+#             grad_output=dx_fc1,
+#             Fuse=Fuse,
+#         )
+
+#         # x_norm = norm(x_in)
+#         dx_in_from_norm, dnormw, dnormb = grouped_layernorm_backward(
+#             x_in,
+#             self.norm.weight,
+#             Fuse=Fuse,
+#             grad_output=dx_norm,
+#         )
+
+#         dx_in = dx_in_skip + dx_in_from_norm
+
+#         d_activates = {
+#             "dx_fc2": dx_fc2,
+#             "dx_gelu": dx_gelu,
+#             "dx_fc1": dx_fc1,
+#             "dx_norm": dx_norm,
+#         }
+
+#         d_weights = {
+#             "dnormw": dnormw,
+#             "dnormb": dnormb,
+#             "dfc1w": dfc1w,
+#             "dfc1b": dfc1b,
+#             "dfc2w": dfc2w,
+#             "dfc2b": dfc2b,
+#         }
+
+#         d_weights_all = [
+#             dnormw,
+#             dnormb,
+#             dfc1w,
+#             dfc1b,
+#             dfc2w,
+#             dfc2b,
+#         ]
+
+#         return dx_in, d_activates, d_weights, d_weights_all
+
+#     def run_double_bwd(
+#         self,
+#         tape,
+#         d_activates,
+#         dd_weights,
+#         ddgrad_in=None,
+#         Fuse=None,
+#     ):
+#         if Fuse is None:
+#             Fuse = self.Fuse
+
+#         x_in = tape["x_in"]
+#         x_norm = tape["x_norm"]
+#         x_fc1 = tape["x_fc1"]
+#         x_gelu = tape["x_gelu"]
+
+#         dx_norm = d_activates.pop("dx_norm")
+#         dx_fc1 = d_activates.pop("dx_fc1")
+#         dx_gelu = d_activates.pop("dx_gelu")
+#         dx_fc2 = d_activates.pop("dx_fc2")
+#         d_activates.clear()
+
+#         if ddgrad_in is None:
+#             ddgrad_in = torch.zeros_like(x_in)
+
+#         # first-bwd:
+#         #   dx_in = dx_in_skip + dx_in_from_norm
+#         dd_dx_in_skip = ddgrad_in
+#         dd_dx_in_from_norm = ddgrad_in
+
+#         # norm double-bwd
+#         x_in_d2, _, dd_dx_norm = grouped_layernorm_double_bwd_fn(
+#             x=x_in,
+#             weight=self.norm.weight,
+#             ggX=dd_dx_in_from_norm,
+#             ggW=dd_weights.get("ddnormw", None),
+#             ggB=dd_weights.get("ddnormb", None),
+#             gO=dx_norm,
+#             Fuse=Fuse,
+#         )
+
+#         # fc1 double-bwd
+#         dd_dx_fc1, x_norm_d2, _ = grouped_linear_double_bwd(
+#             x=x_norm,
+#             w=self.fc1.weight,
+#             grad_output=dx_fc1,
+#             gg_grad_input=dd_dx_norm,
+#             gg_grad_w=dd_weights.get("ddfc1w", None),
+#             gg_grad_b=dd_weights.get("ddfc1b", None),
+#             Fuse=Fuse,
+#         )
+
+#         # gelu double-bwd
+#         x_fc1_d2, dd_dx_gelu = gelu_double_bwd(
+#             x=x_fc1,
+#             grad_output=dx_gelu,
+#             gg_grad_input=dd_dx_fc1,
+#         )
+
+#         # fc2 double-bwd
+#         dd_dx_fc2, x_gelu_d2, _ = grouped_linear_double_bwd(
+#             x=x_gelu,
+#             w=self.fc2.weight,
+#             grad_output=dx_fc2,
+#             gg_grad_input=dd_dx_gelu,
+#             gg_grad_w=dd_weights.get("ddfc2w", None),
+#             gg_grad_b=dd_weights.get("ddfc2b", None),
+#             Fuse=Fuse,
+#         )
+
+#         # first-bwd:
+#         #   dx_in_skip = grad_output
+#         #   dx_fc2     = grad_output
+#         dd_grad_output = dd_dx_in_skip + dd_dx_fc2
+
+#         d_activates["x_in_d2"] = x_in_d2
+#         d_activates["x_norm_d2"] = x_norm_d2
+#         d_activates["x_fc1_d2"] = x_fc1_d2
+#         d_activates["x_gelu_d2"] = x_gelu_d2
+
+#         return dd_grad_output, d_activates
+
+#     def run_bwd2_1(self, tape, d_activates, grad_output, Fuse=None):
+#         if Fuse is None:
+#             Fuse = self.Fuse
+
+#         x_in = tape["x_in"]
+#         x_norm = tape["x_norm"]
+#         x_fc1 = tape["x_fc1"]
+#         x_gelu = tape["x_gelu"]
+
+#         # x_out = x_in + x_fc2
+#         dx_in_skip = grad_output
+#         dx_fc2 = grad_output
+
+#         # fc2 bwd
+#         dx_gelu, _, _ = grouped_linear_bwd(
+#             x_gelu,
+#             self.fc2.weight,
+#             grad_output=dx_fc2,
+#             Fuse=Fuse,
+#         )
+
+#         x_gelu_d2 = d_activates.pop("x_gelu_d2")
+#         assert x_gelu_d2.shape == dx_gelu.shape
+#         dx_gelu = dx_gelu + x_gelu_d2
+
+#         # gelu bwd
+#         dx_fc1 = gelu_bwd(x_fc1, dx_gelu)
+
+#         x_fc1_d2 = d_activates.pop("x_fc1_d2")
+#         assert x_fc1_d2.shape == dx_fc1.shape
+#         dx_fc1 = dx_fc1 + x_fc1_d2
+
+#         # fc1 bwd
+#         dx_norm, _, _ = grouped_linear_bwd(
+#             x_norm,
+#             self.fc1.weight,
+#             grad_output=dx_fc1,
+#             Fuse=Fuse,
+#         )
+
+#         x_norm_d2 = d_activates.pop("x_norm_d2")
+#         assert x_norm_d2.shape == dx_norm.shape
+#         dx_norm = dx_norm + x_norm_d2
+
+#         # norm bwd
+#         dx_in_from_norm, _, _ = grouped_layernorm_backward(
+#             x_in,
+#             self.norm.weight,
+#             Fuse=Fuse,
+#             grad_output=dx_norm,
+#         )
+
+#         dx_in = dx_in_skip + dx_in_from_norm
+
+#         x_in_d2 = d_activates.pop("x_in_d2")
+#         d_activates.clear()
+
+#         assert x_in_d2.shape == dx_in.shape
+#         dx_in = dx_in + x_in_d2
+
+#         return dx_in
+
+#     def init_dd_weights(self):
+#         return {
+#             "ddnormw": torch.ones_like(self.norm.weight),
+#             "ddnormb": torch.ones_like(self.norm.bias),
+#             "ddfc1w": torch.ones_like(self.fc1.weight),
+#             "ddfc1b": torch.ones_like(self.fc1.bias),
+#             "ddfc2w": torch.ones_like(self.fc2.weight),
+#             "ddfc2b": torch.ones_like(self.fc2.bias),
+#         }
+
+
 class TransformerBlock_Fused(nn.Module):
-    def __init__(self, embed_dim, num_heads, mlp_ratio=4.0, dropout=0.0, Fuse=1):
+    def __init__(
+        self,
+        emb_size=128,
+        heads=4,
+        mlp_dim=256,
+        dropout=0.0,
+        Fuse=1,
+    ):
         super().__init__()
         self.Fuse = Fuse
-        self.embed_dim = embed_dim
-
-        self.norm1 = GroupedLayerNorm(embed_dim, Fuse)
+        self.embed_dim = emb_size
+        self.emb_size = emb_size
+        self.heads = heads
+        self.mlp_dim = mlp_dim
+        self.dropout = dropout
+        self.norm1 = GroupedLayerNorm(emb_size, Fuse)
         self.attn = MultiHeadSelfAttention_Fused(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
+            embed_dim=emb_size,
+            num_heads=heads,
             dropout=dropout,
             Fuse=Fuse,
         )
-
-        self.norm2 = GroupedLayerNorm(embed_dim, Fuse)
-        hidden_dim = int(embed_dim * mlp_ratio)
-        self.fc1 = GroupedLinear(embed_dim, hidden_dim, Fuse)
+        self.norm2 = GroupedLayerNorm(emb_size, Fuse)
+        self.fc1 = GroupedLinear(emb_size, mlp_dim, Fuse)
         self.act = nn.GELU()
-        self.fc2 = GroupedLinear(hidden_dim, embed_dim, Fuse)
+        self.fc2 = GroupedLinear(mlp_dim, emb_size, Fuse)
 
     def forward(self, x):
         tape = {}
@@ -1465,33 +1731,69 @@ class TransformerBlock_Fused(nn.Module):
 
 
 class ViT_Fused(nn.Module):
-    def __init__( self, image_size=32, patch_size=4, in_channels=3, num_classes=10, embed_dim=128, num_heads=4, mlp_ratio=4.0, dropout=0.0, Fuse=1,
+    def __init__(
+        self,
+        img_size=32,
+        patch_size=4,
+        in_channels=3,
+        num_classes=10,
+        emb_size=128,
+        depth=6,
+        heads=4,
+        mlp_dim=256,
+        dropout=0.0,
+        Fuse=1,
     ):
         super().__init__()
+
         self.Fuse = Fuse
         self.in_channels = in_channels
         self.num_classes = num_classes
-        self.embed_dim = embed_dim
-        assert image_size % patch_size == 0
-        self.image_size = image_size
+
+        # 保留旧名字，避免你后面的 bwd 代码要大改
+        self.embed_dim = emb_size
+        self.emb_size = emb_size
+
+        assert img_size % patch_size == 0
+        self.image_size = img_size
+        self.img_size = img_size
         self.patch_size = patch_size
-        self.num_patches = (image_size // patch_size) ** 2
-        self.patch_embed = nn.Conv2d( in_channels=in_channels * Fuse, out_channels=embed_dim * Fuse,  kernel_size=patch_size, stride=patch_size, groups=Fuse, )
-        self.cls_token = nn.Parameter(torch.zeros(1, Fuse, 1, embed_dim))
-        self.pos_embed = nn.Parameter(torch.zeros(1, Fuse, self.num_patches + 1, embed_dim))
-        self.block = TransformerBlock_Fused( embed_dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, dropout=dropout, Fuse= Fuse )
-        # 注意：如果 forward 里面的 shape 是 [B, Fuse, N, D]，
-        # 那么 LayerNorm 应该是 embed_dim，而不是 embed_dim * Fuse。
-        self.norm = GroupedLayerNorm(embed_dim,Fuse)
-        # self.head = LinearStacked_2(embed_dim, num_classes, Fuse)
-        self.head = GroupedLinear(embed_dim, num_classes, Fuse)
+        self.num_patches = (img_size // patch_size) ** 2
+
+        self.patch_embed = nn.Conv2d(
+            in_channels=in_channels * Fuse,
+            out_channels=emb_size * Fuse,
+            kernel_size=patch_size,
+            stride=patch_size,
+            groups=Fuse,
+        )
+
+        self.cls_token = nn.Parameter(torch.zeros(1, Fuse, 1, emb_size))
+        self.pos_embed = nn.Parameter(torch.zeros(1, Fuse, self.num_patches + 1, emb_size))
+
+        self.blocks = nn.ModuleList([
+            TransformerBlock_Fused(
+                emb_size=emb_size,
+                heads=heads,
+                mlp_dim=mlp_dim,
+                dropout=dropout,
+                Fuse=Fuse,
+            )
+            for _ in range(depth)
+        ])
+
+        self.norm = GroupedLayerNorm(emb_size, Fuse)
+        self.head = GroupedLinear(emb_size, num_classes, Fuse)
+
         self._init_weights()
 
+    def get_flat_blocks(self):
+        return list(self.blocks)
     def forward(self, x):
         Fuse = self.Fuse
         B = x.shape[0]
         D = self.embed_dim
-        tape = {  "patch": {},  "block": None,  "head": {},}
+        tape = {  "patch": {},  "blocks": [],  "head": {},}
         x_in = x
         # [B, C*Fuse, H, W]
         x_patch = self.patch_embed(x_in)
@@ -1512,10 +1814,15 @@ class ViT_Fused(nn.Module):
         # [B, Fuse, N+1, D]
         x_pos = x_cat + self.pos_embed
         # [B, Fuse, N+1, D]
-        x_block, block_tape = self.block(x_pos)
-        tape["block"] = block_tape
+        # x_block, block_tape = self.block(x_pos)
+        # tape["block"] = block_tape
+        h = x_pos
+        for blk in self.blocks:
+            h, block_tape = blk(h)
+            tape["blocks"].append(block_tape)
+        x_norm_in = h
         # [B, Fuse, N+1, D]
-        x_norm_in = x_block
+        # x_norm_in = x_block
         x_norm = self.norm(x_norm_in)
         # [B, Fuse, N+1, D]
         x_cls = x_norm[:, :, 0]
@@ -1539,7 +1846,8 @@ class ViT_Fused(nn.Module):
             Fuse = self.Fuse
         patch = tape["patch"]
         head = tape["head"]
-        block_tape = tape["block"]
+        # block_tape = tape["block"]
+        block_tapes = tape["blocks"]
         x_cls = head["x_cls"]
         x_out = head["x_out"]
         x_patch = patch["x_patch"]
@@ -1570,7 +1878,23 @@ class ViT_Fused(nn.Module):
         dx_norm[:, :, 0, :] = dx_cls # [B, Fuse, N+1, D]
         dx_block, dnormw, dnormb = grouped_layernorm_backward( x_norm_in, self.norm.weight, grad_output=dx_norm, Fuse=Fuse )
         # dx_block: [B, Fuse, N+1, D]
-        dx_pos, d_block_activates, d_block_weights, d_block_weights_all = self.block.run_first_bwd( block_tape, grad_output=dx_block, Fuse=Fuse )
+        # dx_pos, d_block_activates, d_block_weights, d_block_weights_all = self.block.run_first_bwd( block_tape, grad_output=dx_block, Fuse=Fuse )
+        flat_blocks = self.get_flat_blocks()
+        d_block_activates_list = [None] * len(flat_blocks)
+        d_block_weights_list = [None] * len(flat_blocks)
+        d_block_weights_all_list = [None] * len(flat_blocks)
+        g = dx_block
+        for i in reversed(range(len(flat_blocks))):
+            g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+                tape=block_tapes[i],
+                grad_output=g,
+                Fuse=Fuse,
+            )
+            d_block_activates_list[i] = d_act_i
+            d_block_weights_list[i] = d_w_i
+            d_block_weights_all_list[i] = d_w_all_i
+        dx_pos = g
+        
         # dx_pos: [B, Fuse, N+1, D]
         # forward: x_pos = x_cat + self.pos_embed
         # self.pos_embed: [1, Fuse, N+1, D]
@@ -1601,14 +1925,14 @@ class ViT_Fused(nn.Module):
             "dx_head": dx_head,
             "dx_norm": dx_norm,
             "dx_patch": dx_patch,
-            "block": d_block_activates,
+            "blocks": d_block_activates_list,
         }
         d_weights = {
             "dpatchw": dpatchw,
             "dpatchb": dpatchb,
             "dcls_token": dcls_token,
             "dpos_embed": dpos_embed,
-            "block": d_block_weights,
+            "blocks": d_block_weights_list,
             "dnormw": dnormw,
             "dnormb": dnormb,
             "dheadw": dheadw,
@@ -1616,15 +1940,19 @@ class ViT_Fused(nn.Module):
         }
         # 这个 list 用来做你后面的  weight_sum = [d.sum() for d in d_weights_list_all]
         d_weights_list_all = []
-        # 注意顺序最好和 model.parameters() 尽量一致： patch_embed, cls_token, pos_embed, block, norm, head
+        # root parameters first
+        d_weights_list_all.append(dcls_token)
+        d_weights_list_all.append(dpos_embed)
+        # then child modules in assignment order
         d_weights_list_all.append(dpatchw)
         if dpatchb is not None:
             d_weights_list_all.append(dpatchb)
-        d_weights_list_all.append(dcls_token)
-        d_weights_list_all.append(dpos_embed)
-        for g in d_block_weights_all:
-            if g is not None:
-                d_weights_list_all.append(g)
+        # blocks
+        for block_grad_list in d_block_weights_all_list:
+            for g_blk in block_grad_list:
+                if g_blk is not None:
+                    d_weights_list_all.append(g_blk)
+        # norm, head
         d_weights_list_all.append(dnormw)
         d_weights_list_all.append(dnormb)
         d_weights_list_all.append(dheadw)
@@ -1633,19 +1961,15 @@ class ViT_Fused(nn.Module):
         return dx_in, d_activates, d_weights, d_weights_list_all
 
     def init_dd_weights(self):
-        """
-        用于:
-            grad_loss = sum(d.sum() for d in d_weights_list_all)
-
-        所以每个一阶参数梯度的 cotangent 都是 ones_like。
-        """
         return {
             "ddpatchw": torch.ones_like(self.patch_embed.weight),
             "ddpatchb": torch.ones_like(self.patch_embed.bias) if self.patch_embed.bias is not None else None,
             "ddcls_token": torch.ones_like(self.cls_token),
             "ddpos_embed": torch.ones_like(self.pos_embed),
-            # 这里要求 TransformerBlock_Fused 里面也有 init_dd_weights()
-            "block": self.block.init_dd_weights(),
+            "blocks": [
+                blk.init_dd_weights()
+                for blk in self.get_flat_blocks()
+            ],
             "ddnormw": torch.ones_like(self.norm.weight),
             "ddnormb": torch.ones_like(self.norm.bias),
             "ddheadw": torch.ones_like(self.head.weight),
@@ -1694,7 +2018,8 @@ class ViT_Fused(nn.Module):
             Fuse = self.Fuse
         patch = tape["patch"]
         head = tape["head"]
-        block_tape = tape["block"]
+        # block_tape = tape["block"]
+        block_tapes = tape["blocks"]
         D = self.embed_dim
         C = self.num_classes
         N = self.num_patches
@@ -1706,14 +2031,14 @@ class ViT_Fused(nn.Module):
         N = x_patch.shape[-2] * x_patch.shape[-1]
         x_in = patch["x_in"]
         x_patch = patch["x_patch"]
-        x_pos = block_tape["x_in"]
+        x_pos = block_tapes[0]["x_in"]
         x_norm_in = head["x_norm_in"]
         x_cls = head["x_cls"]
         x_out = head["x_out"]
         dx_head = d_activates.pop("dx_head")
         dx_norm = d_activates.pop("dx_norm")
         dx_patch = d_activates.pop("dx_patch")
-        d_block_activates = d_activates.pop("block")
+        # d_block_activates = d_activates.pop("blocks")
 
         if ddgrad_in is None:
             ddgrad_in = torch.zeros_like(x_in)
@@ -1786,14 +2111,28 @@ class ViT_Fused(nn.Module):
         # double-bwd:
         #   dd_dx_pos -> dd_dx_block
         # ==================================================
-        dd_dx_block, d_block_activates = self.block.run_double_bwd(
-            tape=block_tape,
-            d_activates=d_block_activates,
-            dd_weights=dd_weights["block"],
-            ddgrad_in=dd_dx_pos,
-            Fuse=Fuse,
-        )
-        d_activates["block"] = d_block_activates
+        # dd_dx_block, d_block_activates = self.block.run_double_bwd(
+        #     tape=block_tape,
+        #     d_activates=d_block_activates,
+        #     dd_weights=dd_weights["block"],
+        #     ddgrad_in=dd_dx_pos,
+        #     Fuse=Fuse,
+        # )
+        flat_blocks = self.get_flat_blocks()
+        d_block_activates_list = d_activates.pop("blocks")
+        dd_block_weights_list = dd_weights["blocks"]
+        # double-bwd direction through first-bwd graph is forward block order.
+        dd_cur = dd_dx_pos
+        for i in range(len(flat_blocks)):
+            dd_cur, d_block_activates_list[i] = flat_blocks[i].run_double_bwd(
+                tape=block_tapes[i],
+                d_activates=d_block_activates_list[i],
+                dd_weights=dd_block_weights_list[i],
+                ddgrad_in=dd_cur,
+                Fuse=Fuse,
+            )
+        dd_dx_block = dd_cur
+        # d_activates["block"] = d_block_activates
         # ==================================================
         # 5. Double of final LayerNorm bwd
         #
@@ -1815,6 +2154,7 @@ class ViT_Fused(nn.Module):
             Fuse=Fuse,
         )
         d_activates["x_norm_in_d2"] = x_norm_in_d2
+        d_activates["blocks"] = d_block_activates_list
         # ==================================================
         # 6. Reverse cls slice
         #
@@ -1859,7 +2199,7 @@ class ViT_Fused(nn.Module):
         # ==================================================
         dd_dx_out = dd_dx_head.reshape(B * Fuse, C).contiguous()
         assert dd_dx_out.shape == x_out.shape
-        d_activates["dd_dx_out"] = dd_dx_out
+        # d_activates["dd_dx_out"] = dd_dx_out
         return dd_dx_out, d_activates
 
     def run_bwd2_1(
@@ -1881,7 +2221,7 @@ class ViT_Fused(nn.Module):
 
         patch = tape["patch"]
         head = tape["head"]
-        block_tape = tape["block"]
+        # block_tape = tape["block"]
         D = self.embed_dim
         C = self.num_classes
         N = self.num_patches
@@ -1947,18 +2287,37 @@ class ViT_Fused(nn.Module):
         # Inject d2 wrt forward x_norm_in, i.e. block output.
         # x_norm_in_d2 = d_activates.get("x_norm_in_d2", None)
         x_norm_in_d2 = d_activates.pop("x_norm_in_d2")
-        d_block_activates = d_activates.pop("block")
+        # d_block_activates = d_activates.pop("block")
         assert x_norm_in_d2.shape == dx_block.shape
         dx_block = dx_block + x_norm_in_d2
         # ==================================================
         # 5. TransformerBlock bwd2_1
         # ==================================================
-        dx_pos = self.block.run_bwd2_1(
-            tape=block_tape,
-            d_activates=d_block_activates,
-            grad_output=dx_block,
-            Fuse=Fuse,
-        )
+        # dx_pos = self.block.run_bwd2_1(
+        #     tape=block_tape,
+        #     d_activates=d_block_activates,
+        #     grad_output=dx_block,
+        #     Fuse=Fuse,
+        # )
+        flat_blocks = self.get_flat_blocks()
+        block_tapes = tape["blocks"]
+        d_block_activates_list = d_activates.pop("blocks")
+
+        assert len(block_tapes) == len(flat_blocks)
+        assert len(d_block_activates_list) == len(flat_blocks)
+
+        # bwd2_1 follows normal backward direction: reverse block order.
+        g = dx_block
+
+        for i in reversed(range(len(flat_blocks))):
+            g = flat_blocks[i].run_bwd2_1(
+                tape=block_tapes[i],
+                d_activates=d_block_activates_list[i],
+                grad_output=g,
+                Fuse=Fuse,
+            )
+
+        dx_pos = g
         # ==================================================
         # 6. pos add + cat bwd
         #
@@ -1999,16 +2358,83 @@ class ViT_Fused(nn.Module):
         return dx_in
 
 
+
+
+
+
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_channels=3, patch_size=4, emb_size=128, img_size=32):
+        super().__init__()
+        self.patch_size = patch_size
+        self.n_patches = (img_size // patch_size) ** 2
+        self.proj = nn.Conv2d(in_channels, emb_size, kernel_size=patch_size, stride=patch_size,)
+    def forward(self, x):
+        x = self.proj(x)  # (B, emb_size, H/patch, W/patch)
+        x = x.flatten(2)  # (B, emb_size, N)
+        x = x.transpose(1, 2)  # (B, N, emb_size)
+        return x
+class TransformerEncoder(nn.Module):
+    def __init__(self, emb_size=128, heads=4, mlp_dim=256, dropout=0.0):
+        super().__init__()
+        self.ln1 = nn.LayerNorm(emb_size)
+        self.attn = nn.MultiheadAttention(emb_size, heads, dropout=dropout, batch_first=True)
+        self.ln2 = nn.LayerNorm(emb_size)
+        self.mlp = nn.Sequential(
+            nn.Linear(emb_size, mlp_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(mlp_dim, emb_size),
+            nn.Dropout(dropout),
+        )
+    def forward(self, x):
+        x_ln = self.ln1(x)
+        attn_output, _ = self.attn(x_ln, x_ln, x_ln)
+        x = x + attn_output
+        x = x + self.mlp(self.ln2(x))
+        return x
+class ViT(nn.Module):
+    def __init__(self, img_size=32, patch_size=4, emb_size=128, num_classes=10, depth=6, heads=4, mlp_dim=256):
+        super().__init__()
+        self.patch_embed = PatchEmbedding(3, patch_size, emb_size, img_size)
+        self.cls_token = nn.Parameter(torch.randn(1, 1, emb_size))
+        self.pos_embed = nn.Parameter(torch.randn(1, (img_size // patch_size) ** 2 + 1, emb_size))
+        self.transformer = nn.Sequential(*[
+            TransformerEncoder(emb_size, heads, mlp_dim)
+            for _ in range(depth)
+        ])
+        self.norm = nn.LayerNorm(emb_size)
+        self.mlp_head = nn.Linear(emb_size, num_classes)
+
+    def forward(self, x):
+        B = x.size(0)
+        x = self.patch_embed(x)
+        cls_tokens = self.cls_token.expand(B, -1, -1)  # (B, 1, emb_size)
+        x = torch.cat((cls_tokens, x), dim=1)  # (B, 1+N, emb_size)
+        x = x + self.pos_embed
+        x = self.transformer(x)
+        x = self.norm(x[:, 0])  # 只取CLS token
+        return self.mlp_head(x)
+
+
+
 ###################################
 ###################################
-flag = 'ManuelBwd'          
 flag = 'VFuse'
-Fuse = 1
+flag = 'original' 
+flag = 'ManuelBwd'          
+Fuse = 2
 batch_size = 128
 num_class=10
 out_channel = 128 # in shape是写死了64， 所以out是128的话就是short cut
 stride = 2
 test_iter = 1
+depth = 6
+mlp_dim=12
+emb_size = 128
+heads = 4
+mlp_dim = 256
+depth = 6
+dropout = 0.0
 set_random_seed() # 仅仅在ACC test的时候使≈≈≈≈≈≈≈≈≈
 ###################################
 
@@ -2016,8 +2442,33 @@ set_random_seed() # 仅仅在ACC test的时候使≈≈≈≈≈≈≈≈≈
 
 if __name__ == "__main__":
     print("flag = " + flag)
-    model1 = ViT_Fused( image_size=32, patch_size=4, in_channels=3, num_classes=10, embed_dim=128, num_heads=4, Fuse=Fuse, ).to("cuda")
-    model = model1
+    model1 = ViT_Fused(
+        img_size=32,
+        patch_size=4,
+        in_channels=3,
+        num_classes=10,
+        emb_size=emb_size,
+        heads=heads,
+        depth=depth,
+        mlp_dim=mlp_dim,
+        dropout=dropout,
+        Fuse=Fuse,
+    ).to("cuda")
+
+    model2 = ViT(
+        img_size=32,
+        patch_size=4,
+        num_classes=10,
+        emb_size=emb_size,
+        heads=heads,
+        depth=depth,
+        mlp_dim=mlp_dim,
+    ).to("cuda")
+    if flag == 'original':
+        model = model2
+        Fuse =1
+    else:
+        model = model1
     transform = transforms.ToTensor()
     cifar10 = torchvision.datasets.CIFAR10(root='/scratch/yguo25/files/mtt-distillation/data', train=True, download=True, transform=transform)
     # 取一个 batch
@@ -2026,15 +2477,14 @@ if __name__ == "__main__":
     x = torch.stack(imgs).to("cuda").requires_grad_(True)
     target = torch.tensor(labels, device="cuda")
 
-    # torch.save(model.state_dict(), 'model_test_Vit.pt')
+    # torch.save(model.state_dict(), 'model_test_Vit_full.pt')
     # exit()
-    pretrained_dict = torch.load("model_test_Vit.pt")
+    pretrained_dict = torch.load("model_test_Vit_full.pt")
     x = x.repeat(1, Fuse, 1, 1).detach().clone().requires_grad_()
-    # target = target.repeat(Fuse) # 这个只能对应Linear stacked 的输出。否则BFC还是FBC顺序不同。
     target = target.repeat_interleave(Fuse) # 这步也很关键。因为之前是直接把batch维度重复了，所以target也要对应地重复。repeat_interleave 可以把每个元素重复Fuse次。
 
-    if(Fuse != 1):
-        pretrained_dict = repeat_params_for_fuse(pretrained_dict,Fuse)
+
+    pretrained_dict = repeat_params_for_fuse(pretrained_dict,Fuse)
     load_state_dict_by_position(model, pretrained_dict)
 
     criterion = nn.CrossEntropyLoss()
@@ -2052,6 +2502,16 @@ if __name__ == "__main__":
             # x_out = x_out.reshape(-1, x_out.shape[-1])
             loss = criterion(x_out, target)  # compute loss
             loss *= Fuse  # 应该有一个这个。在VFuse 乘倍是有意义的会影响后面的值。
+            print("----CELOSS-----", loss.item())
+            dw = torch.torch.autograd.grad(loss, list(model.parameters()), create_graph=True)
+            weight_sum = [d.sum() for d in dw]
+            grad_loss = sum(weight_sum)
+            print("----GRANDLOSS-----", grad_loss.item())
+            grad_loss.backward()  
+            print("----GRAD-----", x.grad.sum().item())
+        elif flag == 'original':
+            x_out= model(x)
+            loss = criterion(x_out, target)  # compute loss
             print("----CELOSS-----", loss.item())
             dw = torch.torch.autograd.grad(loss, list(model.parameters()), create_graph=True)
             weight_sum = [d.sum() for d in dw]

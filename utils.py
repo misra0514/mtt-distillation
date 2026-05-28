@@ -16,7 +16,7 @@ from scipy.ndimage.interpolation import rotate as scipyrotate
 from networks.networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP, ResNet50
 
 from networks.networks_stacked import ConvNetStacked, ConvNet_virticalfuse
-from networks.networks_Fuse  import Conv_Flexfuse, ResNet18_FlexFuse
+from networks.networks_Fuse  import Conv_Flexfuse, Conv_Flexfuse_backup, ResNet18_FlexFuse, ViT_FlexFuse
 
 from networks.networks_exptended import ViT
 # from networks_flexFuse import Conv_Flexfuse # 已经弃用
@@ -197,7 +197,7 @@ def get_default_convnet_setting():
 
 
 
-def get_network(model, channel, num_classes, im_size=(32, 32), dist=True):
+def get_network(model, channel, num_classes, im_size=(32, 32), dist=True,v_fuse=True):
     torch.random.manual_seed(int(time.time() * 1000) % 100000)
     net_width, net_depth, net_act, net_norm, net_pooling = get_default_convnet_setting()
 
@@ -205,18 +205,25 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True):
         net = MLP(channel=channel, num_classes=num_classes)
     elif model == 'ConvNet':
         net = ConvNet(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
-    elif model.startswith("ConvStacked"):
-    # elif model == 'ConvNetStacked':
-        fusion = int(model[11:])
-        # net = ConvNet_virticalfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
-        net = ConvNetStacked(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, stack_size=fusion)
+    # elif model.startswith("ConvStacked"):
+    #     fusion = int(model[11:])
+    #     # net = ConvNet_virticalfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
+    #     net = ConvNetStacked(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, stack_size=fusion)
+    elif model.startswith("Conv_Flexfuse_backup"):
+        fusion = int(model[20:])
+        net = Conv_Flexfuse_backup(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=2,v_fuse=v_fuse)
     elif model.startswith("ConvFlexFuse"):
         fusion = int(model[12:])
         net = Conv_Flexfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)
     elif model.startswith("ResNetFlexFuse"):
         fusion = int(model[14:])
         # net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)
-        net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes,Fuse=fusion)
+        net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes,Fuse=fusion,v_fuse=v_fuse)
+    elif model.startswith("ViTFlexFuse"):
+        fusion = int(model[11:])
+        # net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)
+        net = ViT_FlexFuse(num_classes=num_classes,Fuse=fusion,v_fuse=v_fuse)
+
 
     elif model == 'LeNet':
         net = LeNet(channel=channel, num_classes=num_classes)
