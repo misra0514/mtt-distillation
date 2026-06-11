@@ -548,6 +548,7 @@ if __name__ == '__main__':
 
 
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
+    parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
 

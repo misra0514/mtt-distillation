@@ -1,9 +1,11 @@
+# 5.24 因为conv需要修改写法了。所以保存一版旧版用来保证精度问题。
+
+
+
 # 2.24
 # 从v2复制来的stable版本！ 正式更名成conv！ 
 # TODO: NOTE 这个版本。或者前面的flex fuse 在 --fuse_mask_list 1  --> 11 的时候，grad都有问题。没有像Batched 一样成倍。
-
-# 5.25 加入手动选择fuse的参数，涉及到更改fwd、bwd中conv，以及dbwd。
-# 目前精度、时间都差了一些。还得再改改。
+#修改了一下params dict的问题
 
 import os
 import argparse
@@ -287,7 +289,7 @@ def main(args):
 
 
     # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
-    student_net = get_network("ConvFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+    student_net = get_network("Conv_Flexfuse_backup"+args.Fuse, channel, num_classes, im_size, dist=False, v_fuse=args.v_fuse).to(args.device)  
 
     student_net = ReparamModule(student_net)
 
@@ -297,7 +299,7 @@ def main(args):
         warmup = 0
     else:
         warmup = 3
-    warmup = 0
+    # warmup = 0
 
     args.Iteration += warmup
 
@@ -544,6 +546,39 @@ def main(args):
 
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
 
+        # ============================================================
+        # Precompute only the scalar param_dist before the syn loop.
+        #
+        # Important memory detail:
+        #   Do NOT keep starting_params_bwd / target_params_bwd / init_params_bwd
+        #   alive across the syn loop. Those tensors are copies created by boolean
+        #   indexing when Fuse != bwd_Fuse, and keeping them here increases peak
+        #   memory for no reason.
+        #
+        # The bwd-Fuse target/final/init params are recreated later right before
+        # double-bwd, where they are actually needed.
+        # ============================================================
+        mask = mask.to(args.device, non_blocking=True).bool()
+
+        with torch.no_grad():
+            if Fuse != bwd_Fuse:
+                _starting_params_bwd_for_dist = starting_params[mask]
+                _target_params_bwd_for_dist = target_params[mask]
+            else:
+                _starting_params_bwd_for_dist = starting_params
+                _target_params_bwd_for_dist = target_params
+
+            # Equivalent to compute_param_dist_fuse_mean(...):
+            # sum squared distance over all active branches, then mean over branches.
+            param_dist = (
+                _starting_params_bwd_for_dist - _target_params_bwd_for_dist
+            ).square().sum() / bwd_Fuse
+            base_num_params = sum(int(np.prod(s)) for s in shape_list)
+
+            # If these were boolean-index copies, release them before the syn loop.
+            if Fuse != bwd_Fuse:
+                del _starting_params_bwd_for_dist, _target_params_bwd_for_dist
+
         syn_images = image_syn
 
         y_hat = label_syn.to(args.device)
@@ -554,6 +589,8 @@ def main(args):
 
         if it >= warmup:
             syn_start = time.time()
+            if args.use_async:
+                torch.cuda.synchronize()
         conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0],shape_list, Fuse)
 
         for step in range(args.syn_steps):
@@ -584,92 +621,73 @@ def main(args):
             this_y = this_y.repeat(int(Fuse))
 
             with torch.no_grad():
-                x_out, tape = student_net(x, flat_param=forward_params)
-                x_out = x_out.view(-1, num_classes)
+
+                x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin, x_out  = student_net(x, flat_param=forward_params)
+                x_out = x_out.view(-1,num_classes)
+
                 ce_loss = criterion(x_out, this_y)
                 ce_loss *= int(Fuse)
-                # 如果你已经 recover 了 forward_params，就显式 pack，避免 ReparamModule 权重恢复导致读 self.weight 不准
-                weights = student_net.module.pack_recovered_weights(
-                    recover_params(forward_params, shape_list, Fuse)
-                )
-                split_mask = fuse_mask_list if Fuse != bwd_Fuse else None
-                d_head_tensors, d_activates_list, d_weights_list, grad_tensors = (
-                    student_net.module.run_first_bwd(
-                        tape,
-                        this_y,
-                        Fuse=Fuse,
-                        weights=weights,
-                        fuse_mask_list=split_mask,
-                    )
-                )
-                grad = torch.cat([
-                    t.reshape(-1).detach().requires_grad_(True)
-                    for t in grad_tensors
-                ], 0)
-                # # grad = torch.autograd.grad(ce_loss, student_params[-1], retain_graph=True)[0]
-                # # dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
-                # # dx_out= torch.autograd.grad(ce_loss, x_out)[0] # 改成分段计算了。麻烦的点在于weight。需要全部手动改。而且会收到reparam影响
-                # dx_out = crossEntropy_bwd(x_out, this_y, Fuse)
-                # dx_lin, dlin_w, dlin_b = linerFused_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse)
-                # dx_lin = dx_lin.reshape(-1, student_net.module.net_width * Fuse, 4,4)  # 4*4 可能需要灵活改
-                # x_lin,x_out,dx_out = split_half_second_dim([x_lin,x_out,dx_out],fuse_mask_list)
-                # dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse)
-                # x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin = split_half_second_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin],fuse_mask_list)
-                # dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse)
-                # x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 = split_half_second_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 ],fuse_mask_list)
-                # del dx_conv3
-                # # _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
-                # dx_pool1 = avgPool_bwd( x_pool1, grad_output= dx_conv2 )
-                # del dx_conv2
-                # # dx_conv2 = split_half_second_dim([dx_conv2], fuse_mask_list)[0]
-                # # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
-                # dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1)
-                # x_norm1 = split_half_second_dim([x_norm1],fuse_mask_list)[0]
-                # x_pool1 = split_half_second_dim([x_pool1 ],fuse_mask_list)[0]
-                # dx_pool1 = split_half_second_dim([dx_pool1],fuse_mask_list)[0]
-                # # del dx_pool_d1
-                # _, dconv1_w, dconv1_b = conv_bwd(x_conv1, conv1_w, grad_output=dx_norm1, groups=Fuse)
-                # x_conv1 = split_half_second_dim([x_conv1 ],fuse_mask_list)[0]
-                # dx_norm1 = split_half_second_dim([dx_norm1 ],fuse_mask_list)[0]
-                # grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
-            # grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
+                # grad = torch.autograd.grad(ce_loss, student_params[-1], retain_graph=True)[0]
+                # dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
+                # dx_out= torch.autograd.grad(ce_loss, x_out)[0] # 改成分段计算了。麻烦的点在于weight。需要全部手动改。而且会收到reparam影响
+                dx_out = crossEntropy_bwd(x_out, this_y, Fuse)
+                dx_lin, dlin_w, dlin_b = linerFused_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse)
+                dx_lin = dx_lin.reshape(-1, student_net.module.net_width * Fuse, 4,4)  # 4*4 可能需要灵活改
+                x_lin,x_out,dx_out = split_half_second_dim([x_lin,x_out,dx_out],fuse_mask_list)
+                dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse, v_fuse=args.v_fuse)
+                x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin = split_half_second_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin],fuse_mask_list)
+                dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse, v_fuse=args.v_fuse)
+                x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 = split_half_second_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 ],fuse_mask_list)
+                del dx_conv3
+                # _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
+                dx_pool1 = avgPool_bwd( x_pool1, grad_output= dx_conv2 )
+                del dx_conv2
+                # dx_conv2 = split_half_second_dim([dx_conv2], fuse_mask_list)[0]
+                # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
+                dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1,v_fuse=args.v_fuse)
+                x_norm1 = split_half_second_dim([x_norm1],fuse_mask_list)[0]
+                x_pool1 = split_half_second_dim([x_pool1 ],fuse_mask_list)[0]
+                dx_pool1 = split_half_second_dim([dx_pool1],fuse_mask_list)[0]
+                # del dx_pool_d1
+                _, dconv1_w, dconv1_b = conv_bwd(x_conv1, conv1_w, grad_output=dx_norm1, groups=Fuse)
+                x_conv1 = split_half_second_dim([x_conv1 ],fuse_mask_list)[0]
+                dx_norm1 = split_half_second_dim([dx_norm1 ],fuse_mask_list)[0]
+                grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
+            grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
             student_params.append(student_params[-1] - syn_lr *  grad)
 
         if it >= warmup:
+            if args.use_async:
+                torch.cuda.synchronize()
             syn_end = time.time()
 
         with torch.no_grad():
-            weight = student_params[0] # weight是原始参数，不加dw
-            if Fuse != bwd_Fuse:
-                weight = weight[mask]
-                student_params[-1] = student_params[-1][mask]
-                starting_params = starting_params[mask]
-                target_params = target_params[mask]
-                # conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0][mask],shape_list, bwd_Fuse)
 
-            param_loss = torch.tensor(0.0).to(args.device)
-            param_dist = torch.tensor(0.0).to(args.device)
-            param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum") # 好像是因为reduction的原因。。。。
-            # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
-            # 不可以直接用param dist ！ 对每个层，分别对每个 fuse 计算 MSE
-            # # TODO: 后面可以优化一下，直接在init的时候把param_dist 算好。反正只是一个数值
-            # start_param_list = recover_params(starting_params, shape_list, Fuse)
-            # target_param_list = recover_params(target_params, shape_list, Fuse)
-            # fuse_losses = []
-            # for sp, tp in zip(start_param_list, target_param_list):
-            #     B0 = sp.shape[0] // Fuse
-            #     for f in range(Fuse):
-            #         sp_f = sp[f*B0:(f+1)*B0].reshape(-1)
-            #         tp_f = tp[f*B0:(f+1)*B0].reshape(-1)
-            #         fuse_losses.append(F.mse_loss(sp_f, tp_f, reduction="mean"))
-            # param_dist = torch.stack(fuse_losses).mean()
-            param_dist_raw_mean, base_num_params = compute_param_dist_fuse_mean(
-                starting_params,
-                target_params,
-                shape_list,
-                bwd_Fuse
+            # Recreate active-only bwd tensors only when the double-bwd phase
+            # actually needs them. This avoids keeping active copies alive
+            # throughout the syn loop.
+            if Fuse != bwd_Fuse:
+                final_params_bwd = student_params[-1][mask]
+                target_params_bwd = target_params[mask]
+                init_params_bwd = student_params[0][mask]
+            else:
+                final_params_bwd = student_params[-1]
+                target_params_bwd = target_params
+                init_params_bwd = student_params[0]
+
+            (
+                conv1_w_bwd, conv1_b_bwd, norm1_w_bwd, norm1_b_bwd,
+                conv2_w_bwd, conv2_b_bwd, norm2_w_bwd, norm2_b_bwd,
+                conv3_w_bwd, conv3_b_bwd, norm3_w_bwd, norm3_b_bwd,
+                lin_w_bwd, _
+            ) = recover_params(init_params_bwd, shape_list, bwd_Fuse)
+
+            param_loss = torch.nn.functional.mse_loss(
+                final_params_bwd,
+                target_params_bwd,
+                reduction="sum",
             )
-            param_dist = param_dist + param_dist_raw_mean
+
             param_loss_list.append(param_loss)
             param_dist_list.append(param_dist)
             # param_loss /= num_params
@@ -679,66 +697,63 @@ def main(args):
             optimizer_img.zero_grad()
             optimizer_lr.zero_grad()
 
-            ddw = 2 * (student_params[-1] - target_params) / param_dist
+            ddx_conv = torch.zeros_like(x_conv1).cuda()
+            ddw = 2 * (final_params_bwd - target_params_bwd) / param_dist
             ddw *= (-syn_lr)
-            dd_tensors_all = recover_params(ddw, shape_list, bwd_Fuse)
-            # 如果 Fuse != bwd_Fuse，这里 weights 也应该用 masked 后的 student_params[0][mask]
-            bwd_weights = student_net.module.pack_recovered_weights(
-                recover_params(weight, shape_list, bwd_Fuse)
+            if args.use_async:
+                torch.cuda.synchronize()
+                temp_start = time.time()
+            del grad
+            ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(ddw, shape_list,bwd_Fuse )
+            # ddx_conv2, dxconv1_d2, _,dx_norm1_d2,_ = ConvBlock_double_bwd(x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, \
+            #                                                                 ddx_conv, conv1_w, norm1_w,ddconv1_w, ddconv1_b, ddnorm1_w, ddnorm1_b,bwd_Fuse  )
+            # del ddx_conv,dx_norm1,dx_pool1
+            ddx_norm, dxconv1_d2, _ = conv_double_bwd(ddx_conv, ddconv1_w, ddconv1_b, dx_norm1, conv1_w_bwd, x_conv1, groups_=bwd_Fuse )
+            del ddx_conv,ddconv1_w,ddconv1_b, dx_norm1
+            ddx_pool, dx_norm1_d2, _ = insNormNRelu_double_bwd(ddx_norm, ddnorm1_w, ddnorm1_b, dx_pool1, x_pool1, norm1_w_bwd, x_norm1, v_fuse=args.v_fuse)
+            del ddx_norm,dx_pool1,ddnorm1_w,ddnorm1_b
+            ddx_conv2 = avgPool_double_bwd(ddx_pool)    
+            del ddx_pool
+
+            ddx_conv3, dxconv2_d2, _,dx_norm2_d2,_ = ConvBlock_double_bwd(x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, \
+                                                                            ddx_conv2, conv2_w_bwd, norm2_w_bwd, ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b,bwd_Fuse, v_fuse=args.v_fuse )
+            del ddx_conv2,dx_norm2,dx_pool2
+            ddx_lin, dxconv3_d2, _,dx_norm3_d2,_ = ConvBlock_double_bwd(x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, \
+                                                                        ddx_conv3, conv3_w_bwd, norm3_w_bwd, ddconv3_w, ddconv3_b, ddnorm3_w, ddnorm3_b,bwd_Fuse, v_fuse=args.v_fuse )
+            del ddx_conv3,dx_norm3,dx_pool3
+            ddx_out, dx_lin_d2, _ = linearFused_double_bwd(x_lin, lin_w_bwd, dx_out, ddx_lin, ddlin_w ,ddlin_b ,bwd_Fuse)
+            del dx_out, ddx_lin
+
+            dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, bwd_Fuse)
+            del ddx_out,x_out
+
+            dx_lin_d1, _, _ = linerFused_bwd(x_lin, lin_w_bwd, grad_output=dx_out_d1, Fuse=bwd_Fuse)
+            dx_lin_d1 = dx_lin_d1.reshape(-1, student_net.module.net_width * bwd_Fuse, 4,4)  # 这里128是net_width， 但是distill里面好像没有这个变量。。
+            dx_lin_d1 += dx_lin_d2 
+            del x_lin,dx_out_d1,dx_lin_d2
+            dx_conv3_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv3, x_norm3, x_pool3, conv3_w_bwd, norm3_w_bwd, dx_lin_d1,dx_norm3_d2,dxconv3_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse)
+            del dx_norm3_d2,dxconv3_d2, x_conv3, x_norm3,x_pool3,dx_lin_d1
+            dx_conv2_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv2, x_norm2, x_pool2, conv2_w_bwd, norm2_w_bwd, dx_conv3_d1,dx_norm2_d2,dxconv2_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse)
+            del dx_norm2_d2,dxconv2_d2, x_conv2, x_norm2,x_pool2,dx_conv3_d1
+            dx_conv1_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv1, x_norm1, x_pool1, conv1_w_bwd, norm1_w_bwd, dx_conv2_d1,dx_norm1_d2,dxconv1_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse)
+            del dx_norm1_d2,dxconv1_d2, x_conv1, x_norm1,x_pool1, dx_conv2_d1
+            # ddw_output = [ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b ]
+            if args.use_async:
+                torch.cuda.synchronize()
+            temp_end = time.time()
+            # Release active bwd flat copies and their views as soon as double-bwd
+            # is finished. These are extra tensors compared with the full-Fuse
+            # first-order path.
+            del (
+                final_params_bwd, target_params_bwd, init_params_bwd,
+                conv1_w_bwd, conv1_b_bwd, norm1_w_bwd, norm1_b_bwd,
+                conv2_w_bwd, conv2_b_bwd, norm2_w_bwd, norm2_b_bwd,
+                conv3_w_bwd, conv3_b_bwd, norm3_w_bwd, norm3_b_bwd,
+                lin_w_bwd, ddw,
+                ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b,
+                ddconv3_w, ddconv3_b, ddnorm3_w, ddnorm3_b,
+                ddlin_w, ddlin_b
             )
-            dd_head_tensors, dd_weights_list = student_net.module.pack_recovered_dd(
-                dd_tensors_all,
-                tape=tape,
-            )
-            dx_conv1_d1 = student_net.module.run_double_bwd(
-                tape,
-                d_activates_list,
-                dd_weights_list,
-                d_head_tensors,
-                dd_head_tensors,
-                Fuse=bwd_Fuse,
-                weights=bwd_weights,
-            )
-
-            # ddx_conv = torch.zeros_like(x_conv1).cuda()
-            # ddw = 2*(student_params[-1]- target_params)/param_dist
-            # ddw *= (-syn_lr)
-
-            # del grad
-            # ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(ddw, shape_list,bwd_Fuse )
-            # # ddx_conv2, dxconv1_d2, _,dx_norm1_d2,_ = ConvBlock_double_bwd(x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, \
-            # #                                                                 ddx_conv, conv1_w, norm1_w,ddconv1_w, ddconv1_b, ddnorm1_w, ddnorm1_b,bwd_Fuse  )
-            # # del ddx_conv,dx_norm1,dx_pool1
-            # ddx_norm, dxconv1_d2, _ = conv_double_bwd(ddx_conv, ddconv1_w, ddconv1_b, dx_norm1, conv1_w, x_conv1, groups_=bwd_Fuse )
-            # del ddx_conv,ddconv1_w,ddconv1_b, dx_norm1
-            # ddx_pool, dx_norm1_d2, _ = insNormNRelu_double_bwd(ddx_norm, ddnorm1_w, ddnorm1_b, dx_pool1, x_pool1, norm1_w, x_norm1)
-            # del ddx_norm,dx_pool1,ddnorm1_w,ddnorm1_b
-            # ddx_conv2 = avgPool_double_bwd(ddx_pool)    
-            # del ddx_pool
-
-            # ddx_conv3, dxconv2_d2, _,dx_norm2_d2,_ = ConvBlock_double_bwd(x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, \
-            #                                                                 ddx_conv2,conv2_w, norm2_w, ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b,bwd_Fuse  )
-            # del ddx_conv2,dx_norm2,dx_pool2
-            # ddx_lin, dxconv3_d2, _,dx_norm3_d2,_ = ConvBlock_double_bwd(x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, \
-            #                                                             ddx_conv3, conv3_w,norm3_w, ddconv3_w, ddconv3_b, ddnorm3_w, ddnorm3_b,bwd_Fuse  )
-            # del ddx_conv3,dx_norm3,dx_pool3
-            # ddx_out, dx_lin_d2, _ = linearFused_double_bwd(x_lin,lin_w, dx_out, ddx_lin, ddlin_w ,ddlin_b ,bwd_Fuse)
-            # del dx_out, ddx_lin
-
-            # dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, bwd_Fuse)
-            # del ddx_out,x_out
-
-            # dx_lin_d1, _, _ = linerFused_bwd(x_lin, lin_w, grad_output=dx_out_d1, Fuse=bwd_Fuse)
-            # dx_lin_d1 = dx_lin_d1.reshape(-1, student_net.module.net_width * bwd_Fuse, 4,4)  # 这里128是net_width， 但是distill里面好像没有这个变量。。
-            # dx_lin_d1 += dx_lin_d2 
-            # del x_lin,dx_out_d1,dx_lin_d2
-            # dx_conv3_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv3, x_norm3, x_pool3,conv3_w, norm3_w, dx_lin_d1,dx_norm3_d2,dxconv3_d2 ,Fuse=bwd_Fuse)
-            # del dx_norm3_d2,dxconv3_d2, x_conv3, x_norm3,x_pool3,dx_lin_d1
-            # dx_conv2_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3_d1,dx_norm2_d2,dxconv2_d2 ,Fuse=bwd_Fuse)
-            # del dx_norm2_d2,dxconv2_d2, x_conv2, x_norm2,x_pool2,dx_conv3_d1
-            # dx_conv1_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv1, x_norm1, x_pool1,conv1_w, norm1_w, dx_conv2_d1,dx_norm1_d2,dxconv1_d2 ,Fuse=bwd_Fuse)
-            # del dx_norm1_d2,dxconv1_d2, x_conv1, x_norm1,x_pool1, dx_conv2_d1
-            # # ddw_output = [ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b ]
 
 
         if(args.AccTest):
@@ -749,6 +764,8 @@ def main(args):
         optimizer_img.step()
         optimizer_lr.step()
         if it >= warmup:
+            if args.use_async:
+                torch.cuda.synchronize()
             iter_end = time.time()
             prep_time += (syn_start- start) # 从iter开始一直到内层循环
             syn_time += (syn_end-syn_start) # 内层循环的时间
@@ -757,8 +774,11 @@ def main(args):
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})
 
-        for _ in student_params:
-            del _
+        # Stronger cleanup than `for _ in student_params: del _`, which only
+        # deletes the loop variable and does not clear the list references.
+        del student_params, starting_params, target_params, mask
+        del conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b
+        del conv3_w, conv3_b, norm3_w, norm3_b, lin_w
 
         # if it%10 == 0:
     #     #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
@@ -768,7 +788,7 @@ def main(args):
 
     iter_end = time.time()
     print("------------FIN TIME-------------")
-    print(iter_end - pre_end)
+    print("time sumation: ", iter_end - pre_end)
     print("prepare time (", args.syn_steps ,"): ", prep_time)
     print("syn_time     (", args.syn_steps ,"): ", syn_time)
     print("backward_time(", args.syn_steps ,"): ", bwd_time)
@@ -785,6 +805,9 @@ if __name__ == '__main__':
     parser.add_argument(   '--fuse_mask_list',   type=int,   nargs='+',       required=True,        help='fuse mask list, e.g. 1 1 0')
 
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
+    parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('--use-async', dest='use_async', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
+
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')

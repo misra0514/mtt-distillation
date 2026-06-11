@@ -254,7 +254,7 @@ def main(args):
         warmup = 0
     else:
         warmup = 3
-    warmup = 0
+    # warmup = 0
 
     args.Iteration += warmup
 

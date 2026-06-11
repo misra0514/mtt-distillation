@@ -1015,6 +1015,8 @@ def dropout_fwd(x, p,training =True):
     p_clamped = _to_float_p(p)
     keep_prob = 1.0 - p_clamped
 
+    #TODO:  当p=0的时候，按理说是不生成mask的。 这也是p=0内存还上涨了的原因。
+    # 可以在p=0的时候m = None， 但是不知道是否会对后面的bwd产生影响。
     if p_clamped <= 0.0:
         out = x
         m = torch.ones_like(x)
@@ -1025,7 +1027,6 @@ def dropout_fwd(x, p,training =True):
         out, mask = torch.ops.aten.native_dropout(x, p_clamped, True)
         m = mask.to(dtype=x.dtype) / keep_prob
     return out, m
-
 
 def dropout_bwd(dout, m):
     dx = dout * m
@@ -1046,7 +1047,6 @@ def geluDropout_fwd(x, p, training=True):
         gelu_x = F.gelu(x)
         out, mask = torch.ops.aten.native_dropout(gelu_x, p_clamped, True)
     return out, mask
-
 
 def geluDropout_bwd( x, mask, dout, out=None,v_fuse=False,):
     if v_fuse:

@@ -1,11 +1,11 @@
 # 5.24 因为conv需要修改写法了。所以保存一版旧版用来保证精度问题。
 
-
+# 
 
 # 2.24
 # 从v2复制来的stable版本！ 正式更名成conv！ 
 # TODO: NOTE 这个版本。或者前面的flex fuse 在 --fuse_mask_list 1  --> 11 的时候，grad都有问题。没有像Batched 一样成倍。
-
+# 同时，这个版本没有做过优化，可能会有一些sys上冗余的计算。
 import os
 import argparse
 import numpy as np
@@ -79,6 +79,7 @@ def main(args):
         args.Iteration = 0
 
     prep_time = 0
+    test_time = 0
     syn_time = 0
     bwd_time = 0
     Fuse = int(args.Fuse)
@@ -298,7 +299,7 @@ def main(args):
         warmup = 0
     else:
         warmup = 3
-    warmup = 0
+    # warmup = 0
 
     args.Iteration += warmup
 
@@ -545,6 +546,33 @@ def main(args):
 
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
 
+
+        # with torch.no_grad():
+        #     if Fuse != bwd_Fuse:
+        #         starting_params_bwd = starting_params[mask]
+        #         target_params_bwd = target_params[mask]
+        #         init_params_bwd = student_params[0][mask]
+        #     else:
+        #         starting_params_bwd = starting_params
+        #         target_params_bwd = target_params
+        #         init_params_bwd = student_params[0]
+
+        #     # 版本 A：保留原函数语义
+        #     param_dist, base_num_params = compute_param_dist_fuse_mean(
+        #         starting_params_bwd,
+        #         target_params_bwd,
+        #         shape_list,
+        #         bwd_Fuse,
+        #     )
+
+        #     # 可选：bwd_Fuse 版本的初始权重也可以提前 recover
+        #     (
+        #         conv1_w_bwd, conv1_b_bwd, norm1_w_bwd, norm1_b_bwd,
+        #         conv2_w_bwd, conv2_b_bwd, norm2_w_bwd, norm2_b_bwd,
+        #         conv3_w_bwd, conv3_b_bwd, norm3_w_bwd, norm3_b_bwd,
+        #         lin_w_bwd, _
+        #     ) = recover_params(init_params_bwd, shape_list, bwd_Fuse)
+
         syn_images = image_syn
 
         y_hat = label_syn.to(args.device)
@@ -555,6 +583,8 @@ def main(args):
 
         if it >= warmup:
             syn_start = time.time()
+            if args.use_async:
+                torch.cuda.synchronize()
         conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0],shape_list, Fuse)
 
         for step in range(args.syn_steps):
@@ -608,7 +638,7 @@ def main(args):
                 del dx_conv2
                 # dx_conv2 = split_half_second_dim([dx_conv2], fuse_mask_list)[0]
                 # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
-                dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1)
+                dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1,v_fuse=args.v_fuse)
                 x_norm1 = split_half_second_dim([x_norm1],fuse_mask_list)[0]
                 x_pool1 = split_half_second_dim([x_pool1 ],fuse_mask_list)[0]
                 dx_pool1 = split_half_second_dim([dx_pool1],fuse_mask_list)[0]
@@ -621,18 +651,22 @@ def main(args):
             student_params.append(student_params[-1] - syn_lr *  grad)
 
         if it >= warmup:
+            if args.use_async:
+                torch.cuda.synchronize()
             syn_end = time.time()
 
         with torch.no_grad():
-
             weight = student_params[0] # weight是原始参数，不加dw
             if Fuse != bwd_Fuse:
+
+                # TODO: 对weights 做了一些masking。难道是这里影响了性能？ 这里大概花了1s左右。其实直接把load时候变量留下来就好了。
                 weight = weight[mask]
                 student_params[-1] = student_params[-1][mask]
                 starting_params = starting_params[mask]
                 target_params = target_params[mask]
                 conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0][mask],shape_list, bwd_Fuse)
 
+                
             param_loss = torch.tensor(0.0).to(args.device)
             param_dist = torch.tensor(0.0).to(args.device)
 
@@ -659,6 +693,8 @@ def main(args):
                 bwd_Fuse
             )
             param_dist = param_dist + param_dist_raw_mean
+            # diff0 = starting_params - target_params
+            # param_dist = diff0.square().sum() / bwd_Fuse
 
             param_loss_list.append(param_loss)
             param_dist_list.append(param_dist)
@@ -672,7 +708,9 @@ def main(args):
             ddx_conv = torch.zeros_like(x_conv1).cuda()
             ddw = 2*(student_params[-1]- target_params)/param_dist
             ddw *= (-syn_lr)
-
+            if args.use_async:
+                torch.cuda.synchronize()
+                temp_start = time.time()
             del grad
             ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(ddw, shape_list,bwd_Fuse )
             # ddx_conv2, dxconv1_d2, _,dx_norm1_d2,_ = ConvBlock_double_bwd(x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, \
@@ -680,7 +718,7 @@ def main(args):
             # del ddx_conv,dx_norm1,dx_pool1
             ddx_norm, dxconv1_d2, _ = conv_double_bwd(ddx_conv, ddconv1_w, ddconv1_b, dx_norm1, conv1_w, x_conv1, groups_=bwd_Fuse )
             del ddx_conv,ddconv1_w,ddconv1_b, dx_norm1
-            ddx_pool, dx_norm1_d2, _ = insNormNRelu_double_bwd(ddx_norm, ddnorm1_w, ddnorm1_b, dx_pool1, x_pool1, norm1_w, x_norm1)
+            ddx_pool, dx_norm1_d2, _ = insNormNRelu_double_bwd(ddx_norm, ddnorm1_w, ddnorm1_b, dx_pool1, x_pool1, norm1_w, x_norm1, v_fuse=args.v_fuse)
             del ddx_norm,dx_pool1,ddnorm1_w,ddnorm1_b
             ddx_conv2 = avgPool_double_bwd(ddx_pool)    
             del ddx_pool
@@ -701,14 +739,16 @@ def main(args):
             dx_lin_d1 = dx_lin_d1.reshape(-1, student_net.module.net_width * bwd_Fuse, 4,4)  # 这里128是net_width， 但是distill里面好像没有这个变量。。
             dx_lin_d1 += dx_lin_d2 
             del x_lin,dx_out_d1,dx_lin_d2
-            dx_conv3_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv3, x_norm3, x_pool3,conv3_w, norm3_w, dx_lin_d1,dx_norm3_d2,dxconv3_d2 ,Fuse=bwd_Fuse)
+            dx_conv3_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv3, x_norm3, x_pool3,conv3_w, norm3_w, dx_lin_d1,dx_norm3_d2,dxconv3_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse )
             del dx_norm3_d2,dxconv3_d2, x_conv3, x_norm3,x_pool3,dx_lin_d1
-            dx_conv2_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3_d1,dx_norm2_d2,dxconv2_d2 ,Fuse=bwd_Fuse)
+            dx_conv2_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3_d1,dx_norm2_d2,dxconv2_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse)
             del dx_norm2_d2,dxconv2_d2, x_conv2, x_norm2,x_pool2,dx_conv3_d1
-            dx_conv1_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv1, x_norm1, x_pool1,conv1_w, norm1_w, dx_conv2_d1,dx_norm1_d2,dxconv1_d2 ,Fuse=bwd_Fuse)
+            dx_conv1_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv1, x_norm1, x_pool1,conv1_w, norm1_w, dx_conv2_d1,dx_norm1_d2,dxconv1_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse)
             del dx_norm1_d2,dxconv1_d2, x_conv1, x_norm1,x_pool1, dx_conv2_d1
             # ddw_output = [ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b ]
-
+            if args.use_async:
+                torch.cuda.synchronize()
+            temp_end = time.time()
 
         if(args.AccTest):
             print("--Celoss--",ce_loss.item())
@@ -718,11 +758,13 @@ def main(args):
         optimizer_img.step()
         optimizer_lr.step()
         if it >= warmup:
+            if args.use_async:
+                torch.cuda.synchronize()
             iter_end = time.time()
             prep_time += (syn_start- start) # 从iter开始一直到内层循环
             syn_time += (syn_end-syn_start) # 内层循环的时间
             bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
-
+            test_time +=(temp_end-temp_start)
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})
 
@@ -741,6 +783,7 @@ def main(args):
     print("prepare time (", args.syn_steps ,"): ", prep_time)
     print("syn_time     (", args.syn_steps ,"): ", syn_time)
     print("backward_time(", args.syn_steps ,"): ", bwd_time)
+    print("test_time (", args.syn_steps ,"): ", test_time)
 
     print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
     print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
@@ -755,6 +798,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('--use-async', dest='use_async', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
+
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')

@@ -85,7 +85,8 @@ def split_half_second_dim(param_list, fuse_mask_list):
             s = start * block
             e = end * block
             # 切分并保证连续（减少显存峰值）
-            output.append(p[:, s:e, ...].contiguous())
+            # output.append(p[:, s:e, ...].contiguous())
+            output.append(p[:, s:e, ...])
             del p
         else:
             # 似乎只有x_out 系列是2维,在第一维切
@@ -95,7 +96,8 @@ def split_half_second_dim(param_list, fuse_mask_list):
             s = start * block
             e = end * block
             # 切分并保证连续（减少显存峰值）
-            output.append(p[ s:e, ...].contiguous())
+            # output.append(p[ s:e, ...].contiguous())
+            output.append(p[ s:e, ...])
             # output.append(p)
 
     return output
@@ -140,3 +142,101 @@ def unflatten_like_reparam(flat_tensor, reparam_model):
         p.view(shape)
         for p, shape in zip(pieces, reparam_model._param_shapes)
     ]
+
+class ActiveSplitBufferPool:
+    """
+    Preallocate/reuse compact active-fuse buffers.
+
+    用法限制：
+    1. 只适合你这种 manual bwd/no_grad 场景。
+    2. 返回的是 pool 里的 buffer，后续不能在 buffer 还要用的时候复用同一个 name。
+    3. fuse_mask_list 里的 1 必须连续，比如 [1,1,0] 或 [0,1,1]。
+    """
+
+    def __init__(self, fuse_mask_list):
+        self.fuse_mask_list = list(fuse_mask_list)
+        self.full_fuse = len(fuse_mask_list)
+        self.active_ids = [i for i, m in enumerate(fuse_mask_list) if int(m) == 1]
+
+        assert len(self.active_ids) > 0, "fuse_mask_list 至少要有一个 active branch"
+
+        expected = list(range(self.active_ids[0], self.active_ids[0] + len(self.active_ids)))
+        assert self.active_ids == expected, (
+            f"当前 prealloc split 只支持连续 active branch, got {fuse_mask_list}"
+        )
+
+        self.active_start = self.active_ids[0]
+        self.active_fuse = len(self.active_ids)
+        self.pool = {}
+
+    def active_slice(self, p):
+        """
+        返回 active view，不分配新 storage。
+        """
+        Fuse = self.full_fuse
+        start = self.active_start
+        active = self.active_fuse
+
+        if p.ndim > 2:
+            # NCHW-like: [B, Fuse*C, H, W]
+            dim = 1
+        else:
+            # 2D outputs: [Fuse*B, C] or [Fuse*B, num_classes]
+            dim = 0
+
+        dim_size = p.shape[dim]
+        assert dim_size % Fuse == 0, (
+            f"split dim size {dim_size} 不能被 Fuse={Fuse} 整除, shape={tuple(p.shape)}"
+        )
+
+        block = dim_size // Fuse
+        s = start * block
+        length = active * block
+
+        return p.narrow(dim, s, length)
+
+    def get_buffer(self, name, shape, dtype, device):
+        key = name
+        buf = self.pool.get(key, None)
+
+        need_new = (
+            buf is None
+            or tuple(buf.shape) != tuple(shape)
+            or buf.dtype != dtype
+            or buf.device != device
+        )
+
+        if need_new:
+            # contiguous compact buffer
+            buf = torch.empty(tuple(shape), dtype=dtype, device=device)
+            self.pool[key] = buf
+
+        return buf
+
+    def compact(self, name, p):
+        """
+        把 active slice copy 到预分配 buffer。
+        返回 compact contiguous tensor。
+        """
+        q = self.active_slice(p)
+
+        buf = self.get_buffer(
+            name=name,
+            shape=q.shape,
+            dtype=q.dtype,
+            device=q.device,
+        )
+
+        # GPU-to-GPU copy；q 可以是 non-contiguous view，buf 是 contiguous。
+        buf.copy_(q, non_blocking=True)
+        return buf
+
+    def view(self, p):
+        """
+        只返回 active view，不释放 full storage。
+        小 tensor 可以用这个减少 copy。
+        """
+        return self.active_slice(p)
+
+    def clear(self):
+        self.pool.clear()

@@ -36,7 +36,15 @@ def backward_block(x,this_y, student_params, index, grad_output, ddx_conv , stud
     # grad_output： ddw, 改成了list形式。
 
     # with torch.no_grad():
-    ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(grad_output, shape_list,Fuse )
+    # ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(grad_output, shape_list,Fuse )
+    ddconv1_w, ddconv1_b, ddnorm1_w, ddnorm1_b, \
+    ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b, \
+    ddconv3_w, ddconv3_b, ddnorm3_w, ddnorm3_b, \
+    ddlin_w, ddlin_b = recover_params(
+        grad_output,
+        shape_list,
+        Bwd_fuse,
+    )
     forward_params = student_params[index].detach().requires_grad_()
     conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(forward_params,shape_list, Fuse)
     
@@ -74,12 +82,27 @@ def backward_block(x,this_y, student_params, index, grad_output, ddx_conv , stud
     grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
 
     weight = student_params[0] # weight是原始参数，不加dw
+    # if Fuse != Bwd_fuse:
+    #     weight = weight[mask]
+    #     student_params[-1] = student_params[-1][mask]
+    #     # starting_params = starting_params[mask]
+    #     # target_params = target_params[mask]
+    #     conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0][mask],shape_list, Bwd_fuse)
+
     if Fuse != Bwd_fuse:
-        weight = weight[mask]
-        student_params[-1] = student_params[-1][mask]
-        # starting_params = starting_params[mask]
-        # target_params = target_params[mask]
-        conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0][mask],shape_list, Bwd_fuse)
+        forward_params_active = forward_params[mask]
+    else:
+        forward_params_active = forward_params
+
+    conv1_w, conv1_b, norm1_w, norm1_b, \
+    conv2_w, conv2_b, norm2_w, norm2_b, \
+    conv3_w, conv3_b, norm3_w, norm3_b, \
+    lin_w, _ = recover_params(
+        forward_params_active,
+        shape_list,
+        Bwd_fuse,
+    )
+
 
     #   这里原来是计算梯度的部分。现在tensors 需要做切片。
     ddx_norm, dxconv1_d2, _ = conv_double_bwd(ddx_conv, ddconv1_w, ddconv1_b, dx_norm1, conv1_w, x_conv1, groups_=Bwd_fuse )
@@ -478,7 +501,8 @@ def main(args):
 
 
     # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
-    student_net = get_network("ConvFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+    # student_net = get_network("ConvFlexFuse"+args.Fuse, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
+    student_net = get_network("Conv_Flexfuse_backup"+args.Fuse, channel, num_classes, im_size, dist=False, v_fuse=args.v_fuse).to(args.device)  
 
     student_net = ReparamModule(student_net)
 
@@ -797,24 +821,82 @@ def main(args):
 
         # grand_loss.backward()
         # 
-        ddx_conv = torch.zeros_like(x).cuda()
-        grad_output, grad_lr = torch.torch.autograd.grad(grand_loss, [grad, syn_lr])
-        grad_sum = torch.zeros_like(x)
+        # ddx_conv = torch.zeros_like(x).cuda()
+        # grad_output, grad_lr = torch.torch.autograd.grad(grand_loss, [grad, syn_lr])
+        # if Fuse != Bwd_fuse:
+        #     grad_output = grad_output[mask]
+        # grad_sum = torch.zeros_like(x)
 
+        # for i in range(args.syn_steps):
+        #     index = args.syn_steps-1-i
+        #     x = syn_images.detach().requires_grad_()
+        #     x = x.repeat(1,int(Fuse), 1, 1).requires_grad_(True)
+
+        #     g = backward_block(x, this_y,student_params, index , grad_output, ddx_conv, student_net, criterion,mask,shape_list,fuse_mask_list ,Fuse, Bwd_fuse)
+        #     grad_sum +=g[0]
+        #     grad_lr +=g[1]
+        #     if(index != 0):
+        #         grad_output = g[2]
+        # # 这里，image_syn 是[10, 3, 32, 32]，但是grad因为x做了repeat所以是[10, 6, 32, 32]，那可能需要累加回来。
+        # grad_sum = grad_sum.reshape(
+        #     grad_sum.shape[0],
+        #     Bwd_fuse,
+        #     3,
+        #     grad_sum.shape[2],
+        #     grad_sum.shape[3],
+        # ).sum(1)
+        # image_syn.grad = grad_sum.detach()
+        # syn_lr.grad = grad_lr.detach()
+
+        ddx_conv = torch.zeros(
+            x.shape[0],
+            3 * Bwd_fuse,
+            x.shape[2],
+            x.shape[3],
+            device=x.device,
+            dtype=x.dtype,
+        )
+
+        grad_output, grad_lr = torch.autograd.grad(grand_loss, [grad, syn_lr])
+
+        # 如果 grad_output 还是 full Fuse 的，就先切成 active branch
+        if Fuse != Bwd_fuse:
+            grad_output = grad_output[mask]
+        grad_sum = torch.zeros(
+            x.shape[0],
+            3 * Bwd_fuse,
+            x.shape[2],
+            x.shape[3],
+            device=x.device,
+            dtype=x.dtype,
+        )
         for i in range(args.syn_steps):
-            index = args.syn_steps-1-i
-            x = syn_images.detach().requires_grad_()
-            x = x.repeat(1,int(Fuse), 1, 1).requires_grad_(True)
-
-            g = backward_block(x, this_y,student_params, index , grad_output, ddx_conv, student_net, criterion,mask,shape_list,fuse_mask_list ,Fuse, Bwd_fuse)
-            grad_sum +=g[0]
-            grad_lr +=g[1]
-            if(index != 0):
+            index = args.syn_steps - 1 - i
+            x_full = syn_images.detach().requires_grad_()
+            x_full = x_full.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
+            g = backward_block(
+                x_full,
+                this_y,
+                student_params,
+                index,
+                grad_output,
+                ddx_conv,
+                student_net,
+                criterion,
+                mask,
+                shape_list,
+                fuse_mask_list,
+                Fuse,
+                Bwd_fuse,
+            )
+            dx_active = g[0]
+            assert grad_sum.shape == dx_active.shape, (
+                f"grad_sum shape={grad_sum.shape}, dx_active shape={dx_active.shape}"
+            )
+            grad_sum += dx_active
+            grad_lr += g[1]
+            if index != 0:
                 grad_output = g[2]
-        # 这里，image_syn 是[10, 3, 32, 32]，但是grad因为x做了repeat所以是[10, 6, 32, 32]，那可能需要累加回来。
-        grad_sum = grad_sum.reshape(args.batch_syn, int(Fuse), 3, 32, 32).sum(1)
-        image_syn.grad = grad_sum.detach()
-        syn_lr.grad = grad_lr.detach()
 
 
         if(args.AccTest):
@@ -861,6 +943,8 @@ if __name__ == '__main__':
     parser.add_argument('--fuse_mask_list', type=int,   nargs='+', required=True, help='fuse mask list, e.g. 1 1 0')
 
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
+    parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
+    
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')

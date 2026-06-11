@@ -1,0 +1,15 @@
+============================================================
+START_TIME: 2026-06-08 13:24:26
+SCRIPT: distill_flexFuse_timeTest_conv_backup.py
+IPC_LIST: 1 10 100
+REPEATS: 3
+LOG_FILE: systest.txt
+============================================================
+
+==============================
+2026-06-08 13:24:26 | IPC=1 | REPEAT=1/3 | CASE=flex_mask_10_vfuse
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_backup.py --fuse_mask_list 1 0 --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --v_fuse
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt

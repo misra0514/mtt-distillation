@@ -1,22 +1,27 @@
 #!/usr/bin/env bash
-# Massive distill time-test sweep, v3.
+# Massive distill time-test sweep, v4.
 #
 # Logs are split by model:
 #   testlog524/conv.txt
-#   testlog524/resnet18.txt
 #   testlog524/vit.txt
+#   testlog524/resnet18.txt
 #
-# For each model / ipc / syn_steps, run:
-#   original
-#   fuse_mask_list 1   + --no-v_fuse
-#   fuse_mask_list 1   + --v_fuse
-#   fuse_mask_list 1 1 + --v_fuse
-#   fuse_mask_list 1 0 + --v_fuse
+# Important changes in v4:
+#   1. Original still runs syn_steps = 1 and 20.
+#   2. Normal flex timetest scripts only run syn_steps = 1.
+#   3. ConvNet additionally uses distill_ckpt_flex_conv_timetest.py to cover syn_steps = 20.
+#   4. No plain tests.
+#   5. No --AccTest=True.
+#   6. Each case runs twice consecutively.
 #
-# Each test is repeated twice consecutively.
+# Per model / IPC, order is:
+#   original syn1
+#   normal flex syn1: mask1_no_vfuse, mask1_vfuse, mask11_vfuse, mask10_vfuse
+#   original syn20
+#   conv only: ckpt flex syn20: mask1_vfuse, mask11_vfuse, mask10_vfuse
 #
 # Run with bash, not sh:
-#   bash rundistill_massive_524_v3.sh
+#   bash rundistill_massive_524_v4.sh
 
 set -u
 set -o pipefail
@@ -25,8 +30,8 @@ LOG_DIR="${LOG_DIR:-testlog524}"
 mkdir -p "${LOG_DIR}"
 
 CONV_LOG="${LOG_DIR}/conv.txt"
-RESNET_LOG="${LOG_DIR}/resnet18.txt"
 VIT_LOG="${LOG_DIR}/vit.txt"
+RESNET_LOG="${LOG_DIR}/resnet18.txt"
 
 DATASET="CIFAR10"
 PIX_INIT="real"
@@ -49,22 +54,41 @@ REPEATS=2
 ORIGINAL_FILE="distill_original_timeTest.py"
 
 CONV_FLEX_FILE="distill_flexFuse_timeTest_conv_backup.py"
-RESNET_FLEX_FILE="distill_flexFuse_timeTest_resnet18.py"
 VIT_FLEX_FILE="distill_flexFuse_timeTest_ViT.py"
+RESNET_FLEX_FILE="distill_flexFuse_timeTest_resnet18.py"
+
+# Conv-only checkpoint flex script for syn_steps=20.
+CONV_CKPT_FLEX_FILE="distill_ckpt_flex_conv_timetest.py"
 
 IPC_LIST=(1 10 100)
-SYN_STEPS_LIST=(1 20)
+ORIGINAL_SYN_STEPS_LIST=(1 20)
+NORMAL_FLEX_SYN_STEPS=1
+CKPT_FLEX_SYN_STEPS=20
+
+# For normal flex syn_steps=1.
+# Cases:
+#   1   + --no-v_fuse
+#   1   + --v_fuse
+#   1 1 + --v_fuse
+#   1 0 + --v_fuse
+
+# For conv ckpt syn_steps=20.
+# Cases:
+#   1   + --v_fuse
+#   1 1 + --v_fuse
+#   1 0 + --v_fuse
 
 # Clean old logs at the start.
 : > "${CONV_LOG}"
-: > "${RESNET_LOG}"
 : > "${VIT_LOG}"
+: > "${RESNET_LOG}"
 
 write_header() {
   local log_file="$1"
   local model_label="$2"
   local model_arg="$3"
   local flex_file="$4"
+  local extra_note="${5:-}"
 
   {
     echo "============================================================"
@@ -73,13 +97,16 @@ write_header() {
     echo "MODEL BLOCK: ${model_label}"
     echo "MODEL ARG:   ${model_arg}"
     echo "FLEX FILE:   ${flex_file}"
-    echo "ORDER:       original -> mask1_no_vfuse -> mask1_vfuse -> mask11_vfuse -> mask10_vfuse"
     echo "IPC_LIST:    ${IPC_LIST[*]}"
-    echo "SYN_STEPS:   ${SYN_STEPS_LIST[*]}"
+    echo "ORIGINAL_SYN_STEPS: ${ORIGINAL_SYN_STEPS_LIST[*]}"
+    echo "NORMAL_FLEX_SYN_STEPS: ${NORMAL_FLEX_SYN_STEPS}"
     echo "ITERATION:   ${ITERATION}"
     echo "REPEATS:     ${REPEATS}"
     echo "LOG_FILE:    ${log_file}"
     echo "NOTE:        no plain tests; --AccTest=True is removed."
+    if [ -n "${extra_note}" ]; then
+      echo "EXTRA:       ${extra_note}"
+    fi
     echo "============================================================"
     echo ""
   } >> "${log_file}"
@@ -216,6 +243,7 @@ run_flex_case() {
   local syn_steps="$6"
   local mask_string="$7"
   local vfuse_arg="$8"
+  local case_prefix="${9:-flex}"
 
   read -r -a mask_args <<< "${mask_string}"
   local mask_tag="${mask_string// /}"
@@ -232,7 +260,7 @@ run_flex_case() {
 
   run_cmd \
     "${log_file}" \
-    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | CASE=flex_mask_${mask_tag}_${vfuse_tag}" \
+    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | CASE=${case_prefix}_mask_${mask_tag}_${vfuse_tag}" \
     python "${flex_file}" \
       --fuse_mask_list "${mask_args[@]}" \
       "${vfuse_arg}" \
@@ -242,17 +270,30 @@ run_flex_case() {
 # ============================================================
 # ConvNet tests
 # ============================================================
-write_header "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}"
+write_header \
+  "${CONV_LOG}" \
+  "ConvNet" \
+  "ConvNet" \
+  "${CONV_FLEX_FILE}" \
+  "normal flex only uses syn_steps=1; ckpt flex file covers conv syn_steps=20. CKPT_FILE=${CONV_CKPT_FLEX_FILE}"
 
 for ipc in "${IPC_LIST[@]}"; do
-  for syn_steps in "${SYN_STEPS_LIST[@]}"; do
-    run_original  "${CONV_LOG}" "ConvNet" "ConvNet" "${ipc}" "${syn_steps}"
+  # original syn_steps=1
+  run_original "${CONV_LOG}" "ConvNet" "ConvNet" "${ipc}" "1"
 
-    run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${syn_steps}" "1"   "--no-v_fuse"
-    run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${syn_steps}" "1"   "--v_fuse"
-    run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${syn_steps}" "1 1" "--v_fuse"
-    run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${syn_steps}" "1 0" "--v_fuse"
-  done
+  # normal flex syn_steps=1 only
+  run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--no-v_fuse" "flex"
+  run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--v_fuse"    "flex"
+  run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1" "--v_fuse"    "flex"
+  run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 0" "--v_fuse"    "flex"
+
+  # original syn_steps=20
+  run_original "${CONV_LOG}" "ConvNet" "ConvNet" "${ipc}" "20"
+
+  # ckpt flex syn_steps=20 only, to fill the removed normal-flex syn_steps=20 cases.
+  run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_CKPT_FLEX_FILE}" "${ipc}" "${CKPT_FLEX_SYN_STEPS}" "1"   "--v_fuse" "ckpt_flex"
+  run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_CKPT_FLEX_FILE}" "${ipc}" "${CKPT_FLEX_SYN_STEPS}" "1 1" "--v_fuse" "ckpt_flex"
+  run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_CKPT_FLEX_FILE}" "${ipc}" "${CKPT_FLEX_SYN_STEPS}" "1 0" "--v_fuse" "ckpt_flex"
 done
 
 write_footer "${CONV_LOG}"
@@ -260,17 +301,25 @@ write_footer "${CONV_LOG}"
 # ============================================================
 # ViT tests
 # ============================================================
-write_header "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}"
+write_header \
+  "${VIT_LOG}" \
+  "ViT" \
+  "ViT" \
+  "${VIT_FLEX_FILE}" \
+  "normal flex only uses syn_steps=1; no flex syn_steps=20 for ViT."
 
 for ipc in "${IPC_LIST[@]}"; do
-  for syn_steps in "${SYN_STEPS_LIST[@]}"; do
-    run_original  "${VIT_LOG}" "ViT" "ViT" "${ipc}" "${syn_steps}"
+  # original syn_steps=1
+  run_original "${VIT_LOG}" "ViT" "ViT" "${ipc}" "1"
 
-    run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${syn_steps}" "1"   "--no-v_fuse"
-    run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${syn_steps}" "1"   "--v_fuse"
-    run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${syn_steps}" "1 1" "--v_fuse"
-    run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${syn_steps}" "1 0" "--v_fuse"
-  done
+  # normal flex syn_steps=1 only
+  run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--no-v_fuse" "flex"
+  run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--v_fuse"    "flex"
+  run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1" "--v_fuse"    "flex"
+  run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 0" "--v_fuse"    "flex"
+
+  # original syn_steps=20 still runs
+  run_original "${VIT_LOG}" "ViT" "ViT" "${ipc}" "20"
 done
 
 write_footer "${VIT_LOG}"
@@ -278,17 +327,25 @@ write_footer "${VIT_LOG}"
 # ============================================================
 # ResNet18 tests
 # ============================================================
-write_header "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}"
+write_header \
+  "${RESNET_LOG}" \
+  "ResNet18" \
+  "ResNet18" \
+  "${RESNET_FLEX_FILE}" \
+  "normal flex only uses syn_steps=1; no flex syn_steps=20 for ResNet18."
 
 for ipc in "${IPC_LIST[@]}"; do
-  for syn_steps in "${SYN_STEPS_LIST[@]}"; do
-    run_original  "${RESNET_LOG}" "ResNet18" "ResNet18" "${ipc}" "${syn_steps}"
+  # original syn_steps=1
+  run_original "${RESNET_LOG}" "ResNet18" "ResNet18" "${ipc}" "1"
 
-    run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${syn_steps}" "1"   "--no-v_fuse"
-    run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${syn_steps}" "1"   "--v_fuse"
-    run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${syn_steps}" "1 1" "--v_fuse"
-    run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${syn_steps}" "1 0" "--v_fuse"
-  done
+  # normal flex syn_steps=1 only
+  run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--no-v_fuse" "flex"
+  run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--v_fuse"    "flex"
+  run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1" "--v_fuse"    "flex"
+  run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 0" "--v_fuse"    "flex"
+
+  # original syn_steps=20 still runs
+  run_original "${RESNET_LOG}" "ResNet18" "ResNet18" "${ipc}" "20"
 done
 
 write_footer "${RESNET_LOG}"
