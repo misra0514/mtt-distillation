@@ -437,41 +437,93 @@ def main(args):
         # # shape list 是一个的。后面可能需要expand
         shape_list = [p.shape for p in starting_params]
 
-        mask_params = []
         Fuse = len(fuse_mask_list)    # 关键：Fuse = 分组数
 
         for index, p in enumerate(starting_params):
             if p.ndim != 0:
-
-                # ===== 1）repeat（第 0 维复制 Fuse 次）=====
-                B0 = p.shape[0]
+                # ViT_FlexFuse 的 flat 参数布局仍然可以按每个 base tensor 的 flat chunk 切 fuse。
+                # cls_token / pos_embed 在模型里是 [1,Fuse,...]，但 repeat 后的 flat 顺序等价于按 fuse 连续排列。
                 repeat_shape = (Fuse,) + (1,) * (p.ndim - 1)
-                p_rep = p.repeat(repeat_shape)          # shape = [Fuse*B0, ...]
-                starting_params[index] = p_rep
-
-                # ===== 2）构造 mask（和 p_rep 同 shape），按 block 切 =====
-
-                # row_mask.shape = [Fuse*B0]
-                # fuse_mask_list = [1,1,0] → [True,True,False]
-                row_mask = torch.tensor(fuse_mask_list, dtype=torch.bool, device=p.device)
-                row_mask = row_mask.repeat_interleave(B0)
-                # 现在 row_mask = [T,T,...B0 次, T,T,...B0 次, F,F,...B0 次]
-
-                # 扩展成 p_rep 同 shape（广播）
-                view_shape = (Fuse * B0,) + (1,) * (p_rep.ndim - 1)
-                mask_param = row_mask.view(view_shape).expand_as(p_rep)
-
-                mask_params.append(mask_param)
+                starting_params[index] = p.repeat(repeat_shape)
 
         # ===== flatten =====
         student_params = [
             torch.cat([pp.data.to(args.device).reshape(-1) for pp in starting_params], 0)
             .requires_grad_(True)
         ]
-        mask = torch.cat([mm.reshape(-1) for mm in mask_params], 0)   # already bool
-        del mask_params
 
         starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
+
+        # ============================================================
+        # Flex-bwd setup for ViT.
+        # first-bwd / syn update 仍然用完整 Fuse；double-bwd + bwd2_1 只跑 active bwd_Fuse。
+        # active_param_slices 用 flat chunk 构造，兼容 cls_token/pos_embed 的特殊 dim=1 fuse 布局。
+        # ============================================================
+        active_fuse_ids = [f for f, m in enumerate(fuse_mask_list) if m == 1]
+        assert len(active_fuse_ids) == bwd_Fuse and bwd_Fuse > 0
+        if bwd_Fuse != Fuse:
+            active_start = active_fuse_ids[0]
+            assert active_fuse_ids == list(range(active_start, active_start + bwd_Fuse)),                 "fuse_mask_list must keep active branches contiguous"
+        fuse_mask_for_bwd = fuse_mask_list if Fuse != bwd_Fuse else None
+
+        with torch.no_grad():
+            active_param_slices = []
+            dist_terms = []
+            starting_bwd_chunks = []
+            target_bwd_chunks = []
+            flat_offset = 0
+            active_start = active_fuse_ids[0]
+            # 你前面已经 assert active_fuse_ids contiguous 了：
+            # active_fuse_ids == [active_start, ..., active_start + bwd_Fuse - 1]
+
+            for base_shape in shape_list:
+                base_numel = int(np.prod(base_shape))
+                if len(base_shape) == 0:
+                    # scalar parameter: not repeated by Fuse in your current code
+                    sl = slice(flat_offset, flat_offset + base_numel)
+                    s = starting_params[sl]
+                    t = target_params[sl]
+                    active_param_slices.append(sl)
+                    starting_bwd_chunks.append(s.reshape(-1))
+                    target_bwd_chunks.append(t.reshape(-1))
+
+                    # same as F.mse_loss(..., reduction="mean")
+                    dist_terms.append((s - t).square().mean().reshape(1))
+
+                    flat_offset += base_numel
+                    continue
+
+                # current flat layout for one parameter:
+                # [fuse0 full param][fuse1 full param]...[fuseF full param]
+                param_start = flat_offset
+                param_end = flat_offset + Fuse * base_numel
+                active_flat_start = param_start + active_start * base_numel
+                active_flat_end = active_flat_start + bwd_Fuse * base_numel
+                active_sl = slice(active_flat_start, active_flat_end)
+                active_param_slices.append(active_sl)
+                s_act = starting_params[active_sl].view(bwd_Fuse, base_numel)
+                t_act = target_params[active_sl].view(bwd_Fuse, base_numel)
+                starting_bwd_chunks.append(s_act.reshape(-1))
+                target_bwd_chunks.append(t_act.reshape(-1))
+                # This is equivalent to:
+                # for f in active_fuse_ids:
+                #     mse_loss(sp_f, tp_f, reduction="mean")
+                dist_terms.append((s_act - t_act).square().mean(dim=1))
+
+                flat_offset = param_end
+
+            param_dist = torch.cat(dist_terms, dim=0).mean()
+
+
+            if Fuse != bwd_Fuse:
+                target_params_bwd = torch.cat([target_params[sl] for sl in active_param_slices], 0)
+            else:
+                target_params_bwd = target_params
+
+        # full-Fuse starting/target flat tensors are no longer needed after
+        # param_dist and target_params_bwd are prepared.  In flex-bwd mode,
+        # keeping target_params here wastes one full-Fuse parameter vector.
+        del starting_params, target_params
 
         syn_images = image_syn
 
@@ -482,6 +534,8 @@ def main(args):
         indices_chunks = []
 
         if it >= warmup:
+            if args.use_barrier:
+                torch.cuda.synchronize()
             syn_start = time.time()
         # conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0],shape_list, Fuse)
 
@@ -527,39 +581,38 @@ def main(args):
                         tape=tape,
                         target=this_y,
                         Fuse=Fuse,
+                        fuse_mask_list=fuse_mask_for_bwd,
                     )
             grad_list = d_weights_list_all
             grad = torch.cat([g.reshape(-1) for g in grad_list], 0)
             student_params.append(student_params[-1] - syn_lr * grad)
 
+            # run_first_bwd returns full-Fuse parameter grads.  After grad is
+            # flattened into student_params[-1], these references must be
+            # released before double-bwd, otherwise flex10 still carries the
+            # full-Fuse dW tensors through the expensive stage.
+            del dx_in, d_weights, d_weights_list_all, grad_list, grad
+            del x, this_y
+
             if it >= warmup:
+                if args.use_barrier:
+                    torch.cuda.synchronize()
                 syn_end = time.time()
 
             with torch.no_grad():
-                param_loss = torch.tensor(0.0, device=args.device)
-                param_dist = torch.tensor(0.0, device=args.device)
+                if Fuse != bwd_Fuse:
+                    final_params_bwd = torch.cat([student_params[-1][sl] for sl in active_param_slices], 0)
+                    forward_params_bwd = torch.cat([forward_params[sl] for sl in active_param_slices], 0)
+                else:
+                    final_params_bwd = student_params[-1]
+                    forward_params_bwd = forward_params
 
+                param_loss = torch.tensor(0.0, device=args.device)
                 param_loss += torch.nn.functional.mse_loss(
-                    student_params[-1],
-                    target_params,
+                    final_params_bwd,
+                    target_params_bwd,
                     reduction="sum",
                 )
-
-                start_param_list = recover_params(starting_params, shape_list, Fuse)
-                target_param_list = recover_params(target_params, shape_list, Fuse)
-
-                fuse_losses = []
-                for sp, tp in zip(start_param_list, target_param_list):
-                    sp_chunks = iter_vit_fuse_chunks(sp, Fuse)
-                    tp_chunks = iter_vit_fuse_chunks(tp, Fuse)
-
-                    assert len(sp_chunks) == Fuse
-                    assert len(tp_chunks) == Fuse
-
-                    for sp_f, tp_f in zip(sp_chunks, tp_chunks):
-                        fuse_losses.append(F.mse_loss(sp_f, tp_f, reduction="mean"))
-
-                param_dist = torch.stack(fuse_losses).mean()
 
                 param_loss_list.append(param_loss)
                 param_dist_list.append(param_dist)
@@ -570,25 +623,33 @@ def main(args):
                 optimizer_img.zero_grad()
                 optimizer_lr.zero_grad()
 
-                # cotangent wrt final student params
-                ddw = 2 * (student_params[-1] - target_params) / param_dist
+                # cotangent wrt active final student params only
+                ddw = 2 * (final_params_bwd - target_params_bwd) / param_dist
                 ddw *= (-syn_lr)
 
-                assert ddw.numel() == student_params[-1].numel(), (
-                    f"ddw numel mismatch: ddw={ddw.numel()}, params={student_params[-1].numel()}"
+                assert ddw.numel() == forward_params_bwd.numel(), (
+                    f"ddw numel mismatch: ddw={ddw.numel()}, active_params={forward_params_bwd.numel()}"
                 )
 
-                # dd_tensors_all = recover_params(ddw, shape_list, Fuse)
-                dd_tensors_all = unflatten_like_reparam(ddw, student_net)
-
-                # ViT: parse recovered dd tensors into dd_weights dict
+                dd_tensors_all = recover_params(ddw, shape_list, bwd_Fuse)
                 dd_weights = student_net.module.pack_recovered_dd(
                     dd_tensors_all=dd_tensors_all,
+                    Fuse=bwd_Fuse,
                 )
 
-                # cotangent wrt first-bwd output dx_in.
-                # grand_loss only comes from parameter gradients, not dx_in.
-                ddgrad_in = torch.zeros_like(x)
+                if Fuse != bwd_Fuse:
+                    bwd_weight_tensors = recover_params(forward_params_bwd, shape_list, bwd_Fuse)
+                    bwd_weights = student_net.module.pack_recovered_weights(
+                        bwd_weight_tensors,
+                        Fuse=bwd_Fuse,
+                    )
+                else:
+                    bwd_weight_tensors = None
+                    bwd_weights = None
+
+                # run_first_bwd 已经把 tape["patch"]["x_in"] 切成 active bwd_Fuse 形状。
+                # 因此 ddgrad_in 也必须用切过之后的 shape。
+                ddgrad_in = torch.zeros_like(tape["patch"]["x_in"])
 
                 # Stage 1: double-bwd through first-bwd graph
                 dd_dx_out, d_activates = student_net.call_with_param(
@@ -598,7 +659,8 @@ def main(args):
                     d_activates=d_activates,
                     dd_weights=dd_weights,
                     ddgrad_in=ddgrad_in,
-                    Fuse=Fuse,
+                    Fuse=bwd_Fuse,
+                    weights=bwd_weights,
                 )
 
                 # Stage 2: corrected first-bwd / bwd2_1 to get d grand_loss / d x
@@ -608,8 +670,17 @@ def main(args):
                     tape=tape,
                     d_activates=d_activates,
                     dd_dx_out=dd_dx_out,
-                    Fuse=Fuse,
+                    Fuse=bwd_Fuse,
+                    weights=bwd_weights,
                 )
+
+                # Everything below is only needed for this manual backward pass.
+                # Keep dx_vit for AccTest printing; release all active/full
+                # parameter vectors, dd weights, and saved tapes immediately.
+                del final_params_bwd, forward_params_bwd
+                del ddw, dd_tensors_all, dd_weights, ddgrad_in, dd_dx_out
+                del tape, d_activates
+                del bwd_weight_tensors, bwd_weights
         if(args.AccTest):
             print("--Celoss--",ce_loss.item())
             print("--GradLoss--",grand_loss.item())
@@ -618,6 +689,8 @@ def main(args):
         optimizer_img.step()
         optimizer_lr.step()
         if it >= warmup:
+            if args.use_barrier:
+                torch.cuda.synchronize()
             iter_end = time.time()
             prep_time += (syn_start- start) # 从iter开始一直到内层循环
             syn_time += (syn_end-syn_start) # 内层循环的时间
@@ -628,6 +701,11 @@ def main(args):
 
         for _ in student_params:
             del _
+        del student_params
+        del active_param_slices, active_fuse_ids, fuse_mask_for_bwd
+        del target_params_bwd
+        if 'dx_vit' in locals():
+            del dx_vit
 
         # if it%10 == 0:
     #     #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
@@ -655,6 +733,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('--use-barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
+
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')

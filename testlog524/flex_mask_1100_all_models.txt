@@ -1,0 +1,859 @@
+============================================================
+FLEX MASK 1 1 0 0 SWEEP START
+START_TIME: 2026-07-16 13:05:53
+MODELS: ConvNet ViT ResNet18
+CASE: flex_mask_1100_vfuse
+FUSE_MASK_LIST: 1 1 0 0
+V_FUSE: --v_fuse
+SYN_STEPS: 1
+CONV_IPC_LIST: 1 10 100
+VIT_IPC_LIST: 1 10 100 1000
+RESNET_IPC_LIST: 1 10 100 1000
+DEFAULT_ITERATION: 350
+FAST_ITERATION: 50
+USE_BARRIER_REPEATS: 1
+NO_BARRIER_REPEATS: 2
+ITERATION RULE: ConvNet always 350; ViT/ResNet18 use 50 when IPC>=100, otherwise 350.
+LOG_FILE: testlog524/flex_mask_1100_all_models.txt
+NOTE: this script only runs distill_flexFuse_timeTest_* with --fuse_mask_list 1 1 0 0 --v_fuse.
+============================================================
+
+============================================================
+MODEL BLOCK START: ConvNet
+MODEL ARG: ConvNet
+FLEX FILE: distill_flexFuse_timeTest_conv.py
+IPC_LIST: 1 10 100
+SYN_STEPS: 1
+CASE: flex_mask_1100_vfuse
+============================================================
+
+==============================
+2026-07-16 13:05:53 | MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  148.0627543926239
+prepare time ( 1 ):  141.0045871734619
+syn_time     ( 1 ):  2.074885606765747
+backward_time( 1 ):  3.1111207008361816
+param_dist_time( 1 ):  0.6636092662811279
+峰值cache使用: 208.0 MB
+峰值tensor使用: 159.6728515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:08:31 | MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  143.54550075531006
+prepare time ( 1 ):  138.12916207313538
+syn_time     ( 1 ):  1.3406193256378174
+backward_time( 1 ):  2.149850606918335
+param_dist_time( 1 ):  0.567349910736084
+峰值cache使用: 208.0 MB
+峰值tensor使用: 159.6728515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:11:05 | MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  146.5966498851776
+prepare time ( 1 ):  141.14172387123108
+syn_time     ( 1 ):  1.3205962181091309
+backward_time( 1 ):  2.315490961074829
+param_dist_time( 1 ):  0.6538224220275879
+峰值cache使用: 208.0 MB
+峰值tensor使用: 159.6728515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:13:42 | MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  165.0727186203003
+prepare time ( 1 ):  140.02490186691284
+syn_time     ( 1 ):  10.647670984268188
+backward_time( 1 ):  12.652143001556396
+param_dist_time( 1 ):  0.6209428310394287
+峰值cache使用: 1818.0 MB
+峰值tensor使用: 1108.4267578125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:16:36 | MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  156.15825080871582
+prepare time ( 1 ):  141.54511904716492
+syn_time     ( 1 ):  1.3863837718963623
+backward_time( 1 ):  11.337590456008911
+param_dist_time( 1 ):  0.6846261024475098
+峰值cache使用: 1818.0 MB
+峰值tensor使用: 1108.4267578125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:19:23 | MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  147.9347174167633
+prepare time ( 1 ):  136.30523800849915
+syn_time     ( 1 ):  1.066735029220581
+backward_time( 1 ):  8.810153007507324
+param_dist_time( 1 ):  0.21784472465515137
+峰值cache使用: 1818.0 MB
+峰值tensor使用: 1108.4267578125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:22:01 | MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  288.8021776676178
+prepare time ( 1 ):  133.20887875556946
+syn_time     ( 1 ):  67.09456706047058
+backward_time( 1 ):  85.94463872909546
+param_dist_time( 1 ):  0.14691734313964844
+峰值cache使用: 16728.0 MB
+峰值tensor使用: 10715.51708984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:26:58 | MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  204.53501224517822
+prepare time ( 1 ):  133.2874095439911
+syn_time     ( 1 ):  0.9454476833343506
+backward_time( 1 ):  67.54274821281433
+param_dist_time( 1 ):  0.13468456268310547
+峰值cache使用: 16728.0 MB
+峰值tensor使用: 10715.51708984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:30:31 | MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  198.2222261428833
+prepare time ( 1 ):  127.1978747844696
+syn_time     ( 1 ):  0.9244158267974854
+backward_time( 1 ):  67.42147588729858
+param_dist_time( 1 ):  0.13050603866577148
+峰值cache使用: 16728.0 MB
+峰值tensor使用: 10715.51708984375 MB
+------------------------------
+EXIT_CODE: 0
+
+============================================================
+MODEL BLOCK END: ConvNet
+END_TIME: 2026-07-16 13:33:59
+============================================================
+
+============================================================
+MODEL BLOCK START: ViT
+MODEL ARG: ViT
+FLEX FILE: distill_flexFuse_timeTest_ViT.py
+IPC_LIST: 1 10 100 1000
+SYN_STEPS: 1
+CASE: flex_mask_1100_vfuse
+============================================================
+
+==============================
+2026-07-16 13:33:59 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  411.74127674102783
+prepare time ( 1 ):  393.3056411743164
+syn_time     ( 1 ):  4.433098793029785
+backward_time( 1 ):  7.447962522506714
+峰值cache使用: 440.0 MB
+峰值tensor使用: 363.11474609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:41:02 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  413.75685119628906
+prepare time ( 1 ):  395.8594069480896
+syn_time     ( 1 ):  3.8967461585998535
+backward_time( 1 ):  7.51470947265625
+峰值cache使用: 440.0 MB
+峰值tensor使用: 363.11474609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:48:07 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  414.269104719162
+prepare time ( 1 ):  396.5169093608856
+syn_time     ( 1 ):  3.914266347885132
+backward_time( 1 ):  7.479878187179565
+峰值cache使用: 440.0 MB
+峰值tensor使用: 363.11474609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 13:55:12 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  463.25313997268677
+prepare time ( 1 ):  395.1186637878418
+syn_time     ( 1 ):  24.029730081558228
+backward_time( 1 ):  37.448187828063965
+峰值cache使用: 2706.0 MB
+峰值tensor使用: 2524.60400390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 14:03:06 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  443.45402097702026
+prepare time ( 1 ):  395.21718096733093
+syn_time     ( 1 ):  4.015493392944336
+backward_time( 1 ):  37.566142082214355
+峰值cache使用: 2706.0 MB
+峰值tensor使用: 2524.60400390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 14:10:40 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  442.6465289592743
+prepare time ( 1 ):  394.3863904476166
+syn_time     ( 1 ):  4.007187604904175
+backward_time( 1 ):  37.602410554885864
+峰值cache使用: 2706.0 MB
+峰值tensor使用: 2524.60400390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 14:18:14 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 578, in main
+    dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2377, in run_first_bwd
+    g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1567, in run_first_bwd
+    dx_norm1, d_attn_activates, d_attn_weights, d_attn_weights_all = self.attn.run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1156, in run_first_bwd
+    dx, dqkvw, dqkvb = grouped_linear_bwd( x, module.qkv.weight, grad_output=dqkv_linear, Fuse=Fuse )
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless_basicblock.py", line 489, in grouped_linear_bwd
+    dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/functional.py", line 402, in einsum
+    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 382.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 27.12 MiB is free. Including non-PyTorch memory, this process has 23.27 GiB memory in use. Of the allocated memory 22.71 GiB is allocated by PyTorch, and 325.83 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 14:18:28 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 578, in main
+    dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2377, in run_first_bwd
+    g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1567, in run_first_bwd
+    dx_norm1, d_attn_activates, d_attn_weights, d_attn_weights_all = self.attn.run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1156, in run_first_bwd
+    dx, dqkvw, dqkvb = grouped_linear_bwd( x, module.qkv.weight, grad_output=dqkv_linear, Fuse=Fuse )
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless_basicblock.py", line 489, in grouped_linear_bwd
+    dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/functional.py", line 402, in einsum
+    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 382.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 27.12 MiB is free. Including non-PyTorch memory, this process has 23.27 GiB memory in use. Of the allocated memory 22.71 GiB is allocated by PyTorch, and 325.83 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 14:18:39 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 578, in main
+    dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2377, in run_first_bwd
+    g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1567, in run_first_bwd
+    dx_norm1, d_attn_activates, d_attn_weights, d_attn_weights_all = self.attn.run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1156, in run_first_bwd
+    dx, dqkvw, dqkvb = grouped_linear_bwd( x, module.qkv.weight, grad_output=dqkv_linear, Fuse=Fuse )
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless_basicblock.py", line 489, in grouped_linear_bwd
+    dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/functional.py", line 402, in einsum
+    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 382.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 27.12 MiB is free. Including non-PyTorch memory, this process has 23.27 GiB memory in use. Of the allocated memory 22.71 GiB is allocated by PyTorch, and 325.83 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 14:18:51 | MODEL=ViT | IPC=1000 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=1000 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 571, in main
+    x_out, tape = student_net(x,flat_param=forward_params)  # forward
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2108, in forward
+    h, block_tape = blk(h)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1432, in forward
+    x_attn, attn_tape = self.attn(x_norm1)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1099, in forward
+    attn_out = F.scaled_dot_product_attention(q, k, v)        # [B, Fuse, H, N, Dh]
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.52 GiB. GPU 0 has a total capacity of 23.54 GiB of which 1.16 GiB is free. Including non-PyTorch memory, this process has 22.13 GiB memory in use. Of the allocated memory 21.15 GiB is allocated by PyTorch, and 753.74 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 14:19:02 | MODEL=ViT | IPC=1000 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1000 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 571, in main
+    x_out, tape = student_net(x,flat_param=forward_params)  # forward
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2108, in forward
+    h, block_tape = blk(h)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1432, in forward
+    x_attn, attn_tape = self.attn(x_norm1)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1099, in forward
+    attn_out = F.scaled_dot_product_attention(q, k, v)        # [B, Fuse, H, N, Dh]
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.52 GiB. GPU 0 has a total capacity of 23.54 GiB of which 1.16 GiB is free. Including non-PyTorch memory, this process has 22.13 GiB memory in use. Of the allocated memory 21.15 GiB is allocated by PyTorch, and 753.74 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 14:19:12 | MODEL=ViT | IPC=1000 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1000 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 571, in main
+    x_out, tape = student_net(x,flat_param=forward_params)  # forward
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2108, in forward
+    h, block_tape = blk(h)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1432, in forward
+    x_attn, attn_tape = self.attn(x_norm1)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1099, in forward
+    attn_out = F.scaled_dot_product_attention(q, k, v)        # [B, Fuse, H, N, Dh]
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.52 GiB. GPU 0 has a total capacity of 23.54 GiB of which 1.16 GiB is free. Including non-PyTorch memory, this process has 22.13 GiB memory in use. Of the allocated memory 21.15 GiB is allocated by PyTorch, and 753.74 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+============================================================
+MODEL BLOCK END: ViT
+END_TIME: 2026-07-16 14:19:23
+============================================================
+
+============================================================
+MODEL BLOCK START: ResNet18
+MODEL ARG: ResNet18
+FLEX FILE: distill_flexFuse_timeTest_resnet18.py
+IPC_LIST: 1 10 100 1000
+SYN_STEPS: 1
+CASE: flex_mask_1100_vfuse
+============================================================
+
+==============================
+2026-07-16 14:19:23 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1460.5761878490448
+prepare time ( 1 ):  1416.6077795028687
+syn_time     ( 1 ):  10.22843599319458
+backward_time( 1 ):  16.210747241973877
+峰值cache使用: 2158.0 MB
+峰值tensor使用: 1839.216796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 14:44:01 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1474.2717270851135
+prepare time ( 1 ):  1435.0413403511047
+syn_time     ( 1 ):  3.713540554046631
+backward_time( 1 ):  18.10645341873169
+峰值cache使用: 2158.0 MB
+峰值tensor使用: 1839.216796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 15:08:53 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1460.5333125591278
+prepare time ( 1 ):  1421.3895058631897
+syn_time     ( 1 ):  3.684520721435547
+backward_time( 1 ):  18.096216678619385
+峰值cache使用: 2158.0 MB
+峰值tensor使用: 1839.216796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 15:33:32 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1577.29642868042
+prepare time ( 1 ):  1441.810553073883
+syn_time     ( 1 ):  46.38254737854004
+backward_time( 1 ):  71.03603672981262
+峰值cache使用: 4810.0 MB
+峰值tensor使用: 4086.7822265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 16:00:08 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1541.287163734436
+prepare time ( 1 ):  1435.0823590755463
+syn_time     ( 1 ):  3.763683319091797
+backward_time( 1 ):  84.4898624420166
+峰值cache使用: 4810.0 MB
+峰值tensor使用: 4086.7822265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 16:26:07 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1525.7749893665314
+prepare time ( 1 ):  1419.5504744052887
+syn_time     ( 1 ):  3.722625970840454
+backward_time( 1 ):  84.53801321983337
+峰值cache使用: 4810.0 MB
+峰值tensor使用: 4086.7822265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-16 16:51:51 | MODEL=ResNet18 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 772, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 584, in main
+    student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 896, in run_first_bwd
+    g, d_activates_i, d_weights_i = BasicBlock_bwd( activates_i, weights_i, grad_output=g, SCstride=blk.conv1.stride[0],Fuse=Fuse,v_fuse=self.v_fuse)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless.py", line 144, in BasicBlock_bwd
+    dx_bn2, dbn2w, dbn2b, _, _ = instanceNorm_backward(x_bn2, bn2w, grad_output=grad_output)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_basicblock_tritonwrapper.py", line 403, in instanceNorm_backward
+    M * grad_output_hat
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 500.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 369.12 MiB is free. Including non-PyTorch memory, this process has 22.94 GiB memory in use. Of the allocated memory 21.50 GiB is allocated by PyTorch, and 1.19 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 16:52:16 | MODEL=ResNet18 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 772, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 584, in main
+    student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 896, in run_first_bwd
+    g, d_activates_i, d_weights_i = BasicBlock_bwd( activates_i, weights_i, grad_output=g, SCstride=blk.conv1.stride[0],Fuse=Fuse,v_fuse=self.v_fuse)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless.py", line 144, in BasicBlock_bwd
+    dx_bn2, dbn2w, dbn2b, _, _ = instanceNorm_backward(x_bn2, bn2w, grad_output=grad_output)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_basicblock_tritonwrapper.py", line 403, in instanceNorm_backward
+    M * grad_output_hat
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 500.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 369.12 MiB is free. Including non-PyTorch memory, this process has 22.94 GiB memory in use. Of the allocated memory 21.50 GiB is allocated by PyTorch, and 1.19 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 16:52:39 | MODEL=ResNet18 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 772, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 584, in main
+    student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 896, in run_first_bwd
+    g, d_activates_i, d_weights_i = BasicBlock_bwd( activates_i, weights_i, grad_output=g, SCstride=blk.conv1.stride[0],Fuse=Fuse,v_fuse=self.v_fuse)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless.py", line 144, in BasicBlock_bwd
+    dx_bn2, dbn2w, dbn2b, _, _ = instanceNorm_backward(x_bn2, bn2w, grad_output=grad_output)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_basicblock_tritonwrapper.py", line 403, in instanceNorm_backward
+    M * grad_output_hat
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 500.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 369.12 MiB is free. Including non-PyTorch memory, this process has 22.94 GiB memory in use. Of the allocated memory 21.50 GiB is allocated by PyTorch, and 1.19 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 16:53:02 | MODEL=ResNet18 | IPC=1000 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --use-barrier --dataset=CIFAR10 --pix_init=real --ipc=1000 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 772, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 577, in main
+    x_out, tape = student_net(x,flat_param=forward_params)  # forward
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 673, in forward
+    h, activates = blk(h)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 626, in forward
+    x_bn1 = self.conv1(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 554, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 549, in _conv_forward
+    return F.conv2d(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 9.77 GiB. GPU 0 has a total capacity of 23.54 GiB of which 2.19 GiB is free. Including non-PyTorch memory, this process has 21.10 GiB memory in use. Of the allocated memory 20.85 GiB is allocated by PyTorch, and 10.86 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 16:53:24 | MODEL=ResNet18 | IPC=1000 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1000 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 772, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 577, in main
+    x_out, tape = student_net(x,flat_param=forward_params)  # forward
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 673, in forward
+    h, activates = blk(h)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 626, in forward
+    x_bn1 = self.conv1(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 554, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 549, in _conv_forward
+    return F.conv2d(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 9.77 GiB. GPU 0 has a total capacity of 23.54 GiB of which 2.19 GiB is free. Including non-PyTorch memory, this process has 21.10 GiB memory in use. Of the allocated memory 20.85 GiB is allocated by PyTorch, and 10.86 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-16 16:53:45 | MODEL=ResNet18 | IPC=1000 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1000 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 772, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_resnet18.py", line 577, in main
+    x_out, tape = student_net(x,flat_param=forward_params)  # forward
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 673, in forward
+    h, activates = blk(h)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 626, in forward
+    x_bn1 = self.conv1(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 554, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 549, in _conv_forward
+    return F.conv2d(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 9.77 GiB. GPU 0 has a total capacity of 23.54 GiB of which 2.19 GiB is free. Including non-PyTorch memory, this process has 21.10 GiB memory in use. Of the allocated memory 20.85 GiB is allocated by PyTorch, and 10.86 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+============================================================
+MODEL BLOCK END: ResNet18
+END_TIME: 2026-07-16 16:54:06
+============================================================
+
+
+============================================================
+FLEX MASK 1 1 0 0 SWEEP END
+END_TIME: 2026-07-16 16:54:06
+============================================================

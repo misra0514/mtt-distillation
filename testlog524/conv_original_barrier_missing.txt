@@ -1,0 +1,124 @@
+============================================================
+MISSING ORIGINAL + BARRIER SWEEP START
+START_TIME: 2026-07-14 15:13:49
+MODEL BLOCK: ConvNet
+ORIGINAL FILE: distill_original_timeTest.py
+IPC_LIST: 1 10 100
+ORIGINAL_SYN_STEPS: 1 20
+BARRIER: --use-barrier
+BARRIER_REPEATS: 1
+ITERATION RULE: ConvNet always 350; ViT/ResNet18 use 50 when IPC>=100, otherwise 350.
+LOG_FILE: testlog524/conv_original_barrier_missing.txt
+============================================================
+
+==============================
+2026-07-14 15:13:49 | MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+110.19957566261292
+prepare time ( 1 ):  103.53374481201172
+syn_time     ( 1 ):  1.771043062210083
+backward_time( 1 ):  2.2857367992401123
+峰值cache使用: 86.0 MB
+峰值tensor使用: 69.728515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 15:15:55 | MODEL=ConvNet | IPC=1 | SYN_STEPS=20 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+150.21752333641052
+prepare time ( 20 ):  114.04484796524048
+syn_time     ( 20 ):  11.88189697265625
+backward_time( 20 ):  21.35264754295349
+峰值cache使用: 664.0 MB
+峰值tensor使用: 652.75390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 15:18:36 | MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+110.43732142448425
+prepare time ( 1 ):  101.68675827980042
+syn_time     ( 1 ):  2.437143087387085
+backward_time( 1 ):  5.128437042236328
+峰值cache使用: 574.0 MB
+峰值tensor使用: 463.38330078125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 15:20:36 | MODEL=ConvNet | IPC=10 | SYN_STEPS=20 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+245.9160349369049
+prepare time ( 20 ):  108.92155385017395
+syn_time     ( 20 ):  40.5852906703949
+backward_time( 20 ):  94.10696220397949
+峰值cache使用: 6006.0 MB
+峰值tensor使用: 5893.259765625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 15:24:52 | MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+163.7041118144989
+prepare time ( 1 ):  98.65502309799194
+syn_time     ( 1 ):  16.975345849990845
+backward_time( 1 ):  46.46637201309204
+峰值cache使用: 5502.0 MB
+峰值tensor使用: 4380.87890625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 15:27:46 | MODEL=ConvNet | IPC=100 | SYN_STEPS=20 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 627, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 454, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 500.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 157.19 MiB is free. Including non-PyTorch memory, this process has 23.15 GiB memory in use. Of the allocated memory 22.09 GiB is allocated by PyTorch, and 816.35 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+
+============================================================
+MISSING ORIGINAL + BARRIER SWEEP END
+END_TIME: 2026-07-14 15:27:57
+============================================================

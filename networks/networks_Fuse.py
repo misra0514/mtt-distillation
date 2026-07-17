@@ -740,7 +740,134 @@ class ResNet18_FlexFuse(nn.Module):
         grads_all.extend([dfcw, dfcb])
         return grads_all
 
-    def run_first_bwd(self, tape, target, Fuse = 1):
+
+    def _active_fuse_range(self, fuse_mask_list):
+        if fuse_mask_list is None:
+            return None
+        Fuse = len(fuse_mask_list)
+        bwd_Fuse = sum(fuse_mask_list)
+        if bwd_Fuse == Fuse:
+            return None
+        start = fuse_mask_list.index(1)
+        end = start + bwd_Fuse
+        assert fuse_mask_list[start:end] == [1] * bwd_Fuse, "fuse_mask_list must keep active branches contiguous"
+        return start, end, Fuse
+
+    def _split_tensor_by_fuse(self, p, fuse_mask_list, layout="channel"):
+        if p is None or (not torch.is_tensor(p)):
+            return p
+        active_range = self._active_fuse_range(fuse_mask_list)
+        if active_range is None:
+            return p
+        start, end, Fuse = active_range
+
+        if layout == "batch":
+            c = p.shape[0]
+            block = c // Fuse
+            return p[start * block:end * block, ...].contiguous()
+
+        # ResNet activations normally store fuse in channel / feature dim.
+        # 4D: [B, C*Fuse, H, W]
+        # x_fc: [B, C*Fuse]
+        # 1D norm-like tensors, if ever passed here: [C*Fuse]
+        if p.ndim > 2:
+            c = p.shape[1]
+            block = c // Fuse
+            return p[:, start * block:end * block, ...].contiguous()
+        if p.ndim == 2:
+            c = p.shape[1]
+            block = c // Fuse
+            return p[:, start * block:end * block].contiguous()
+        if p.ndim == 1:
+            c = p.shape[0]
+            block = c // Fuse
+            return p[start * block:end * block].contiguous()
+        return p
+
+    def _split_tensor_dict_by_fuse(self, tensor_dict, fuse_mask_list, layout="channel"):
+        if tensor_dict is None:
+            return None
+        if self._active_fuse_range(fuse_mask_list) is None:
+            return tensor_dict
+        for k in list(tensor_dict.keys()):
+            v = tensor_dict[k]
+            if torch.is_tensor(v):
+                tensor_dict[k] = self._split_tensor_by_fuse(v, fuse_mask_list, layout=layout)
+                del v
+        return tensor_dict
+
+    def _split_head_saved_for_double_bwd(self, head, d_stem_tensors, fuse_mask_list):
+        if self._active_fuse_range(fuse_mask_list) is None:
+            return
+        # x_pool: [B, C*Fuse, H, W]
+        # x_fc:   [B, C*Fuse]
+        # x_out/dx_out: [Fuse*B, num_classes]
+        head["x_pool"] = self._split_tensor_by_fuse(head["x_pool"], fuse_mask_list, layout="channel")
+        head["x_fc"] = self._split_tensor_by_fuse(head["x_fc"], fuse_mask_list, layout="channel")
+        head["x_out"] = self._split_tensor_by_fuse(head["x_out"], fuse_mask_list, layout="batch")
+        d_stem_tensors["dx_out"] = self._split_tensor_by_fuse(d_stem_tensors["dx_out"], fuse_mask_list, layout="batch")
+
+    def _split_block_saved_for_double_bwd(self, activates_i, d_activates_i, fuse_mask_list):
+        if self._active_fuse_range(fuse_mask_list) is None:
+            return
+        self._split_tensor_dict_by_fuse(activates_i, fuse_mask_list, layout="channel")
+        self._split_tensor_dict_by_fuse(d_activates_i, fuse_mask_list, layout="channel")
+
+    def _split_stem_saved_for_double_bwd(self, stem, d_stem_tensors, fuse_mask_list):
+        if self._active_fuse_range(fuse_mask_list) is None:
+            return
+        self._split_tensor_dict_by_fuse(stem, fuse_mask_list, layout="channel")
+        d_stem_tensors["dx_bn"] = self._split_tensor_by_fuse(d_stem_tensors["dx_bn"], fuse_mask_list, layout="channel")
+        d_stem_tensors["dx_block"] = self._split_tensor_by_fuse(d_stem_tensors["dx_block"], fuse_mask_list, layout="channel")
+
+    def pack_recovered_weights(self, tensors_all):
+        ptr = 0
+        # ---- stem ----
+        convw = tensors_all[ptr]; ptr += 1
+        bnw   = tensors_all[ptr]; ptr += 1
+        bnb   = tensors_all[ptr]; ptr += 1
+
+        block_weights_list = []
+        flat_blocks = self.get_flat_blocks()
+        for blk in flat_blocks:
+            weights_i = {
+                "conv1w": tensors_all[ptr],
+                "bn1w":   tensors_all[ptr + 1],
+                "bn1b":   tensors_all[ptr + 2],
+                "conv2w": tensors_all[ptr + 3],
+                "bn2w":   tensors_all[ptr + 4],
+                "bn2b":   tensors_all[ptr + 5],
+                "convscw": None,
+                "bnscw":   None,
+                "bnscb":   None,
+            }
+            ptr += 6
+            if blk.convsc is not None:
+                weights_i["convscw"] = tensors_all[ptr]; ptr += 1
+                weights_i["bnscw"]   = tensors_all[ptr]; ptr += 1
+                weights_i["bnscb"]   = tensors_all[ptr]; ptr += 1
+            block_weights_list.append(weights_i)
+
+        fcw = tensors_all[ptr]; ptr += 1
+        fcb = tensors_all[ptr]; ptr += 1
+
+        assert ptr == len(tensors_all), (
+            f"weight tensor parse mismatch: used {ptr}, total {len(tensors_all)}"
+        )
+        return {
+            "stem": {
+                "convw": convw,
+                "bnw": bnw,
+                "bnb": bnb,
+            },
+            "blocks": block_weights_list,
+            "head": {
+                "fcw": fcw,
+                "fcb": fcb,
+            },
+        }
+
+    def run_first_bwd(self, tape, target, Fuse = 1, fuse_mask_list=None):
         flat_blocks = self.get_flat_blocks()
         # 这里只读，不 pop。double-bwd 还要继续用 tape
         stem = tape["stem"]
@@ -755,11 +882,13 @@ class ResNet18_FlexFuse(nn.Module):
         d_weights_list   = [None] * len(flat_blocks)
 
         dx_out = crossEntropy_bwd(x_out, target, Fuse=Fuse) 
+        d_stem_tensors = { "dx_out": dx_out, }
         # dx_fc, dfcw, dfcb = linear_bwd( x_fc, self.fc.weight, grad_output=dx_out)
         dx_fc, dfcw, dfcb = linerFused_bwd( x_fc, self.fc.weight, grad_output=dx_out, Fuse= Fuse)
         dx_fc = dx_fc.view(x_pool.size(0), x_pool.size(1), 1, 1)
         g = adaptivepooling_bwd(x_pool, grad_output=dx_fc)
-        del dx_fc
+        self._split_head_saved_for_double_bwd(head, d_stem_tensors, fuse_mask_list)
+        del dx_fc, dx_out, x_pool, x_fc, x_out
         for i in reversed(range(len(flat_blocks))):
             blk = flat_blocks[i]
             activates_i = tape["blocks"][i]
@@ -767,12 +896,16 @@ class ResNet18_FlexFuse(nn.Module):
             g, d_activates_i, d_weights_i = BasicBlock_bwd( activates_i, weights_i, grad_output=g, SCstride=blk.conv1.stride[0],Fuse=Fuse,v_fuse=self.v_fuse)
             d_activates_list[i] = d_activates_i
             d_weights_list[i]   = d_weights_i
+            self._split_block_saved_for_double_bwd(activates_i, d_activates_i, fuse_mask_list)
             # 这里只删局部引用，不动 tape 里的本体
             del activates_i, weights_i
         dx_block = g
         del g
         dx_bn, dbnw, dbnb, dconvw = conv_norm_relu_bwd( x_conv, x_bn, x_block, self.conv.weight, self.bn.weight, grad_output=dx_block, Fuse=Fuse )
-        d_stem_tensors = { "dx_bn": dx_bn, "dx_block": dx_block, "dx_out": dx_out, }
+        d_stem_tensors["dx_bn"] = dx_bn
+        d_stem_tensors["dx_block"] = dx_block
+        self._split_stem_saved_for_double_bwd(stem, d_stem_tensors, fuse_mask_list)
+        del dx_bn, dx_block, x_conv, x_bn, x_block
 
         d_weights_list_all = self.collect_ordered_grads( dconvw, dbnw, dbnb, d_weights_list, dfcw, dfcb)
         return  d_stem_tensors, d_activates_list, d_weights_list, d_weights_list_all
@@ -785,8 +918,25 @@ class ResNet18_FlexFuse(nn.Module):
         d_stem_tensors,
         dd_stem_tensors,
         Fuse = 1,
+        weights=None,
     ):
         flat_blocks = self.get_flat_blocks()
+        if weights is None:
+            weights = {
+                "stem": {
+                    "convw": self.conv.weight,
+                    "bnw": self.bn.weight,
+                    "bnb": self.bn.bias,
+                },
+                "blocks": [self.get_block_weights(blk) for blk in flat_blocks],
+                "head": {
+                    "fcw": self.fc.weight,
+                    "fcb": self.fc.bias,
+                },
+            }
+        stem_weights = weights["stem"]
+        block_weights_list = weights["blocks"]
+        head_weights = weights["head"]
         stem = tape["stem"]
         head = tape["head"]
         x = stem["x_conv"]
@@ -808,17 +958,17 @@ class ResNet18_FlexFuse(nn.Module):
         ddbnb = dd_stem_tensors.pop("ddbnb")
         ddfcw = dd_stem_tensors.pop("ddfcw")
         ddfcb = dd_stem_tensors.pop("ddfcb")
-        ddx_bn, dx_conv_d2, _ = conv_double_bwd( ddx_conv, ddconvw, None,dx_bn, self.conv.weight, x, groups_=Fuse)
+        ddx_bn, dx_conv_d2, _ = conv_double_bwd( ddx_conv, ddconvw, None,dx_bn, stem_weights["convw"], x, groups_=Fuse)
         del dx_bn, ddx_conv, ddconvw
         # TODO: instance norm好像根本就不需要考虑fuse的问题。bn再说吧。
-        dx_bn_d2, _, dd_cur = instanceNorm_double_backwards_fn( x_bn, self.bn.weight, None, ddx_bn, ddbnw, ddbnb, dx_block)
+        dx_bn_d2, _, dd_cur = instanceNorm_double_backwards_fn( x_bn, stem_weights["bnw"], None, ddx_bn, ddbnw, ddbnb, dx_block)
         del dx_block, ddx_bn,ddbnw, ddbnb
         dd_cur[x_block <= 0] = 0
         for i in range(len(flat_blocks)):
             blk = flat_blocks[i]
             activates_i = tape["blocks"][i]
             d_activates_i = d_activates_list[i]
-            weights_i = self.get_block_weights(blk)
+            weights_i = block_weights_list[i]
             dd_weights_i = dd_weights_list[i]
             dd_cur, _ = BasicBlock_double_bwd(
                 activates_i, d_activates_i, weights_i, dd_weights_i, ddgrad_in=dd_cur,
@@ -832,11 +982,11 @@ class ResNet18_FlexFuse(nn.Module):
         # head double backward
         ddx_lin = adaptivepooling_double_bwd(ddx_pool)
         del ddx_pool
-        ddx_out, dx_lin_d2, _ = linearFused_double_bwd( x_fc, self.fc.weight, dx_out, ddx_lin, ddfcw, ddfcb, Fuse )
+        ddx_out, dx_lin_d2, _ = linearFused_double_bwd( x_fc, head_weights["fcw"], dx_out, ddx_lin, ddfcw, ddfcb, Fuse )
         del dx_out, ddx_lin,ddfcw,ddfcb
         dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, Fuse)
         del ddx_out,x_out
-        dx_lin_d1, _, _ = linerFused_bwd( x_fc, self.fc.weight, grad_output=dx_out_d1, Fuse=Fuse)
+        dx_lin_d1, _, _ = linerFused_bwd( x_fc, head_weights["fcw"], grad_output=dx_out_d1, Fuse=Fuse)
         del dx_out_d1,x_fc
         dx_lin_d1 += dx_lin_d2
         del dx_lin_d2
@@ -848,7 +998,7 @@ class ResNet18_FlexFuse(nn.Module):
         for i in reversed(range(len(flat_blocks))):
             blk = flat_blocks[i]
             activates_i = tape["blocks"][i]
-            weights_i = self.get_block_weights(blk)
+            weights_i = block_weights_list[i]
             d2_activates_i = d_activates_list[i]
             if weights_i["convscw"] is None:
                 d2_activates_i.setdefault("dx_bnsc_d2", None)
@@ -861,11 +1011,11 @@ class ResNet18_FlexFuse(nn.Module):
         del g
         dx_block_d1[x_block <= 0] = 0
         del x_block
-        dx_bn_d1, _, _, _, _ = instanceNorm_backward( x_bn, self.bn.weight, grad_output=dx_block_d1)
+        dx_bn_d1, _, _, _, _ = instanceNorm_backward( x_bn, stem_weights["bnw"], grad_output=dx_block_d1)
         del dx_block_d1
         dx_bn_d1 += dx_bn_d2
         del dx_bn_d2
-        dx_conv, _, _ = conv_bwd( x, self.conv.weight, grad_output=dx_bn_d1,groups=Fuse)
+        dx_conv, _, _ = conv_bwd( x, stem_weights["convw"], grad_output=dx_bn_d1,groups=Fuse)
         del dx_bn_d1
         dx_conv += dx_conv_d2
         return dx_conv
@@ -1031,11 +1181,18 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         dd_weights=None,
         ddgrad_in=None,
         Fuse=None,
+        weights=None,
     ):
         if Fuse is None:
             Fuse = self.Fuse
         if dd_weights is None:
             dd_weights = {}
+        if weights is None:
+            qkv_w = self.qkv.weight
+            out_proj_w = self.out_proj.weight
+        else:
+            qkv_w = weights["qkvw"]
+            out_proj_w = weights["outprojw"]
         x = tape["x"]
         q = tape["q"]
         k = tape["k"]
@@ -1061,7 +1218,7 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         ddoutprojw = get_dd("ddoutprojw", "doutprojw", "outprojw")
         ddoutprojb = get_dd("ddoutprojb", "doutprojb", "outprojb")
         # 1. qkv linear double-bwd
-        dd_dqkv_linear, dx_d2, _ = grouped_linear_double_bwd( x=x, w=self.qkv.weight, grad_output=dqkv_linear,\
+        dd_dqkv_linear, dx_d2, _ = grouped_linear_double_bwd( x=x, w=qkv_w, grad_output=dqkv_linear,\
               gg_grad_input=ddgrad_in,  gg_grad_w=ddqkvw,  gg_grad_b=ddqkvb,  Fuse=Fuse, )
         # dqkv_linear 用完，可以显式删局部引用
         del dqkv_linear
@@ -1089,7 +1246,7 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         # 5. out_proj linear double-bwd
         dd_grad_output, dout_merge_d2, _ = grouped_linear_double_bwd(
             x=attn_out,
-            w=self.out_proj.weight,
+            w=out_proj_w,
             grad_output=grad_output,
             gg_grad_input=dd_dout_merge,
             gg_grad_w=ddoutprojw,
@@ -1111,6 +1268,7 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         d_activates,
         grad_output,
         Fuse=None,
+        weights=None,
     ):
         """
         Re-run first backward of MultiHeadSelfAttention_Fused,
@@ -1156,6 +1314,12 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         """
         if Fuse is None:
             Fuse = self.Fuse
+        if weights is None:
+            qkv_w = self.qkv.weight
+            out_proj_w = self.out_proj.weight
+        else:
+            qkv_w = weights["qkvw"]
+            out_proj_w = weights["outprojw"]
         x = tape["x"]
         q = tape["q"]
         k = tape["k"]
@@ -1173,7 +1337,7 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         #   dout_merge = dL/dout_merge
         dout_merge, _, _ = grouped_linear_bwd(
             attn_out,
-            self.out_proj.weight,
+            out_proj_w,
             grad_output=grad_output,
             Fuse=Fuse, )
         # [B, Fuse, N, C]
@@ -1221,14 +1385,12 @@ class MultiHeadSelfAttention_Fused(nn.Module):
         #   qkv = qkv_linear(x)
         # first-bwd:
         #   dx = dL/dx
-        dx, _, _ = grouped_linear_bwd(x,self.qkv.weight,grad_output=dqkv_linear,Fuse=Fuse )
+        dx, _, _ = grouped_linear_bwd(x,qkv_w,grad_output=dqkv_linear,Fuse=Fuse )
         if dx_d2 is not None:
             assert dx_d2.shape == dx.shape
             dx = dx + dx_d2
 
         return dx
-
-
 
 class TransformerBlock_Fused(nn.Module):
     def __init__(
@@ -1471,6 +1633,7 @@ class TransformerBlock_Fused(nn.Module):
         dd_weights,
         ddgrad_in=None,
         Fuse=None,
+        weights=None,
     ):
         """
         TransformerBlock_Fused double backward with dp1/dp2.
@@ -1491,6 +1654,18 @@ class TransformerBlock_Fused(nn.Module):
         """
         if Fuse is None:
             Fuse = self.Fuse
+        if weights is None:
+            norm1_w = self.norm1.weight
+            norm2_w = self.norm2.weight
+            fc1_w = self.fc1.weight
+            fc2_w = self.fc2.weight
+            attn_weights = None
+        else:
+            norm1_w = weights["norm1w"]
+            norm2_w = weights["norm2w"]
+            fc1_w = weights["fc1w"]
+            fc2_w = weights["fc2w"]
+            attn_weights = weights.get("attn", None)
 
         x_in = tape["x_in"]
         attn_tape = tape["attn"]
@@ -1525,7 +1700,7 @@ class TransformerBlock_Fused(nn.Module):
         # ==================================================
         dx_in_d2_from_norm1, _, dd_dx_norm1 = grouped_layernorm_double_bwd_fn(
             x=x_in,
-            weight=self.norm1.weight,
+            weight=norm1_w,
             ggX=dd_dx_in_from_norm1,
             ggW=dd_weights.get("ddnorm1w", None),
             ggB=dd_weights.get("ddnorm1b", None),
@@ -1548,6 +1723,7 @@ class TransformerBlock_Fused(nn.Module):
             dd_weights=dd_attn_weights,
             ddgrad_in=dd_dx_norm1,
             Fuse=Fuse,
+            weights=attn_weights,
         )
 
         d_activates["attn"] = d_attn_activates
@@ -1570,7 +1746,7 @@ class TransformerBlock_Fused(nn.Module):
         # ==================================================
         dx_res1_d2_from_norm2, _, dd_dx_norm2 = grouped_layernorm_double_bwd_fn(
             x=x_res1,
-            weight=self.norm2.weight,
+            weight=norm2_w,
             ggX=dd_dx_res1_from_norm2,
             ggW=dd_weights.get("ddnorm2w", None),
             ggB=dd_weights.get("ddnorm2b", None),
@@ -1586,7 +1762,7 @@ class TransformerBlock_Fused(nn.Module):
         # ==================================================
         dd_dx_fc1, dx_norm2_d2, _ = grouped_linear_double_bwd(
             x=x_norm2,
-            w=self.fc1.weight,
+            w=fc1_w,
             grad_output=dx_fc1,
             gg_grad_input=dd_dx_norm2,
             gg_grad_w=dd_weights.get("ddfc1w", None),
@@ -1619,7 +1795,7 @@ class TransformerBlock_Fused(nn.Module):
         # ==================================================
         dd_dx_fc2, dx_dp1_d2, _ = grouped_linear_double_bwd(
             x=x_dp1,
-            w=self.fc2.weight,
+            w=fc2_w,
             grad_output=dx_fc2,
             gg_grad_input=dd_dx_dp1,
             gg_grad_w=dd_weights.get("ddfc2w", None),
@@ -1651,13 +1827,13 @@ class TransformerBlock_Fused(nn.Module):
 
         return dd_grad_output, d_activates
 
-
     def run_bwd2_1(
         self,
         tape,
         d_activates,
         grad_output,
         Fuse=None,
+        weights=None,
     ):
         """
         Re-run corrected first backward with dp1/dp2 injections.
@@ -1680,6 +1856,18 @@ class TransformerBlock_Fused(nn.Module):
         """
         if Fuse is None:
             Fuse = self.Fuse
+        if weights is None:
+            norm1_w = self.norm1.weight
+            norm2_w = self.norm2.weight
+            fc1_w = self.fc1.weight
+            fc2_w = self.fc2.weight
+            attn_weights = None
+        else:
+            norm1_w = weights["norm1w"]
+            norm2_w = weights["norm2w"]
+            fc1_w = weights["fc1w"]
+            fc2_w = weights["fc2w"]
+            attn_weights = weights.get("attn", None)
 
         x_in = tape["x_in"]
         attn_tape = tape["attn"]
@@ -1711,7 +1899,7 @@ class TransformerBlock_Fused(nn.Module):
         # ==================================================
         dx_dp1, _, _ = grouped_linear_bwd(
             x_dp1,
-            self.fc2.weight,
+            fc2_w,
             grad_output=dx_fc2,
             Fuse=Fuse,
         )
@@ -1742,7 +1930,7 @@ class TransformerBlock_Fused(nn.Module):
         # ==================================================
         dx_norm2, _, _ = grouped_linear_bwd(
             x_norm2,
-            self.fc1.weight,
+            fc1_w,
             grad_output=dx_fc1,
             Fuse=Fuse,
         )
@@ -1757,7 +1945,7 @@ class TransformerBlock_Fused(nn.Module):
         # ==================================================
         dx_res1_from_norm2, _, _ = grouped_layernorm_backward(
             x_res1,
-            self.norm2.weight,
+            norm2_w,
             Fuse=Fuse,
             grad_output=dx_norm2,
         )
@@ -1789,6 +1977,7 @@ class TransformerBlock_Fused(nn.Module):
             d_activates=d_attn_activates,
             grad_output=dx_attn,
             Fuse=Fuse,
+            weights=attn_weights,
         )
 
         # ==================================================
@@ -1796,7 +1985,7 @@ class TransformerBlock_Fused(nn.Module):
         # ==================================================
         dx_in_from_norm1, _, _ = grouped_layernorm_backward(
             x_in,
-            self.norm1.weight,
+            norm1_w,
             Fuse=Fuse,
             grad_output=dx_norm1,
         )
@@ -1815,7 +2004,7 @@ class TransformerBlock_Fused(nn.Module):
 
         def init_dd_weights(self):
             dd_weights = {
-                "ddnorm1w": torch.ones_like(self.norm1.weight),
+                "ddnorm1w": torch.ones_like(norm1_w),
                 "ddnorm1b": torch.ones_like(self.norm1.bias),
                 "attn": {
                     "ddqkvw": torch.ones_like(self.attn.qkv.weight),
@@ -1823,16 +2012,14 @@ class TransformerBlock_Fused(nn.Module):
                     "ddoutprojw": torch.ones_like(self.attn.out_proj.weight),
                     "ddoutprojb": torch.ones_like(self.attn.out_proj.bias),
                 },
-                "ddnorm2w": torch.ones_like(self.norm2.weight),
+                "ddnorm2w": torch.ones_like(norm2_w),
                 "ddnorm2b": torch.ones_like(self.norm2.bias),
-                "ddfc1w": torch.ones_like(self.fc1.weight),
+                "ddfc1w": torch.ones_like(fc1_w),
                 "ddfc1b": torch.ones_like(self.fc1.bias),
-                "ddfc2w": torch.ones_like(self.fc2.weight),
+                "ddfc2w": torch.ones_like(fc2_w),
                 "ddfc2b": torch.ones_like(self.fc2.bias),
             }
             return dd_weights
-
-
 
 class ViT_FlexFuse(nn.Module):
     # 请注意一下，ViT的fuse 规则和传统的不太一样。cls token不是在第一维做fuse
@@ -1941,7 +2128,209 @@ class ViT_FlexFuse(nn.Module):
         }
         return x_out, tape
     
-    def run_first_bwd(self, tape, target, Fuse=None):
+
+    def _active_fuse_range(self, fuse_mask_list):
+        if fuse_mask_list is None:
+            return None
+        Fuse = len(fuse_mask_list)
+        bwd_Fuse = sum(fuse_mask_list)
+        if bwd_Fuse == Fuse:
+            return None
+        active_fuse_ids = [i for i, m in enumerate(fuse_mask_list) if m == 1]
+        assert len(active_fuse_ids) == bwd_Fuse and bwd_Fuse > 0
+        start = active_fuse_ids[0]
+        end = start + bwd_Fuse
+        assert active_fuse_ids == list(range(start, end)), \
+            "fuse_mask_list must keep active branches contiguous"
+        return start, end, Fuse
+
+    def _split_tensor_by_fuse(self, p, fuse_mask_list, layout="bf"):
+        if p is None or (not torch.is_tensor(p)):
+            return p
+        active_range = self._active_fuse_range(fuse_mask_list)
+        if active_range is None:
+            return p
+        start, end, Fuse = active_range
+
+        if layout == "bf":
+            # ViT normal activations: [B, Fuse, ...]
+            assert p.shape[1] % Fuse == 0 or p.shape[1] == Fuse
+            return p[:, start:end, ...].contiguous()
+
+        if layout == "channel":
+            # Patch conv input/output: [B, C*Fuse, H, W]
+            c = p.shape[1]
+            assert c % Fuse == 0, f"Cannot split channel-fused tensor shape={tuple(p.shape)} by Fuse={Fuse}"
+            block = c // Fuse
+            return p[:, start * block:end * block, ...].contiguous()
+
+        if layout == "logits":
+            # ViT logits are reshape(B*Fuse, C), ordered b0f0,b0f1,b1f0,b1f1,...
+            assert p.shape[0] % Fuse == 0, f"Cannot split logits shape={tuple(p.shape)} by Fuse={Fuse}"
+            B = p.shape[0] // Fuse
+            rest = p.shape[1:]
+            return p.view(B, Fuse, *rest)[:, start:end, ...].contiguous().view(B * (end - start), *rest)
+
+        if layout == "param_token":
+            # cls_token / pos_embed: [1, Fuse, ..., D]
+            assert p.shape[0] == 1 and p.shape[1] == Fuse, \
+                f"Expected token parameter layout [1,Fuse,...], got shape={tuple(p.shape)}"
+            return p[:, start:end, ...].contiguous()
+
+        raise ValueError(f"Unknown fuse split layout: {layout}")
+
+    def _split_nested_bf_by_fuse(self, obj, fuse_mask_list):
+        """
+        Split TransformerBlock / attention tapes and d_activates.
+        Inside blocks, every saved tensor stores Fuse at dim=1:
+            block activations: [B,Fuse,N,D]
+            attention q/k/v:   [B,Fuse,H,N,Dh]
+            dropout masks:     [B,Fuse,N,D]
+        """
+        if self._active_fuse_range(fuse_mask_list) is None:
+            return obj
+        if torch.is_tensor(obj):
+            return self._split_tensor_by_fuse(obj, fuse_mask_list, layout="bf")
+        if isinstance(obj, dict):
+            for k in list(obj.keys()):
+                obj[k] = self._split_nested_bf_by_fuse(obj[k], fuse_mask_list)
+            return obj
+        if isinstance(obj, list):
+            for i in range(len(obj)):
+                obj[i] = self._split_nested_bf_by_fuse(obj[i], fuse_mask_list)
+            return obj
+        return obj
+
+    def _split_saved_for_double_bwd(self, tape, d_activates, fuse_mask_list):
+        """
+        first-bwd 用完整 Fuse 计算 dW；随后把 double-bwd / bwd2_1 会继续使用的
+        tape 和 first-bwd 激活切到 active bwd_Fuse。
+
+        这里不能照搬 ResNet：
+        - ViT block 内部激活是 [B, Fuse, N, D]，Fuse 在 dim=1。
+        - patch conv 的 x_in/x_patch/dx_patch 是 [B, C*Fuse, H, W]，Fuse 在 channel 内。
+        - x_out/dx_out 对应 CE 是 [B*Fuse, C]，但顺序是 b0f0,b0f1,...，不能直接按 batch 连续切。
+        - cls_token/pos_embed 参数本身是 [1, Fuse, ..., D]，后面 pack weight 时也要按 dim=1 处理。
+        """
+        if self._active_fuse_range(fuse_mask_list) is None:
+            return
+
+        patch = tape["patch"]
+        patch["x_in"] = self._split_tensor_by_fuse(patch["x_in"], fuse_mask_list, layout="channel")
+        patch["x_patch"] = self._split_tensor_by_fuse(patch["x_patch"], fuse_mask_list, layout="channel")
+
+        head = tape["head"]
+        head["x_norm_in"] = self._split_tensor_by_fuse(head["x_norm_in"], fuse_mask_list, layout="bf")
+        head["x_cls"] = self._split_tensor_by_fuse(head["x_cls"], fuse_mask_list, layout="bf")
+        head["x_out"] = self._split_tensor_by_fuse(head["x_out"], fuse_mask_list, layout="logits")
+
+        d_activates["dx_head"] = self._split_tensor_by_fuse(d_activates["dx_head"], fuse_mask_list, layout="bf")
+        d_activates["dx_norm"] = self._split_tensor_by_fuse(d_activates["dx_norm"], fuse_mask_list, layout="bf")
+        d_activates["dx_patch"] = self._split_tensor_by_fuse(d_activates["dx_patch"], fuse_mask_list, layout="channel")
+
+        self._split_nested_bf_by_fuse(tape["blocks"], fuse_mask_list)
+        self._split_nested_bf_by_fuse(d_activates["blocks"], fuse_mask_list)
+
+    def _reshape_cls_token_for_fuse(self, t, Fuse):
+        if t is None:
+            return None
+        if t.ndim == 4 and t.shape[0] == 1 and t.shape[1] == Fuse:
+            return t.contiguous()
+        if t.ndim == 4 and t.shape[0] == Fuse and t.shape[1] == 1:
+            # recover_params from base [1, 1, D] / [1, 1, 1, D] can give [Fuse, 1, 1, D]
+            return t.reshape(1, Fuse, 1, t.shape[-1]).contiguous()
+        if t.ndim == 3 and t.shape[0] == Fuse:
+            # recover_params from base [1, D] or [1, 1, D] usually gives [Fuse, 1, D]
+            return t.reshape(1, Fuse, 1, t.shape[-1]).contiguous()
+        if t.ndim == 2 and t.shape[0] == Fuse:
+            return t.reshape(1, Fuse, 1, t.shape[-1]).contiguous()
+        raise AssertionError(f"Cannot reshape cls_token tensor shape={tuple(t.shape)} for Fuse={Fuse}")
+
+    def _reshape_pos_embed_for_fuse(self, t, Fuse):
+        if t is None:
+            return None
+        if t.ndim == 4 and t.shape[0] == 1 and t.shape[1] == Fuse:
+            return t.contiguous()
+        if t.ndim == 4 and t.shape[0] == Fuse and t.shape[1] == 1:
+            # recover_params from base [1, 1, N+1, D] can give [Fuse, 1, N+1, D]
+            return t.reshape(1, Fuse, t.shape[-2], t.shape[-1]).contiguous()
+        if t.ndim == 3 and t.shape[0] == Fuse:
+            # recover_params from base [1, N+1, D] gives [Fuse, N+1, D]
+            return t.reshape(1, Fuse, t.shape[-2], t.shape[-1]).contiguous()
+        raise AssertionError(f"Cannot reshape pos_embed tensor shape={tuple(t.shape)} for Fuse={Fuse}")
+
+    def pack_recovered_weights(self, tensors_all, Fuse=None):
+        """
+        Parse active/full recovered forward weights into the dict used by
+        run_double_bwd / run_bwd2_1.
+
+        tensors_all order matches d_weights_list_all and pack_recovered_dd:
+            cls_token, pos_embed, patch_embed.weight, patch_embed.bias,
+            blocks..., norm.weight, norm.bias, head.weight, head.bias
+        """
+        if Fuse is None:
+            Fuse = self.Fuse
+        ptr = 0
+        cls_token = self._reshape_cls_token_for_fuse(tensors_all[ptr], Fuse); ptr += 1
+        pos_embed = self._reshape_pos_embed_for_fuse(tensors_all[ptr], Fuse); ptr += 1
+        patchw = tensors_all[ptr]; ptr += 1
+        if self.patch_embed.bias is not None:
+            patchb = tensors_all[ptr]; ptr += 1
+        else:
+            patchb = None
+
+        block_weights = []
+        for blk in self.get_flat_blocks():
+            w_blk = {}
+            w_blk["norm1w"] = tensors_all[ptr]; ptr += 1
+            w_blk["norm1b"] = tensors_all[ptr]; ptr += 1
+            w_blk["attn"] = {}
+            w_blk["attn"]["qkvw"] = tensors_all[ptr]; ptr += 1
+            if blk.attn.qkv.bias is not None:
+                w_blk["attn"]["qkvb"] = tensors_all[ptr]; ptr += 1
+            else:
+                w_blk["attn"]["qkvb"] = None
+            w_blk["attn"]["outprojw"] = tensors_all[ptr]; ptr += 1
+            if blk.attn.out_proj.bias is not None:
+                w_blk["attn"]["outprojb"] = tensors_all[ptr]; ptr += 1
+            else:
+                w_blk["attn"]["outprojb"] = None
+            w_blk["norm2w"] = tensors_all[ptr]; ptr += 1
+            w_blk["norm2b"] = tensors_all[ptr]; ptr += 1
+            w_blk["fc1w"] = tensors_all[ptr]; ptr += 1
+            if blk.fc1.bias is not None:
+                w_blk["fc1b"] = tensors_all[ptr]; ptr += 1
+            else:
+                w_blk["fc1b"] = None
+            w_blk["fc2w"] = tensors_all[ptr]; ptr += 1
+            if blk.fc2.bias is not None:
+                w_blk["fc2b"] = tensors_all[ptr]; ptr += 1
+            else:
+                w_blk["fc2b"] = None
+            block_weights.append(w_blk)
+
+        normw = tensors_all[ptr]; ptr += 1
+        normb = tensors_all[ptr]; ptr += 1
+        headw = tensors_all[ptr]; ptr += 1
+        if self.head.bias is not None:
+            headb = tensors_all[ptr]; ptr += 1
+        else:
+            headb = None
+        assert ptr == len(tensors_all), f"ViT weight tensor parse mismatch: used {ptr}, total={len(tensors_all)}"
+        return {
+            "cls_token": cls_token,
+            "pos_embed": pos_embed,
+            "patch": {"patchw": patchw, "patchb": patchb},
+            "blocks": block_weights,
+            "head": {
+                "normw": normw,
+                "normb": normb,
+                "headw": headw,
+                "headb": headb,
+            },
+        }
+
+    def run_first_bwd(self, tape, target, Fuse=None, fuse_mask_list=None):
         if Fuse is None:
             Fuse = self.Fuse
         patch = tape["patch"]
@@ -2058,6 +2447,9 @@ class ViT_FlexFuse(nn.Module):
         d_weights_list_all.append(dheadw)
         if dheadb is not None:
             d_weights_list_all.append(dheadb)
+
+        # 完整 Fuse 的 dW 已经收集完；这里只切 double-bwd / bwd2_1 后续会用到的 saved tensors。
+        self._split_saved_for_double_bwd(tape, d_activates, fuse_mask_list)
         return dx_in, d_activates, d_weights, d_weights_list_all
 
     def init_dd_weights(self):
@@ -2098,7 +2490,8 @@ class ViT_FlexFuse(nn.Module):
         d_activates,
         dd_weights,
         ddgrad_in=None,
-        Fuse=None):
+        Fuse=None,
+        weights=None):
         """
             ViT_Fused double backward stage.
     `       沿着 first-bwd graph 反向传播 cotangent.并把 activation-level d2 contribution 写入 d_activates。
@@ -2115,6 +2508,20 @@ class ViT_FlexFuse(nn.Module):
         """
         if Fuse is None:
             Fuse = self.Fuse
+        if weights is None:
+            patch_w = self.patch_embed.weight
+            cls_token_w = self.cls_token
+            pos_embed_w = self.pos_embed
+            block_weights_list = None
+            norm_w = self.norm.weight
+            head_w = self.head.weight
+        else:
+            patch_w = weights["patch"]["patchw"]
+            cls_token_w = weights["cls_token"]
+            pos_embed_w = weights["pos_embed"]
+            block_weights_list = weights["blocks"]
+            norm_w = weights["head"]["normw"]
+            head_w = weights["head"]["headw"]
         patch = tape["patch"]
         head = tape["head"]
         # block_tape = tape["block"]
@@ -2160,7 +2567,7 @@ class ViT_FlexFuse(nn.Module):
         # ==================================================
         ddpatchw = get_dd("ddpatchw", "dpatchw")
         ddpatchb = get_dd("ddpatchb", "dpatchb")
-        dd_dx_patch, x_in_d2, _ = conv_double_bwd( ddgrad_in, ddpatchw, ddpatchb, dx_patch, self.patch_embed.weight,
+        dd_dx_patch, x_in_d2, _ = conv_double_bwd( ddgrad_in, ddpatchw, ddpatchb, dx_patch, patch_w,
             x_in, stride_=list(self.patch_embed.stride), padding_=list(self.patch_embed.padding), groups_=Fuse,  )
         d_activates["x_in_d2"] = x_in_d2
         # ==================================================
@@ -2193,12 +2600,12 @@ class ViT_FlexFuse(nn.Module):
         dd_dx_pos[:, :, 1:, :] = dd_dx_pos[:, :, 1:, :] + dd_dx_tokens
         ddcls_token = get_dd("ddcls_token", "dcls_token")
         if ddcls_token is not None:
-            assert ddcls_token.shape == self.cls_token.shape
+            assert ddcls_token.shape == cls_token_w.shape
             dd_dx_pos[:, :, 0:1, :] = dd_dx_pos[:, :, 0:1, :] + ddcls_token.expand(B, -1, -1, -1)
 
         ddpos_embed = get_dd("ddpos_embed", "dpos_embed")
         if ddpos_embed is not None:
-            assert ddpos_embed.shape == self.pos_embed.shape
+            assert ddpos_embed.shape == pos_embed_w.shape
             dd_dx_pos = dd_dx_pos + ddpos_embed.expand(B, -1, -1, -1)
 
         # ==================================================
@@ -2220,6 +2627,8 @@ class ViT_FlexFuse(nn.Module):
         flat_blocks = self.get_flat_blocks()
         d_block_activates_list = d_activates.pop("blocks")
         dd_block_weights_list = dd_weights["blocks"]
+        if block_weights_list is None:
+            block_weights_list = [None] * len(flat_blocks)
         # double-bwd direction through first-bwd graph is forward block order.
         dd_cur = dd_dx_pos
         for i in range(len(flat_blocks)):
@@ -2229,6 +2638,7 @@ class ViT_FlexFuse(nn.Module):
                 dd_weights=dd_block_weights_list[i],
                 ddgrad_in=dd_cur,
                 Fuse=Fuse,
+                weights=block_weights_list[i],
             )
         dd_dx_block = dd_cur
         # d_activates["block"] = d_block_activates
@@ -2245,7 +2655,7 @@ class ViT_FlexFuse(nn.Module):
         # ==================================================
         x_norm_in_d2, _, dd_dx_norm = grouped_layernorm_double_bwd_fn(
             x=x_norm_in,
-            weight=self.norm.weight,
+            weight=norm_w,
             ggX=dd_dx_block,
             ggW=get_dd("ddnormw", "dnormw"),
             ggB=get_dd("ddnormb", "dnormb"),
@@ -2279,7 +2689,7 @@ class ViT_FlexFuse(nn.Module):
         # ==================================================
         dd_dx_head, x_cls_d2, _ = grouped_linear_double_bwd(
             x=x_cls,
-            w=self.head.weight,
+            w=head_w,
             grad_output=dx_head,
             gg_grad_input=dd_dx_cls,
             gg_grad_w=get_dd("ddheadw", "dheadw"),
@@ -2307,6 +2717,7 @@ class ViT_FlexFuse(nn.Module):
         d_activates,
         dd_dx_out,
         Fuse=None,
+        weights=None,
     ):
         """
         ViT_Fused bwd2_1 stage.
@@ -2317,6 +2728,16 @@ class ViT_FlexFuse(nn.Module):
         """
         if Fuse is None:
             Fuse = self.Fuse
+        if weights is None:
+            patch_w = self.patch_embed.weight
+            block_weights_list = None
+            norm_w = self.norm.weight
+            head_w = self.head.weight
+        else:
+            patch_w = weights["patch"]["patchw"]
+            block_weights_list = weights["blocks"]
+            norm_w = weights["head"]["normw"]
+            head_w = weights["head"]["headw"]
 
         patch = tape["patch"]
         head = tape["head"]
@@ -2357,7 +2778,7 @@ class ViT_FlexFuse(nn.Module):
         # ==================================================
         dx_cls, _, _ = grouped_linear_bwd(
             x_cls,
-            self.head.weight,
+            head_w,
             grad_output=dx_head,
             Fuse=Fuse,
         )
@@ -2379,7 +2800,7 @@ class ViT_FlexFuse(nn.Module):
         # ==================================================
         dx_block, _, _ = grouped_layernorm_backward(
             x_norm_in,
-            self.norm.weight,
+            norm_w,
             Fuse=Fuse,
             grad_output=dx_norm,
         )
@@ -2404,6 +2825,8 @@ class ViT_FlexFuse(nn.Module):
 
         assert len(block_tapes) == len(flat_blocks)
         assert len(d_block_activates_list) == len(flat_blocks)
+        if block_weights_list is None:
+            block_weights_list = [None] * len(flat_blocks)
 
         # bwd2_1 follows normal backward direction: reverse block order.
         g = dx_block
@@ -2414,6 +2837,7 @@ class ViT_FlexFuse(nn.Module):
                 d_activates=d_block_activates_list[i],
                 grad_output=g,
                 Fuse=Fuse,
+                weights=block_weights_list[i],
             )
 
         dx_pos = g
@@ -2448,7 +2872,7 @@ class ViT_FlexFuse(nn.Module):
         # ==================================================
         # 8. patch_embed conv bwd
         # ==================================================
-        dx_in, _, _ = conv_bwd( x_in, self.patch_embed.weight, grad_output=dx_patch,
+        dx_in, _, _ = conv_bwd( x_in, patch_w, grad_output=dx_patch,
             stride=self.patch_embed. stride[0], padding=self.patch_embed.padding[0],groups=Fuse )
         # Inject d2 wrt forward input x_in from patch conv double-bwd.
         x_in_d2 = d_activates.pop("x_in_d2")
@@ -2456,9 +2880,7 @@ class ViT_FlexFuse(nn.Module):
         dx_in = dx_in + x_in_d2
         return dx_in
 
-
-
-    def pack_recovered_dd(self, dd_tensors_all):
+    def pack_recovered_dd(self, dd_tensors_all, Fuse=None):
         """
         Parse flat recovered dd tensors into the dd_weights dict expected by
         ViT_Fused.run_double_bwd.
@@ -2471,12 +2893,14 @@ class ViT_FlexFuse(nn.Module):
             norm.weight, norm.bias,
             head.weight, head.bias
         """
+        if Fuse is None:
+            Fuse = self.Fuse
         ptr = 0
 
-        ddcls_token = dd_tensors_all[ptr]
+        ddcls_token = self._reshape_cls_token_for_fuse(dd_tensors_all[ptr], Fuse)
         ptr += 1
 
-        ddpos_embed = dd_tensors_all[ptr]
+        ddpos_embed = self._reshape_pos_embed_for_fuse(dd_tensors_all[ptr], Fuse)
         ptr += 1
 
         ddpatchw = dd_tensors_all[ptr]
@@ -2574,3 +2998,4 @@ class ViT_FlexFuse(nn.Module):
             "ddheadw": ddheadw,
             "ddheadb": ddheadb,
         }
+

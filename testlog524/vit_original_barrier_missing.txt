@@ -1,0 +1,230 @@
+============================================================
+MISSING ORIGINAL + BARRIER SWEEP START
+START_TIME: 2026-07-14 15:27:57
+MODEL BLOCK: ViT
+ORIGINAL FILE: distill_original_timeTest.py
+IPC_LIST: 1 10 100 1000
+ORIGINAL_SYN_STEPS: 1 20
+BARRIER: --use-barrier
+BARRIER_REPEATS: 1
+ITERATION RULE: ConvNet always 350; ViT/ResNet18 use 50 when IPC>=100, otherwise 350.
+LOG_FILE: testlog524/vit_original_barrier_missing.txt
+============================================================
+
+==============================
+2026-07-14 15:27:57 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+409.46315693855286
+prepare time ( 1 ):  392.63883996009827
+syn_time     ( 1 ):  4.1826560497283936
+backward_time( 1 ):  6.373996019363403
+峰值cache使用: 126.0 MB
+峰值tensor使用: 105.86376953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 15:34:56 | MODEL=ViT | IPC=1 | SYN_STEPS=20 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+552.2063686847687
+prepare time ( 20 ):  402.4685447216034
+syn_time     ( 20 ):  54.68455219268799
+backward_time( 20 ):  88.632657289505
+峰值cache使用: 1388.0 MB
+峰值tensor使用: 1321.10302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 15:44:20 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+418.3803949356079
+prepare time ( 1 ):  396.34841990470886
+syn_time     ( 1 ):  5.922218561172485
+backward_time( 1 ):  11.54494833946228
+峰值cache使用: 1054.0 MB
+峰值tensor使用: 1013.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 15:51:29 | MODEL=ViT | IPC=10 | SYN_STEPS=20 | ITERATION=350 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+734.4198334217072
+prepare time ( 20 ):  403.7357358932495
+syn_time     ( 20 ):  109.70680069923401
+backward_time( 20 ):  213.71786046028137
+峰值cache使用: 18202.0 MB
+峰值tensor使用: 17988.345703125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-07-14 16:03:55 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 627, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 454, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 992.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 439.19 MiB is free. Including non-PyTorch memory, this process has 22.87 GiB memory in use. Of the allocated memory 21.57 GiB is allocated by PyTorch, and 1.05 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-14 16:04:08 | MODEL=ViT | IPC=100 | SYN_STEPS=20 | ITERATION=50 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 627, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 454, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 992.00 MiB. GPU 0 has a total capacity of 23.54 GiB of which 439.19 MiB is free. Including non-PyTorch memory, this process has 22.87 GiB memory in use. Of the allocated memory 21.57 GiB is allocated by PyTorch, and 1.05 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-14 16:04:19 | MODEL=ViT | IPC=1000 | SYN_STEPS=1 | ITERATION=50 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1000 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 627, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 444, in main
+    out = student_net(x, flat_param=forward_params)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 68, in forward
+    x = self.transformer(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 42, in forward
+    attn_output, _ = self.attn(x_ln, x_ln, x_ln)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/activation.py", line 1368, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/functional.py", line 6241, in multi_head_attention_forward
+    attn_output_weights = torch.bmm(q_scaled, k.transpose(-2, -1))
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 96.86 GiB. GPU 0 has a total capacity of 23.54 GiB of which 20.01 GiB is free. Including non-PyTorch memory, this process has 3.29 GiB memory in use. Of the allocated memory 2.12 GiB is allocated by PyTorch, and 948.85 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-07-14 16:04:30 | MODEL=ViT | IPC=1000 | SYN_STEPS=20 | ITERATION=50 | BARRIER=use_barrier | CASE=original | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1000 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 627, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 444, in main
+    out = student_net(x, flat_param=forward_params)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 68, in forward
+    x = self.transformer(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 42, in forward
+    attn_output, _ = self.attn(x_ln, x_ln, x_ln)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/activation.py", line 1368, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/functional.py", line 6241, in multi_head_attention_forward
+    attn_output_weights = torch.bmm(q_scaled, k.transpose(-2, -1))
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 96.86 GiB. GPU 0 has a total capacity of 23.54 GiB of which 20.01 GiB is free. Including non-PyTorch memory, this process has 3.29 GiB memory in use. Of the allocated memory 2.12 GiB is allocated by PyTorch, and 948.85 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+
+============================================================
+MISSING ORIGINAL + BARRIER SWEEP END
+END_TIME: 2026-07-14 16:04:40
+============================================================

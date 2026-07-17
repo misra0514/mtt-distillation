@@ -85,8 +85,8 @@ def split_half_second_dim(param_list, fuse_mask_list):
             s = start * block
             e = end * block
             # 切分并保证连续（减少显存峰值）
-            # output.append(p[:, s:e, ...].contiguous())
-            output.append(p[:, s:e, ...])
+            output.append(p[:, s:e, ...].contiguous())
+            # output.append(p[:, s:e, ...])
             del p
         else:
             # 似乎只有x_out 系列是2维,在第一维切
@@ -96,8 +96,8 @@ def split_half_second_dim(param_list, fuse_mask_list):
             s = start * block
             e = end * block
             # 切分并保证连续（减少显存峰值）
-            # output.append(p[ s:e, ...].contiguous())
-            output.append(p[ s:e, ...])
+            output.append(p[ s:e, ...].contiguous())
+            # output.append(p[ s:e, ...])
             # output.append(p)
 
     return output
