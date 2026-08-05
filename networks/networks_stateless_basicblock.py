@@ -18,11 +18,11 @@ import random
 import numpy as np
 import os
 from typing import Optional, Sequence, Tuple
-from networks.networks_basicblock_tritonwrapper import instance_norm_backward_triton, instanceNorm_backward_plain
-# from networks_fused2 import instance_norm_backward_triton
+from networks.networks_basicblock_tritonwrapper import instancenorm_relu_backward_triton, instancenorm_relu_backward_plain
+# from networks_fused2 import instancenorm_relu_backward_triton
 from networks.networks_basicblock_tritonwrapper import instanceNorm_double_backwards_triton
 from networks.networks_basicblock_tritonwrapper import instanceNorm_backward ,instanceNorm_double_backwards_fn,\
-     instance_norm_backward_triton,instanceNorm_double_backwards_plain, gelu_drop_double_grad_triton,gelu_drop_grad_triton
+     instancenorm_relu_backward_triton,instanceNorm_double_backwards_plain, gelu_drop_double_grad_triton,gelu_drop_grad_triton
 
 
 #########################
@@ -32,10 +32,21 @@ from networks.networks_basicblock_tritonwrapper import instanceNorm_backward ,in
 
 def insNormNRelu_bwd( x, weight, output, grad_output, v_fuse = True):
     if(v_fuse):
-        grad_x, grad_weight, grad_bias = instance_norm_backward_triton(x, weight, grad_output, output)
+        grad_x, grad_weight, grad_bias = instancenorm_relu_backward_triton(x, weight, grad_output, output)
     else:
-        grad_x, grad_weight, grad_bias =  instanceNorm_backward_plain(x, weight, grad_output, output)
+        grad_x, grad_weight, grad_bias =  instancenorm_relu_backward_plain(x, weight, grad_output, output)
     return grad_x, grad_weight, grad_bias
+
+
+def insNorm_bwd( x, weight, grad_output, v_fuse = True):
+    # TODO:目前没有什么fuse 不fuse一说。后面如果把relu也拿进来，可能会写fused 版本吧。
+    if(v_fuse):
+        grad_x, grad_weight, grad_bias = instanceNorm_backward(x, weight, grad_output)
+    else:
+        grad_x, grad_weight, grad_bias =  instanceNorm_backward(x, weight, grad_output)
+    # TODO: 理论上是不应该返回Mean & std 的。但是这个接口可能影响的地方比较多。所以现在就先这样吧。
+    return grad_x, grad_weight, grad_bias, None, None
+
 
 
 def crossEntropy_bwd(logits, target, Fuse = 2):
@@ -487,7 +498,38 @@ def grouped_linear_bwd(x, w, grad_output, Fuse =2 ):
     elif x.ndim == 4:
         B, Fs, N, I = x.shape
         dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
-        dw = torch.einsum(   "bfno,bfni->foi", grad_output, x, )
+
+        # TODO: dW 上的规约（？）是性能退化的主要原因。改成for循环甚至都会快一些。
+        # dw = torch.einsum(   "bfno,bfni->foi", grad_output, x, )
+
+        if Fs == 1:
+            dw = torch.einsum(
+                "bfno,bfni->foi",
+                grad_output,
+                x,
+            )
+        else:
+            dw_parts = []
+
+            for f in range(Fs):
+                Gf = (
+                    grad_output[:, f]
+                    .contiguous()
+                    .view(B * N, -1)
+                )
+
+                Xf = (
+                    x[:, f]
+                    .contiguous()
+                    .view(B * N, I)
+                )
+
+                dw_parts.append(
+                    torch.mm(Gf.transpose(0, 1), Xf)
+                )
+
+            dw = torch.stack(dw_parts, dim=0)
+
         db = grad_output.sum(dim=(0, 2))  # [F, O]
         dw = dw.reshape(Fuse * out_features, in_features)
         db = db.reshape(Fuse * out_features)

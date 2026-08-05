@@ -84,7 +84,7 @@ def fuse_params_with_mask(starting_params, Fuse, mask_list):
     mask = torch.cat([fm.reshape(-1) for fm in fused_mask], dim=0).cuda()
     return  student_params, mask
 
-def split_half_second_dim(param_list, fuse_mask_list):
+def split_half_snd_dim(param_list, fuse_mask_list):
     output = []
     Fuse = len(fuse_mask_list)
 
@@ -695,23 +695,23 @@ def main(args):
                     dx_out = crossEntropy_bwd(x_out, this_y, Fuse)
                     dx_lin, dlin_w, dlin_b = linerFused_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse)
                     dx_lin = dx_lin.reshape(-1, student_net.module.net_width * Fuse, 4,4)  # 4*4 可能需要灵活改
-                    x_lin,x_out,dx_out = split_half_second_dim([x_lin,x_out,dx_out],fuse_mask_list)
+                    x_lin,x_out,dx_out = split_half_snd_dim([x_lin,x_out,dx_out],fuse_mask_list)
                     dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse)
-                    x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin = split_half_second_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin],fuse_mask_list)
+                    x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin = split_half_snd_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin],fuse_mask_list)
                     dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse)
-                    x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, dx_conv3 = split_half_second_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, dx_conv3 ],fuse_mask_list)
+                    x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, dx_conv3 = split_half_snd_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, dx_conv3 ],fuse_mask_list)
                     # _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
                     dx_pool1 = avgPool_bwd( x_pool1, grad_output= dx_conv2 )
-                    dx_conv2 = split_half_second_dim([dx_conv2], fuse_mask_list)[0]
+                    dx_conv2 = split_half_snd_dim([dx_conv2], fuse_mask_list)[0]
                     # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
                     dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1)
-                    x_norm1 = split_half_second_dim([x_norm1],fuse_mask_list)[0]
-                    x_pool1 = split_half_second_dim([x_pool1 ],fuse_mask_list)[0]
-                    dx_pool1 = split_half_second_dim([dx_pool1],fuse_mask_list)[0]
+                    x_norm1 = split_half_snd_dim([x_norm1],fuse_mask_list)[0]
+                    x_pool1 = split_half_snd_dim([x_pool1 ],fuse_mask_list)[0]
+                    dx_pool1 = split_half_snd_dim([dx_pool1],fuse_mask_list)[0]
                     # del dx_pool_d1
                     dx_conv1, dconv1_w, dconv1_b = conv_bwd(x_conv1, conv1_w, grad_output=dx_norm1, groups=Fuse)
-                    x_conv1 = split_half_second_dim([x_conv1 ],fuse_mask_list)[0]
-                    dx_norm1 = split_half_second_dim([dx_norm1 ],fuse_mask_list)[0]
+                    x_conv1 = split_half_snd_dim([x_conv1 ],fuse_mask_list)[0]
+                    dx_norm1 = split_half_snd_dim([dx_norm1 ],fuse_mask_list)[0]
                     grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
                 grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
     

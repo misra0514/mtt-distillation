@@ -14,7 +14,7 @@ from torch.nn.attention import sdpa_kernel, SDPBackend
 
 # from networks.networks_stacked import LinearStacked_2 # NOTE: 这里取消注释了。因为Fuse->stacked->stacked_basicblock 太长了。不好。
 from networks.networks_basicblock_tritonwrapper import batchNorm2d_backward, batchnorm_double_backwards_fn, batchnorm_double_backwards_fn_new
-from networks.networks_basicblock_tritonwrapper import instanceNorm_backward ,instanceNorm_double_backwards_fn, instance_norm_backward_triton,instanceNorm_double_backwards_triton
+from networks.networks_basicblock_tritonwrapper import instanceNorm_backward ,instanceNorm_double_backwards_fn
 from networks.utils import clear_tensorlists
 from networks.networks_stateless import BasicBlock_double_bwd,BasicBlock_bwd,BasicBlock_bwd2_1, conv_norm_relu_bwd
 from networks.networks_basicblock_tritonwrapper import Fst_Order_NormActive # fuse+基本优化
@@ -32,7 +32,7 @@ linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossE
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd,\
         dropout_fwd,dropout_bwd, dropout_double_bwd,geluDropout_bwd,geluDropout_double_bwd
 
-from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_second_dim,recover_params,set_random_seed
+from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_snd_dim,recover_params,set_random_seed
 
 class GroupedLayerNorm(nn.Module):
     def __init__(self, embed_dim, Fuse=1, eps=1e-5):
@@ -291,17 +291,17 @@ class Conv_Flexfuse(nn.Module):
         if fuse_mask_list is None:
             return
         for b in tape["blocks"]:
-            b["x_conv"], b["x_norm"], b["x_pool"] = split_half_second_dim(
+            b["x_conv"], b["x_norm"], b["x_pool"] = split_half_snd_dim(
                 [b["x_conv"], b["x_norm"], b["x_pool"]],
                 fuse_mask_list,
             )
         for da in d_activates_list:
-            da["dx_norm"], da["dx_pool"] = split_half_second_dim(
+            da["dx_norm"], da["dx_pool"] = split_half_snd_dim(
                 [da["dx_norm"], da["dx_pool"]],
                 fuse_mask_list,
             )
         head = tape["head"]
-        head["x_lin"], head["x_out"], d_head_tensors["dx_out"] = split_half_second_dim(
+        head["x_lin"], head["x_out"], d_head_tensors["dx_out"] = split_half_snd_dim(
             [head["x_lin"], head["x_out"], d_head_tensors["dx_out"]],
             fuse_mask_list,
         )
@@ -901,7 +901,7 @@ class ResNet18_FlexFuse(nn.Module):
             del activates_i, weights_i
         dx_block = g
         del g
-        dx_bn, dbnw, dbnb, dconvw = conv_norm_relu_bwd( x_conv, x_bn, x_block, self.conv.weight, self.bn.weight, grad_output=dx_block, Fuse=Fuse )
+        dx_bn, dbnw, dbnb, dconvw = conv_norm_relu_bwd( x_conv, x_bn, x_block, self.conv.weight, self.bn.weight, grad_output=dx_block, Fuse=Fuse, v_fuse=self.v_fuse )
         d_stem_tensors["dx_bn"] = dx_bn
         d_stem_tensors["dx_block"] = dx_block
         self._split_stem_saved_for_double_bwd(stem, d_stem_tensors, fuse_mask_list)
@@ -1011,7 +1011,7 @@ class ResNet18_FlexFuse(nn.Module):
         del g
         dx_block_d1[x_block <= 0] = 0
         del x_block
-        dx_bn_d1, _, _, _, _ = instanceNorm_backward( x_bn, stem_weights["bnw"], grad_output=dx_block_d1)
+        dx_bn_d1, _, _ = instanceNorm_backward( x_bn, stem_weights["bnw"], grad_output=dx_block_d1)
         del dx_block_d1
         dx_bn_d1 += dx_bn_d2
         del dx_bn_d2

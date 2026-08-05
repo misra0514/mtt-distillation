@@ -70,7 +70,7 @@ def fuse_params_with_mask(starting_params, Fuse, mask_list):
     mask = torch.cat([fm.reshape(-1) for fm in fused_mask], dim=0).cuda()
     return  student_params, mask
 
-def split_half_second_dim(param_list, fuse_mask_list):
+def split_half_snd_dim(param_list, fuse_mask_list):
     output = []
     Fuse = len(fuse_mask_list)
     # 找连续 1 的起点和终点

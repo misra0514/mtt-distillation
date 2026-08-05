@@ -300,7 +300,7 @@ def _instancenorm_backward_kernel(
         tl.store(dx_ptr + idx, dx_val, mask=mask)
 
 
-def instance_norm_backward_triton(x, gamma, grad_output,out, eps=1e-5):
+def instancenorm_relu_backward_triton(x, gamma, grad_output,out, eps=1e-5):
     """
     计算 InstanceNorm 的反向传播 (dX, dgamma, dbeta)。
     x, grad_output: (N, C, H, W)
@@ -662,7 +662,7 @@ class Snd_Order_MyLinearFunction(torch.autograd.Function):
         ctx.save_for_backward( input, weight, dLdy, out )
         # dLdy[out<=0 ] = 0
 
-        grad_output, dw, db = instance_norm_backward_triton(input, weight, dLdy, out)
+        grad_output, dw, db = instancenorm_relu_backward_triton(input, weight, dLdy, out)
         # grad_output, dw, db,mean, std = instanceNorm_backward(input, weight, dLdy)
         return grad_output, dw, db
     @staticmethod

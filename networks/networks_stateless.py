@@ -27,7 +27,8 @@ import os
 from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd, crossEntropy_bwd,crossEntropy_double_bwd,\
-    instanceNorm_backward ,instanceNorm_double_backwards_fn
+    insNorm_bwd ,instanceNorm_double_backwards_fn
+from script_fuseParallel.base import instanceNorm_backward
 
 
 def ConvBlock_bwd1_2(x_conv, x_norm, x_pool, conv_w, norm_w, dx_lin_d1, Fuse =2, v_fuse = True):
@@ -141,7 +142,7 @@ def BasicBlock_bwd( activates, weights, grad_output,SCstride=1, Fuse=1, v_fuse=T
     grad_output[out <= 0] = 0
 
     # ---------------- main branch ----------------
-    dx_bn2, dbn2w, dbn2b, _, _ = instanceNorm_backward(x_bn2, bn2w, grad_output=grad_output)
+    dx_bn2, dbn2w, dbn2b, _, _ = insNorm_bwd(x_bn2, bn2w, grad_output=grad_output, v_fuse=v_fuse)
     dx_conv2, dconv2w, _ = conv_bwd(x_conv2, conv2w, grad_output=dx_bn2, groups=Fuse)
     # dbno1 = dx_conv2
     # dbno1[x_conv2 <= 0] = 0
@@ -154,7 +155,7 @@ def BasicBlock_bwd( activates, weights, grad_output,SCstride=1, Fuse=1, v_fuse=T
     # ---------------- shortcut branch ----------------
     if has_downsample:
         dbnosc = grad_output
-        dx_bnsc, dbnscw, dbnscb, _, _ = instanceNorm_backward( x_bnsc, bnscw, grad_output=dbnosc)
+        dx_bnsc, dbnscw, dbnscb, _, _ = insNorm_bwd( x_bnsc, bnscw, grad_output=dbnosc, v_fuse=v_fuse)
         dx_short, dconvscw, _ = conv_bwd( x_conv1, convscw, grad_output=dx_bnsc, stride=SCstride, padding=0, groups=Fuse )
         dx_in = dx_main + dx_short
     else:
@@ -211,7 +212,7 @@ def BasicBlock_bwd2_1(
     has_downsample = (convscw is not None)
     # g_out = grad_output.clone()
     grad_output[out <= 0] = 0
-    dx_bn2, dbn2w, dbn2b, _, _ = instanceNorm_backward( x_bn2, bn2w, grad_output=grad_output )
+    dx_bn2, dbn2w, dbn2b, _, _ = insNorm_bwd( x_bn2, bn2w, grad_output=grad_output, v_fuse=v_fuse )
     dx_bn2 += dx_bn2_d2
     dx_conv2, dconv2w, _ = conv_bwd( x_conv2, conv2w, grad_output=dx_bn2, groups=Fuse)
     dx_conv2 = dx_conv2.clone()
@@ -224,7 +225,7 @@ def BasicBlock_bwd2_1(
     del dx_bn1_d2
     dx_conv1_main, dconv1w, _ = conv_bwd( x_conv1, conv1w, grad_output=dx_bn1, stride=SCstride,groups= Fuse )
     if has_downsample:
-        dx_bnsc, dbnscw, dbnscb, _, _ = instanceNorm_backward( x_bnsc, bnscw, grad_output=grad_output )
+        dx_bnsc, dbnscw, dbnscb, _, _ = insNorm_bwd( x_bnsc, bnscw, grad_output=grad_output, v_fuse=v_fuse )
         dx_bnsc += dx_bnsc_d2
         dx_conv1_sc, dconvscw, _ = conv_bwd( x_conv1, convscw, grad_output=dx_bnsc, stride=SCstride, padding=0, groups= Fuse)
         dx_in = dx_conv1_main + dx_conv1_sc + dx_conv1_d2
@@ -326,10 +327,8 @@ def BasicBlock_double_bwd(
     ddO_main[out <= 0] = 0
     return ddO_main, d_activates
 
-def conv_norm_relu_bwd(x, x_bn,x_block,convw, bnw, grad_output, Fuse = 1  ):
-    dx_block = grad_output
-    dx_block[x_block <= 0] = 0
-    dx_bn, dbnw, dbnb,_,_ = instanceNorm_backward(x_bn, bnw, grad_output=dx_block)
+def conv_norm_relu_bwd(x, x_bn,x_block,convw, bnw, grad_output, Fuse = 1  , v_fuse=True):
+    dx_bn, dbnw, dbnb = insNormNRelu_bwd(x_bn, bnw,output=x_block, grad_output=grad_output, v_fuse=v_fuse)
     _, dconvw ,_ = conv_bwd(x, convw, grad_output=dx_bn, groups= Fuse)
     return dx_bn, dbnw, dbnb, dconvw
 

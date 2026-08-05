@@ -319,6 +319,8 @@ def main(args):
         indices_chunks = []
 
         if it >= warmup:
+            if args.use_barrier:
+                torch.cuda.synchronize()
             syn_start = time.time()
         for step in range(args.syn_steps):
 
@@ -407,6 +409,8 @@ def main(args):
             # syn_images = x
 
         if it >= warmup:
+            if args.use_barrier:
+                torch.cuda.synchronize()
             syn_end = time.time()
 
         # continue
@@ -452,6 +456,8 @@ def main(args):
         optimizer_img.step()
         optimizer_lr.step()
         if it >= warmup:
+            if args.use_barrier:
+                torch.cuda.synchronize()
             iter_end = time.time()
             prep_time += (syn_start- start) # 从iter开始一直到内层循环
             syn_time += (syn_end-syn_start) # 内层循环的时间
@@ -482,7 +488,12 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
 
+
+
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
+    parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('--use-barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
+
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')

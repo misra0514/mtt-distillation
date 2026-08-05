@@ -27,7 +27,7 @@ from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNorm
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
 
-from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_second_dim,recover_params,set_random_seed
+from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_snd_dim,recover_params,set_random_seed
 
 # def compute_param_dist_fuse_mean(starting_params_flat, target_params_flat, shape_list, Fuse):
 #     """
@@ -630,25 +630,26 @@ def main(args):
                 dx_out = crossEntropy_bwd(x_out, this_y, Fuse)
                 dx_lin, dlin_w, dlin_b = linerFused_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse)
                 dx_lin = dx_lin.reshape(-1, student_net.module.net_width * Fuse, 4,4)  # 4*4 可能需要灵活改
-                x_lin,x_out,dx_out = split_half_second_dim([x_lin,x_out,dx_out],fuse_mask_list)
+                x_lin,x_out,dx_out = split_half_snd_dim([x_lin,x_out,dx_out],fuse_mask_list)
                 dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse, v_fuse=args.v_fuse)
-                x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin = split_half_second_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, dx_lin],fuse_mask_list)
+                del dx_lin
+                x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3 = split_half_snd_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3],fuse_mask_list)
                 dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse, v_fuse=args.v_fuse)
-                x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 = split_half_second_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 ],fuse_mask_list)
+                x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 = split_half_snd_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 ],fuse_mask_list)
                 del dx_conv3
                 # _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
                 dx_pool1 = avgPool_bwd( x_pool1, grad_output= dx_conv2 )
                 del dx_conv2
-                # dx_conv2 = split_half_second_dim([dx_conv2], fuse_mask_list)[0]
+                # dx_conv2 = split_half_snd_dim([dx_conv2], fuse_mask_list)[0]
                 # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
                 dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1,v_fuse=args.v_fuse)
-                x_norm1 = split_half_second_dim([x_norm1],fuse_mask_list)[0]
-                x_pool1 = split_half_second_dim([x_pool1 ],fuse_mask_list)[0]
-                dx_pool1 = split_half_second_dim([dx_pool1],fuse_mask_list)[0]
+                x_norm1 = split_half_snd_dim([x_norm1],fuse_mask_list)[0]
+                x_pool1 = split_half_snd_dim([x_pool1 ],fuse_mask_list)[0]
+                dx_pool1 = split_half_snd_dim([dx_pool1],fuse_mask_list)[0]
                 # del dx_pool_d1
                 _, dconv1_w, dconv1_b = conv_bwd(x_conv1, conv1_w, grad_output=dx_norm1, groups=Fuse)
-                x_conv1 = split_half_second_dim([x_conv1 ],fuse_mask_list)[0]
-                dx_norm1 = split_half_second_dim([dx_norm1 ],fuse_mask_list)[0]
+                x_conv1 = split_half_snd_dim([x_conv1 ],fuse_mask_list)[0]
+                dx_norm1 = split_half_snd_dim([dx_norm1 ],fuse_mask_list)[0]
                 grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
             grad = torch.cat([mm.reshape(-1).detach().requires_grad_(True) for mm in grad], 0)   # already bool
             student_params.append(student_params[-1] - syn_lr *  grad)
@@ -659,16 +660,30 @@ def main(args):
             syn_end = time.time()
 
         with torch.no_grad():
-            weight = student_params[0] # weight是原始参数，不加dw
+            # weight = student_params[0] # weight是原始参数，不加dw
+            # if Fuse != bwd_Fuse:
+
+            #     # TODO: 对weights 做了一些masking。难道是这里影响了性能？ 这里大概花了1s左右。其实直接把load时候变量留下来就好了。
+            #     weight = weight[mask]
+            #     student_params[-1] = student_params[-1][mask]
+            #     starting_params = starting_params[mask]
+            #     target_params = target_params[mask]
+            #     conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0][mask],shape_list, bwd_Fuse)
             if Fuse != bwd_Fuse:
-
-                # TODO: 对weights 做了一些masking。难道是这里影响了性能？ 这里大概花了1s左右。其实直接把load时候变量留下来就好了。
-                weight = weight[mask]
-                student_params[-1] = student_params[-1][mask]
-                starting_params = starting_params[mask]
-                target_params = target_params[mask]
-                conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0][mask],shape_list, bwd_Fuse)
-
+                final_params_bwd = student_params[-1][mask]
+                starting_params_bwd = starting_params[mask]
+                target_params_bwd = target_params[mask]
+                init_params_bwd = student_params[0][mask]
+                student_params[-1] = final_params_bwd
+                starting_params = starting_params_bwd
+                target_params = target_params_bwd
+                (
+                    conv1_w, conv1_b, norm1_w, norm1_b,
+                    conv2_w, conv2_b, norm2_w, norm2_b,
+                    conv3_w, conv3_b, norm3_w, norm3_b,
+                    lin_w, _
+                ) = recover_params(init_params_bwd, shape_list, bwd_Fuse)
+                
                 
             param_loss = torch.tensor(0.0).to(args.device)
             param_dist = torch.tensor(0.0).to(args.device)
@@ -733,6 +748,11 @@ def main(args):
             del ddx_norm,dx_pool1,ddnorm1_w,ddnorm1_b
             ddx_conv2 = avgPool_double_bwd(ddx_pool)    
             del ddx_pool
+
+            del dconv1_w, dconv1_b, dnorm1_w, dnorm1_b
+            del dconv2_w, dconv2_b, dnorm2_w, dnorm2_b
+            del dconv3_w, dconv3_b, dnorm3_w, dnorm3_b
+            del dlin_w, dlin_b
 
             ddx_conv3, dxconv2_d2, _,dx_norm2_d2,_ = ConvBlock_double_bwd(x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, \
                                                                             ddx_conv2,conv2_w, norm2_w, ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b,bwd_Fuse, v_fuse=args.v_fuse )

@@ -77,14 +77,43 @@ def get_dataset(dataset, data_path, batch_size=1, subset="imagenette", args=None
         num_classes = 200
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
+
         if args.zca:
-            transform = transforms.Compose([transforms.ToTensor()])
+            transform = transforms.Compose([
+                transforms.ToTensor()
+            ])
         else:
-            transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)])
-        dst_train = datasets.ImageFolder(os.path.join(data_path, "train"), transform=transform) # no augmentation
-        dst_test = datasets.ImageFolder(os.path.join(data_path, "val"), transform=transform)
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std)
+            ])
+
+        tiny_root = os.path.join(data_path, "tiny-imagenet-200")
+        train_root = os.path.join(tiny_root, "train")
+        val_root = os.path.join(tiny_root, "val")
+
+        if not os.path.isdir(train_root):
+            raise FileNotFoundError(
+                f"Tiny ImageNet train directory not found: {train_root}"
+            )
+
+        if not os.path.isdir(val_root):
+            raise FileNotFoundError(
+                f"Tiny ImageNet val directory not found: {val_root}"
+            )
+
+        dst_train = datasets.ImageFolder(
+            train_root,
+            transform=transform
+        )
+
+        dst_test = datasets.ImageFolder(
+            val_root,
+            transform=transform
+        )
+
         class_names = dst_train.classes
-        class_map = {x:x for x in range(num_classes)}
+        class_map = {x: x for x in range(num_classes)}
 
 
     elif dataset == 'ImageNet':

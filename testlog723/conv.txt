@@ -1,0 +1,28 @@
+============================================================
+TIME TEST SWEEP START
+START_TIME: 2026-07-25 14:02:29
+MODEL BLOCK: ConvNet
+MODEL ARG:   ConvNet
+FLEX FILE:   distill_flexFuse_timeTest_conv_backup.py
+ORIGINAL FILE: distill_original_timeTest.py
+ORIGINAL FWDTEST FILE: distill_original_fwdtimetest.py
+IPC_LIST:    1 10 50 100
+ORIGINAL_SYN_STEPS: 1 20
+NORMAL_FLEX_SYN_STEPS: 1
+DEFAULT_ITERATION: 350
+USE_BARRIER_REPEATS: 2
+NO_BARRIER_REPEATS:  2
+FWDTEST_REPEATS: 1
+LOG_FILE:    testlog723/conv.txt
+NOTE: no ckpt flex tests; --AccTest=True is removed; normal cases run twice with --use-barrier and twice without it.
+FWDTEST: distill_original_fwdtimetest.py runs once only and never receives --use-barrier.
+EXTRA: normal flex only uses syn_steps=1; no ckpt flex; ConvNet keeps --Iteration=350 for all IPCs.
+============================================================
+
+==============================
+2026-07-25 14:02:29 | MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt

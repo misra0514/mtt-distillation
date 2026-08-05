@@ -228,7 +228,7 @@ def _instancenorm_backward_kernel(
         dx_hat = rstd * (term1 - term2 - term3)
         tl.store(dx + idx, dx_hat, mask=mask)
 
-def instance_norm_backward_triton(x, gamma, grad_output, out, eps=1e-5):
+def instancenorm_relu_backward_triton(x, gamma, grad_output, out, eps=1e-5):
     # x, grad_output: (N, C, H, W)
     N, C, H, W = x.shape
     HW = H * W
@@ -585,7 +585,7 @@ class Snd_Order_MyLinearFunction(torch.autograd.Function):
         ctx.save_for_backward( input, weight, dLdy, out )
         # dLdy[out<=0 ] = 0
 
-        grad_output, dw, db = instance_norm_backward_triton(input, weight, dLdy, out)
+        grad_output, dw, db = instancenorm_relu_backward_triton(input, weight, dLdy, out)
         # grad_output, dw, db,mean, std = instanceNorm_backward(input, weight, dLdy)
         return grad_output, dw, db
     @staticmethod

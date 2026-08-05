@@ -1,33 +1,23 @@
 #!/usr/bin/env bash
-# Massive distill time-test sweep, v5.
+# Massive distill time-test sweep, v7.
 #
-# Logs are split by model:
-#   testlog524/conv.txt
-#   testlog524/vit.txt
-#   testlog524/resnet18.txt
+# v6 changes:
+#   1) normal cases run twice with --use-barrier and twice without --use-barrier.
+#   2) add distill_original_fwdtimetest.py for every model/ipc/original syn_steps.
+#      It runs once only and never receives --use-barrier.
+#   3) remove all ckpt flex tests.
+#   4) ConvNet/ViT/ResNet18 all run.
+#   5) ViT uses --Iteration=50 when IPC>=50; ResNet18 uses --Iteration=50 when IPC>=10; ConvNet stays at 350.
+#   6) all distill flex cases use --v_fuse only.
+#   7) flex masks are 1, 1 1, 1 0, and 1 1 0 0.
 #
-# Important changes in v5:
-#   1. Original still runs syn_steps = 1 and 20.
-#   2. Normal flex timetest scripts only run syn_steps = 1.
-#   3. ConvNet additionally uses distill_ckpt_flex_conv_timetest.py to cover syn_steps = 20.
-#   4. No plain tests.
-#   5. No --AccTest=True.
-#   6. Each case runs once with --use-barrier and twice without --use-barrier.
-#   7. ViT/ResNet18 use --Iteration=50 when IPC>=100; ConvNet stays at 350.
-#
-# Per model / IPC, order is:
-#   original syn1
-#   normal flex syn1: mask1_no_vfuse, mask1_vfuse, mask11_vfuse, mask10_vfuse
-#   original syn20
-#   conv only: ckpt flex syn20: mask1_vfuse, mask11_vfuse, mask10_vfuse
-#
-# Run with bash, not sh:
-#   bash rundistill_massive_524_v5_barrier_iter50.sh
+# Run:
+#   bash rundistill_massive_524_v7_vfuse_masks_1_11_10_1100.sh
 
 set -u
 set -o pipefail
 
-LOG_DIR="${LOG_DIR:-testlog524}"
+LOG_DIR="${LOG_DIR:-testlog84_vit}"
 mkdir -p "${LOG_DIR}"
 
 CONV_LOG="${LOG_DIR}/conv.txt"
@@ -50,43 +40,25 @@ LR_LR=1e-05
 LR_TEACHER=0.01
 
 FUSE=1
-USE_BARRIER_REPEATS=1
+USE_BARRIER_REPEATS=2
 NO_BARRIER_REPEATS=2
+FWDTEST_REPEATS=1
 
 ORIGINAL_FILE="distill_original_timeTest.py"
+ORIGINAL_FWD_FILE="distill_original_fwdtimetest.py"
 
-CONV_FLEX_FILE="distill_flexFuse_timeTest_conv_backup.py" # BACKUP!! 
+CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py" # BACKUP!!
 VIT_FLEX_FILE="distill_flexFuse_timeTest_ViT.py"
 RESNET_FLEX_FILE="distill_flexFuse_timeTest_resnet18.py"
 
-# Conv-only checkpoint flex script for syn_steps=20.
-CONV_CKPT_FLEX_FILE="distill_ckpt_flex_conv_timetest.py"
-
-# ConvNet keeps the old IPC sweep.
-CONV_IPC_LIST=(1 10 100)
-
-# ViT and ResNet18 include IPC=1000; for IPC>=100 they use --Iteration=50.
-VIT_IPC_LIST=(1 10 100 1000)
-RESNET_IPC_LIST=(1 10 100 1000)
+# All three models now use the same IPC sweep.
+CONV_IPC_LIST=(1 10 50 100)
+VIT_IPC_LIST=(1 10 50 100)
+RESNET_IPC_LIST=(1 10 50 100)
 
 ORIGINAL_SYN_STEPS_LIST=(1 20)
 NORMAL_FLEX_SYN_STEPS=1
-CKPT_FLEX_SYN_STEPS=20
 
-# For normal flex syn_steps=1.
-# Cases:
-#   1   + --no-v_fuse
-#   1   + --v_fuse
-#   1 1 + --v_fuse
-#   1 0 + --v_fuse
-
-# For conv ckpt syn_steps=20.
-# Cases:
-#   1   + --v_fuse
-#   1 1 + --v_fuse
-#   1 0 + --v_fuse
-
-# Clean old logs at the start.
 : > "${CONV_LOG}"
 : > "${VIT_LOG}"
 : > "${RESNET_LOG}"
@@ -106,16 +78,20 @@ write_header() {
     echo "MODEL BLOCK: ${model_label}"
     echo "MODEL ARG:   ${model_arg}"
     echo "FLEX FILE:   ${flex_file}"
+    echo "ORIGINAL FILE: ${ORIGINAL_FILE}"
+    echo "ORIGINAL FWDTEST FILE: ${ORIGINAL_FWD_FILE}"
     echo "IPC_LIST:    ${ipc_list_text}"
     echo "ORIGINAL_SYN_STEPS: ${ORIGINAL_SYN_STEPS_LIST[*]}"
     echo "NORMAL_FLEX_SYN_STEPS: ${NORMAL_FLEX_SYN_STEPS}"
     echo "DEFAULT_ITERATION: ${ITERATION}"
     echo "USE_BARRIER_REPEATS: ${USE_BARRIER_REPEATS}"
     echo "NO_BARRIER_REPEATS:  ${NO_BARRIER_REPEATS}"
+    echo "FWDTEST_REPEATS: ${FWDTEST_REPEATS}"
     echo "LOG_FILE:    ${log_file}"
-    echo "NOTE:        no plain tests; --AccTest=True is removed; each case runs once with --use-barrier and twice without it."
+    echo "NOTE: no ckpt flex tests; --AccTest=True is removed; normal cases run twice with --use-barrier and twice without it; all flex cases use --v_fuse."
+    echo "FWDTEST: ${ORIGINAL_FWD_FILE} runs once only and never receives --use-barrier."
     if [ -n "${extra_note}" ]; then
-      echo "EXTRA:       ${extra_note}"
+      echo "EXTRA: ${extra_note}"
     fi
     echo "============================================================"
     echo ""
@@ -124,7 +100,6 @@ write_header() {
 
 write_footer() {
   local log_file="$1"
-
   {
     echo ""
     echo "============================================================"
@@ -159,21 +134,19 @@ common_args() {
     --Fuse="${FUSE}"
 }
 
-# ViT/ResNet18 special rule:
-# For large IPC settings, run fewer iterations.
-# ConvNet always keeps the default ITERATION.
 iteration_for_model_ipc() {
   local model_label="$1"
   local ipc="$2"
 
-  if { [ "${model_label}" = "ViT" ] || [ "${model_label}" = "ResNet18" ]; } && [ "${ipc}" -ge 100 ]; then
+  if [ "${model_label}" = "ViT" ] && [ "${ipc}" -ge 50 ]; then
+    echo "50"
+  elif [ "${model_label}" = "ResNet18" ] && [ "${ipc}" -ge 10 ]; then
     echo "50"
   else
     echo "${ITERATION}"
   fi
 }
 
-# Filter out warnings and tqdm/progress-bar lines from the log.
 clean_output() {
   sed -u \
     -e '/Warning:/d' \
@@ -243,18 +216,57 @@ run_cmd() {
   local log_file="$1"
   local tag="$2"
   shift 2
-
   local r
 
-  # Run once with --use-barrier.
   for r in $(seq 1 "${USE_BARRIER_REPEATS}"); do
     run_cmd_once "${log_file}" "${tag}" "use_barrier" "${r}" "${USE_BARRIER_REPEATS}" "$@"
   done
 
-  # Then run twice without --use-barrier.
   for r in $(seq 1 "${NO_BARRIER_REPEATS}"); do
     run_cmd_once "${log_file}" "${tag}" "no_barrier" "${r}" "${NO_BARRIER_REPEATS}" "$@"
   done
+}
+
+run_fwdtest_once() {
+  local log_file="$1"
+  local tag="$2"
+  shift 2
+
+  local barrier_mode="no_barrier"
+  local repeat_id="1"
+  local repeat_total="1"
+
+  echo "[RUN] ${tag} | FWDTEST | no --use-barrier | repeat ${repeat_id}/${repeat_total}"
+
+  {
+    echo "=============================="
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | ${tag} | BARRIER=${barrier_mode} | REPEAT=${repeat_id}/${repeat_total}"
+    echo "CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 $*"
+    echo "------------------------------"
+  } >> "${log_file}"
+
+  WANDB_SILENT=true \
+  PYTHONWARNINGS=ignore \
+  TQDM_DISABLE=1 \
+  PYTHONUNBUFFERED=1 \
+  "$@" 2>&1 | clean_output >> "${log_file}"
+
+  local exit_code=${PIPESTATUS[0]}
+
+  {
+    echo "------------------------------"
+    echo "EXIT_CODE: ${exit_code}"
+    if [ "${exit_code}" -ne 0 ]; then
+      echo "ERROR: command failed with EXIT_CODE=${exit_code}"
+    fi
+    echo ""
+  } >> "${log_file}"
+
+  if [ "${exit_code}" -ne 0 ]; then
+    echo "[ERROR] command failed with EXIT_CODE=${exit_code}: ${tag} | FWDTEST"
+  fi
+
+  return 0
 }
 
 run_original() {
@@ -272,6 +284,23 @@ run_original() {
     "${log_file}" \
     "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original" \
     python "${ORIGINAL_FILE}" "${args[@]}"
+}
+
+run_original_fwdtest() {
+  local log_file="$1"
+  local model_label="$2"
+  local model_arg="$3"
+  local ipc="$4"
+  local syn_steps="$5"
+  local iteration="${6:-${ITERATION}}"
+
+  # shellcheck disable=SC2207
+  local args=( $(common_args "${ipc}" "${syn_steps}" "${model_arg}" "${iteration}") )
+
+  run_fwdtest_once \
+    "${log_file}" \
+    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original_fwdtest" \
+    python "${ORIGINAL_FWD_FILE}" "${args[@]}"
 }
 
 run_flex_case() {
@@ -308,6 +337,39 @@ run_flex_case() {
       "${args[@]}"
 }
 
+run_model_block() {
+  local log_file="$1"
+  local model_label="$2"
+  local model_arg="$3"
+  local flex_file="$4"
+  shift 4
+  local ipc_list=( "$@" )
+
+  local ipc
+  local model_iteration
+
+  for ipc in "${ipc_list[@]}"; do
+    model_iteration="$(iteration_for_model_ipc "${model_label}" "${ipc}")"
+
+    run_original "${log_file}" "${model_label}" "${model_arg}" "${ipc}" "1" "${model_iteration}"
+    run_original_fwdtest "${log_file}" "${model_label}" "${model_arg}" "${ipc}" "1" "${model_iteration}"
+
+    # Distill flex: v_fuse is always ON.
+    # Run exactly these four masks:
+    #   1
+    #   1 1
+    #   1 0
+    #   1 1 0 0
+    run_flex_case "${log_file}" "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"       "--v_fuse" "flex" "${model_iteration}"
+    run_flex_case "${log_file}" "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1"     "--v_fuse" "flex" "${model_iteration}"
+    run_flex_case "${log_file}" "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 0"     "--v_fuse" "flex" "${model_iteration}"
+    run_flex_case "${log_file}" "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1 0 0" "--v_fuse" "flex" "${model_iteration}"
+
+    run_original "${log_file}" "${model_label}" "${model_arg}" "${ipc}" "20" "${model_iteration}"
+    run_original_fwdtest "${log_file}" "${model_label}" "${model_arg}" "${ipc}" "20" "${model_iteration}"
+  done
+}
+
 # # ============================================================
 # # ConvNet tests
 # # ============================================================
@@ -317,27 +379,9 @@ run_flex_case() {
 #   "ConvNet" \
 #   "${CONV_FLEX_FILE}" \
 #   "${CONV_IPC_LIST[*]}" \
-#   "normal flex only uses syn_steps=1; ckpt flex file covers conv syn_steps=20. CKPT_FILE=${CONV_CKPT_FLEX_FILE}; ConvNet keeps --Iteration=${ITERATION} for all IPCs."
+#   "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no ckpt flex; ConvNet keeps --Iteration=${ITERATION} for all IPCs."
 
-# for ipc in "${CONV_IPC_LIST[@]}"; do
-#   # original syn_steps=1
-#   run_original "${CONV_LOG}" "ConvNet" "ConvNet" "${ipc}" "1"
-
-#   # normal flex syn_steps=1 only
-#   run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--no-v_fuse" "flex"
-#   run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--v_fuse"    "flex"
-#   run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1" "--v_fuse"    "flex"
-#   run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 0" "--v_fuse"    "flex"
-
-#   # original syn_steps=20
-#   run_original "${CONV_LOG}" "ConvNet" "ConvNet" "${ipc}" "20"
-
-#   # ckpt flex syn_steps=20 only, to fill the removed normal-flex syn_steps=20 cases.
-#   run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_CKPT_FLEX_FILE}" "${ipc}" "${CKPT_FLEX_SYN_STEPS}" "1"   "--v_fuse" "ckpt_flex"
-#   run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_CKPT_FLEX_FILE}" "${ipc}" "${CKPT_FLEX_SYN_STEPS}" "1 1" "--v_fuse" "ckpt_flex"
-#   run_flex_case "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_CKPT_FLEX_FILE}" "${ipc}" "${CKPT_FLEX_SYN_STEPS}" "1 0" "--v_fuse" "ckpt_flex"
-# done
-
+# run_model_block "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${CONV_IPC_LIST[@]}"
 # write_footer "${CONV_LOG}"
 
 # ============================================================
@@ -349,56 +393,26 @@ write_header \
   "ViT" \
   "${VIT_FLEX_FILE}" \
   "${VIT_IPC_LIST[*]}" \
-  "normal flex only uses syn_steps=1; no flex syn_steps=20 for ViT; ViT uses --Iteration=50 when --ipc>=100."
+  "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ViT; ViT uses --Iteration=50 when --ipc>=50."
 
-for ipc in "${VIT_IPC_LIST[@]}"; do
-  vit_iteration="$(iteration_for_model_ipc "ViT" "${ipc}")"
-
-  # original syn_steps=1
-  run_original "${VIT_LOG}" "ViT" "ViT" "${ipc}" "1" "${vit_iteration}"
-
-  # normal flex syn_steps=1 only
-  run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--no-v_fuse" "flex" "${vit_iteration}"
-  run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--v_fuse"    "flex" "${vit_iteration}"
-  run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1" "--v_fuse"    "flex" "${vit_iteration}"
-  run_flex_case "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 0" "--v_fuse"    "flex" "${vit_iteration}"
-
-  # original syn_steps=20 still runs
-  run_original "${VIT_LOG}" "ViT" "ViT" "${ipc}" "20" "${vit_iteration}"
-done
-
+run_model_block "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${VIT_IPC_LIST[@]}"
 write_footer "${VIT_LOG}"
 
-# ============================================================
-# ResNet18 tests
-# ============================================================
-write_header \
-  "${RESNET_LOG}" \
-  "ResNet18" \
-  "ResNet18" \
-  "${RESNET_FLEX_FILE}" \
-  "${RESNET_IPC_LIST[*]}" \
-  "normal flex only uses syn_steps=1; no flex syn_steps=20 for ResNet18; ResNet18 uses --Iteration=50 when --ipc>=100."
+# # ============================================================
+# # ResNet18 tests
+# # ============================================================
+# write_header \
+#   "${RESNET_LOG}" \
+#   "ResNet18" \
+#   "ResNet18" \
+#   "${RESNET_FLEX_FILE}" \
+#   "${RESNET_IPC_LIST[*]}" \
+#   "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ResNet18; ResNet18 uses --Iteration=50 when --ipc>=10."
 
-for ipc in "${RESNET_IPC_LIST[@]}"; do
-  resnet_iteration="$(iteration_for_model_ipc "ResNet18" "${ipc}")"
+# run_model_block "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${RESNET_IPC_LIST[@]}"
+# write_footer "${RESNET_LOG}"
 
-  # original syn_steps=1
-  run_original "${RESNET_LOG}" "ResNet18" "ResNet18" "${ipc}" "1" "${resnet_iteration}"
-
-  # normal flex syn_steps=1 only
-  run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--no-v_fuse" "flex" "${resnet_iteration}"
-  run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"   "--v_fuse"    "flex" "${resnet_iteration}"
-  run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1" "--v_fuse"    "flex" "${resnet_iteration}"
-  run_flex_case "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 0" "--v_fuse"    "flex" "${resnet_iteration}"
-
-  # original syn_steps=20 still runs
-  run_original "${RESNET_LOG}" "ResNet18" "ResNet18" "${ipc}" "20" "${resnet_iteration}"
-done
-
-write_footer "${RESNET_LOG}"
-
-echo "[DONE] All commands finished."
-echo "ConvNet log:  ${CONV_LOG}"
-echo "ViT log:      ${VIT_LOG}"
-echo "ResNet18 log: ${RESNET_LOG}"
+# echo "[DONE] All commands finished."
+# echo "ConvNet log:  ${CONV_LOG}"
+# echo "ViT log:      ${VIT_LOG}"
+# echo "ResNet18 log: ${RESNET_LOG}"

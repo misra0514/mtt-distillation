@@ -1,8 +1,3 @@
-# 12.4
-# 目标仅仅是测fwd时的内存和空间消耗。
-
-
-
 import os
 import argparse
 import numpy as np
@@ -11,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.utils
 from tqdm import tqdm
+from torch.profiler import profile, ProfilerActivity, record_function
 from utils import get_dataset, get_network, get_eval_pool, evaluate_synset, get_time, DiffAugment, ParamDiffAug
 import wandb
 import copy
@@ -34,7 +30,6 @@ def main(args):
     if (args.AccTest):
         set_random_seed(42)
         args.Iteration = 0
-
     prep_time = 0
     syn_time = 0
     bwd_time = 0
@@ -101,7 +96,8 @@ def main(args):
     if args.batch_syn is None:
         args.batch_syn = num_classes * args.ipc
 
-    args.distributed = torch.cuda.device_count() > 1
+    # args.distributed = torch.cuda.device_count() > 1
+    args.distributed = False
 
 
     # print('Hyper-parameters: \n', args.__dict__)
@@ -158,7 +154,10 @@ def main(args):
         print('initialize synthetic data from random noise')
 
     if(args.AccTest):
-        image_syn = torch.load("./script/in.pt")    
+        # image_syn = torch.load("./script/in.pt")    
+        args.ipc = 10
+        image_syn = torch.load("./script/in_ip10.pt")
+
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)
@@ -240,13 +239,35 @@ def main(args):
 
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
+    if (args.AccTest):
+        warmup = 0
+    else:
+        warmup = 3
+    args.Iteration += warmup
 
+    # Keep the same CLI as the Conv FlexFuse profiler.
+    # fuse_mask_list is intentionally accepted but is not used here:
+    # this file always profiles the original, unfused model selected by --model.
+    mem_profile_enabled = (
+        args.mem_profile
+        and args.device == "cuda"
+        and torch.cuda.is_available()
+    )
+    mem_profile_done = False
+    if mem_profile_enabled:
+        os.makedirs(args.mem_snapshot_dir, exist_ok=True)
+        print(
+            "[MemProfile] Original model profiling enabled:",
+            args.model,
+            "output:",
+            args.mem_snapshot_dir,
+        )
 
     pre_end = time.time()
 
     for it in range(0, args.Iteration+1):
-         
-        start = time.time()
+        if it >= warmup:
+            start = time.time()
 
         save_this_it = False
 
@@ -355,6 +376,35 @@ def main(args):
         #                         torch.nan_to_num(grid.detach().cpu()))}, step=it)
 
         # wandb.log({"Synthetic_LR": syn_lr.detach().cpu()}, step=it)
+
+        # Profile only the first non-warmup iteration. This keeps --Iteration
+        # compatible with the normal runner without producing hundreds of traces.
+        profile_this_it = (
+            mem_profile_enabled
+            and (not mem_profile_done)
+            and it >= warmup
+        )
+        prof = None
+        if profile_this_it:
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+
+            torch.cuda.memory._record_memory_history(
+                enabled="all",
+                context="all",
+                stacks="all",
+                max_entries=100000,
+            )
+
+            prof = profile(
+                activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+                record_shapes=True,
+                profile_memory=True,
+                with_stack=True,
+            )
+            prof.start()
+
         student_net.train()
 
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())])
@@ -404,8 +454,10 @@ def main(args):
         param_loss_list = []
         param_dist_list = []
         indices_chunks = []
-
-        syn_start = time.time()
+        if it >= warmup:
+            if args.use_barrier:
+                torch.cuda.synchronize()
+            syn_start = time.time()
         for step in range(args.syn_steps):
 
             if not indices_chunks:
@@ -438,8 +490,9 @@ def main(args):
             # x = x.unsqueeze(0).repeat(int(args.Fuse), 1, 1, 1, 1)
             # x = x.view(-1,3,32,32)
 
-            out = student_net(x, flat_param=forward_params)
-            ce_loss = criterion(out, this_y)
+            with record_function(f"01_syn_step_{step:03d}_forward_ce"):
+                out = student_net(x, flat_param=forward_params)
+                ce_loss = criterion(out, this_y)
 
             # ce_loss = 0
             # # TODO: 4 两个loss。这个地方目前两种model的写法不同，所以y shape 不一样...
@@ -448,7 +501,12 @@ def main(args):
             #     ce_loss = ce_loss+ce_loss_temp
 
             # TODO: 4 这里存疑，到时候student_params 会是两个，那么grad怎么算？因为目前只是同一个grad算两次而已
-            grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=False)[0]
+            with record_function(f"02_syn_step_{step:03d}_first_order_grad"):
+                grad = torch.autograd.grad(
+                    ce_loss,
+                    student_params[-1],
+                    create_graph=True,
+                )[0]
             # print("test", grad[:151424].sum().item())
             # print("test", grad[151424:299264].sum().item())
             # print("test", grad[:299264].sum().item())
@@ -460,70 +518,130 @@ def main(args):
             # if(step < args.detachNum):
             #     student_params.append(student_params[-1] - syn_lr * grad.detach())
             # else:
-            student_params.append(student_params[-1] - syn_lr * grad)
+            with record_function(f"03_syn_step_{step:03d}_student_update"):
+                student_params.append(student_params[-1] - syn_lr * grad)
             # # TODO: Pruning here
             # if (len(student_params) > 2 ):  
             #     # print("DETACH")
             #     student_params[-3] = student_params[-3].detach()
+        if it >= warmup:
+            if args.use_barrier:
+                torch.cuda.synchronize()
+            syn_end = time.time()
 
-        syn_end = time.time()
+        param_loss = torch.tensor(0.0).to(args.device)
+        param_dist = torch.tensor(0.0).to(args.device)
 
-        # param_loss = torch.tensor(0.0).to(args.device)
-        # param_dist = torch.tensor(0.0).to(args.device)
+        # TODO: 6 总的loss需要对两个模型分开计算（毕竟target_params也不一样）
+        # target_params_all = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params  for _ in range(int(args.Fuse))], 0)
+        # target_params_all = torch.rand_like(student_params[-1])
+        with record_function("04_parameter_matching_loss"):
+            param_loss += torch.nn.functional.mse_loss(
+                student_params[-1],
+                target_params,
+                reduction="sum",
+            )
+            # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params reduction="sum")
+            param_dist += torch.nn.functional.mse_loss(
+                starting_params,
+                target_params,
+                reduction="sum",
+            )
 
-        # # TODO: 6 总的loss需要对两个模型分开计算（毕竟target_params也不一样）
-        # # target_params_all = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params  for _ in range(int(args.Fuse))], 0)
-        # # target_params_all = torch.rand_like(student_params[-1])
-        # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum")
-        # # param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params reduction="sum")
-        # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
-
-        # param_loss_list.append(param_loss)
-        # param_dist_list.append(param_dist)
+        param_loss_list.append(param_loss)
+        param_dist_list.append(param_dist)
 
 
-        # param_loss /= num_params
-        # param_dist /= num_params
+        param_loss /= num_params
+        param_dist /= num_params
 
-        # # param_loss /= param_dist
+        param_loss /= param_dist
 
-        # grand_loss = param_loss
+        grand_loss = param_loss
 
-        # optimizer_img.zero_grad()
-        # optimizer_lr.zero_grad()
+        optimizer_img.zero_grad()
+        optimizer_lr.zero_grad()
 
-        # # start_event = torch.cuda.Event(enable_timing=True)
-        # # end_event = torch.cuda.Event(enable_timing=True)
-        # # start_event.record()
-        # # grand_loss.backward()
-        # # end_event.record()
-        # # # 等待同步（确保时间测量正确）
-        # # torch.cuda.synchronize()
-        # # # 计算时间
-        # # print(f"Total backward time: {start_event.elapsed_time(end_event):.3f} ms")
-        # # exit()
-
+        # start_event = torch.cuda.Event(enable_timing=True)
+        # end_event = torch.cuda.Event(enable_timing=True)
+        # start_event.record()
         # grand_loss.backward()
-        # if(args.AccTest):
-        #     print("--GradLoss--",grand_loss.item())
-        #     print("--GRAD--",image_syn.grad.sum().item())
+        # end_event.record()
+        # # 等待同步（确保时间测量正确）
+        # torch.cuda.synchronize()
+        # # 计算时间
+        # print(f"Total backward time: {start_event.elapsed_time(end_event):.3f} ms")
+        # exit()
 
+        with record_function("05_meta_backward"):
+            grand_loss.backward()
 
-        # optimizer_img.step()
-        # optimizer_lr.step()
+        if(args.AccTest):
+            print("celoss---", ce_loss.item())
+            print("--GradLoss--",grand_loss.item())
+            print("--GRAD--",image_syn.grad.sum().item())
 
-
-        iter_end = time.time()
-        prep_time += (syn_start- start) # 从iter开始一直到内层循环
-        syn_time += (syn_end-syn_start) # 内层循环的时间
-        # iter_time += iter_end-syn_start
-        bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
+        with record_function("06_optimizer_step"):
+            optimizer_img.step()
+            optimizer_lr.step()
+        if it >= warmup:
+            if args.use_barrier:
+                torch.cuda.synchronize()
+            iter_end = time.time()
+            prep_time += (syn_start- start) # 从iter开始一直到内层循环
+            syn_time += (syn_end-syn_start) # 内层循环的时间
+            bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
 
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})
 
         for _ in student_params:
             del _
+
+        if profile_this_it and prof is not None:
+            torch.cuda.synchronize()
+            prof.stop()
+
+            prefix = os.path.join(
+                args.mem_snapshot_dir,
+                f"original_{args.model}_ipc{args.ipc}_step{args.syn_steps}_it{it}",
+            )
+            snapshot_path = prefix + "_snapshot.pickle"
+            timeline_path = prefix + "_memory_timeline.html"
+            timeline_json_path = prefix + "_memory_timeline.json.gz"
+            trace_path = prefix + "_trace.json.gz"
+            summary_path = prefix + "_memory_summary.txt"
+
+            torch.cuda.memory._dump_snapshot(snapshot_path)
+            prof.export_memory_timeline(timeline_path, device="cuda:0")
+            prof.export_memory_timeline(timeline_json_path, device="cuda:0")
+            prof.export_chrome_trace(trace_path)
+
+            with open(summary_path, "w") as f:
+                f.write(
+                    torch.cuda.memory_summary(
+                        device=torch.cuda.current_device(),
+                        abbreviated=False,
+                    )
+                )
+
+            print(f"[MemProfile] Saved snapshot: {snapshot_path}")
+            print(f"[MemProfile] Saved timeline: {timeline_path}")
+            print(f"[MemProfile] Saved trace: {trace_path}")
+            print(
+                "[MemProfile] Peak allocated:",
+                torch.cuda.max_memory_allocated() / 1024**2,
+                "MB",
+            )
+            print(
+                "[MemProfile] Peak reserved:",
+                torch.cuda.max_memory_reserved() / 1024**2,
+                "MB",
+            )
+
+            torch.cuda.memory._record_memory_history(enabled=None)
+            mem_profile_done = True
+            del prof
 
         # if it%10 == 0:
         #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
@@ -544,18 +662,43 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
 
+
+
+    # parser.add_argument(
+    #     '--fuse_mask_list',
+    #     type=int,
+    #     nargs='+',
+    #     required=True,
+    #     help='accepted for CLI compatibility with the Conv FlexFuse profiler; ignored for original models',
+    # )
+
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
+    parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('--use-barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
+
+    parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
 
     parser.add_argument('--dataset', type=str, default='CIFAR10', help='dataset')
-    parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--subset', type=str, default='imagenette', help='ImageNet subset. This only does anything when --dataset=ImageNet')
 
     parser.add_argument('--model', type=str, default='ConvNet', help='model')
 
     parser.add_argument('--res', type=int, default=128, help='resolution for imagenet')
+
+    parser.add_argument(
+        '--mem_profile',
+        action='store_true',
+        help='enable CUDA memory profiling for the first non-warmup iteration',
+    )
+    parser.add_argument(
+        '--mem_snapshot_dir',
+        type=str,
+        default='.',
+        help='path to store memory snapshots and profiler timelines',
+    )
 
     parser.add_argument('--ipc', type=int, default=1, help='image(s) per class')
 
@@ -614,5 +757,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
-
 

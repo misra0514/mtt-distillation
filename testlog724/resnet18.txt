@@ -1,0 +1,759 @@
+============================================================
+TIME TEST SWEEP START
+START_TIME: 2026-08-03 19:21:41
+MODEL BLOCK: ResNet18
+MODEL ARG:   ResNet18
+FLEX FILE:   distill_flexFuse_timeTest_resnet18.py
+ORIGINAL FILE: distill_original_timeTest.py
+ORIGINAL FWDTEST FILE: distill_original_fwdtimetest.py
+IPC_LIST:    1 10 50 100
+ORIGINAL_SYN_STEPS: 1 20
+NORMAL_FLEX_SYN_STEPS: 1
+DEFAULT_ITERATION: 350
+USE_BARRIER_REPEATS: 2
+NO_BARRIER_REPEATS:  2
+FWDTEST_REPEATS: 1
+LOG_FILE:    testlog724/resnet18.txt
+NOTE: no ckpt flex tests; --AccTest=True is removed; normal cases run twice with --use-barrier and twice without it; all flex cases use --v_fuse.
+FWDTEST: distill_original_fwdtimetest.py runs once only and never receives --use-barrier.
+EXTRA: normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ResNet18; ResNet18 uses --Iteration=50 when --ipc>=10.
+============================================================
+
+==============================
+2026-08-03 19:21:41 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1424.9783191680908
+prepare time ( 1 ):  1399.9574854373932
+syn_time     ( 1 ):  4.101858615875244
+backward_time( 1 ):  8.05703067779541
+峰值cache使用: 608.0 MB
+峰值tensor使用: 536.07861328125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 19:45:46 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1443.3489434719086
+prepare time ( 1 ):  1416.9056618213654
+syn_time     ( 1 ):  4.131995916366577
+backward_time( 1 ):  9.465594053268433
+峰值cache使用: 608.0 MB
+峰值tensor使用: 536.07861328125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 20:10:09 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1439.9049844741821
+prepare time ( 1 ):  1413.7332611083984
+syn_time     ( 1 ):  4.019045114517212
+backward_time( 1 ):  9.323575735092163
+峰值cache使用: 608.0 MB
+峰值tensor使用: 536.07861328125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 20:34:28 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1428.9821419715881
+prepare time ( 1 ):  1404.0643181800842
+syn_time     ( 1 ):  3.9801337718963623
+backward_time( 1 ):  8.061366081237793
+峰值cache使用: 608.0 MB
+峰值tensor使用: 536.07861328125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 20:58:35 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1416.7667541503906
+prepare time ( 1 ):  1401.3773801326752
+syn_time     ( 1 ):  2.7550978660583496
+backward_time( 1 ):  0.0006234645843505859
+峰值cache使用: 420.0 MB
+峰值tensor使用: 327.69091796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 21:22:31 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1449.4576663970947
+prepare time ( 1 ):  1421.7613997459412
+syn_time     ( 1 ):  2.6660566329956055
+backward_time( 1 ):  5.398958683013916
+峰值cache使用: 516.0 MB
+峰值tensor使用: 441.998046875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 21:46:59 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1435.7883591651917
+prepare time ( 1 ):  1410.711597442627
+syn_time     ( 1 ):  2.5244297981262207
+backward_time( 1 ):  5.364051103591919
+峰值cache使用: 516.0 MB
+峰值tensor使用: 441.998046875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 22:11:13 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1426.9850153923035
+prepare time ( 1 ):  1403.9269840717316
+syn_time     ( 1 ):  2.4029524326324463
+backward_time( 1 ):  3.557762384414673
+峰值cache使用: 516.0 MB
+峰值tensor使用: 441.998046875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 22:35:18 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1436.486285686493
+prepare time ( 1 ):  1412.9259729385376
+syn_time     ( 1 ):  2.7314066886901855
+backward_time( 1 ):  3.6910834312438965
+峰值cache使用: 516.0 MB
+峰值tensor使用: 441.998046875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 22:59:34 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1467.6725635528564
+prepare time ( 1 ):  1430.1084957122803
+syn_time     ( 1 ):  4.960240840911865
+backward_time( 1 ):  13.002633571624756
+峰值cache使用: 984.0 MB
+峰值tensor使用: 882.8671875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 23:24:20 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1447.6879122257233
+prepare time ( 1 ):  1412.3933489322662
+syn_time     ( 1 ):  4.850825071334839
+backward_time( 1 ):  12.98688268661499
+峰值cache使用: 984.0 MB
+峰值tensor使用: 882.8671875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-03 23:48:46 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1430.3371076583862
+prepare time ( 1 ):  1404.121052980423
+syn_time     ( 1 ):  2.655437707901001
+backward_time( 1 ):  6.243504047393799
+峰值cache使用: 984.0 MB
+峰值tensor使用: 882.8671875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 00:12:55 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1435.638367652893
+prepare time ( 1 ):  1409.3623905181885
+syn_time     ( 1 ):  2.655219793319702
+backward_time( 1 ):  6.264645338058472
+峰值cache使用: 984.0 MB
+峰值tensor使用: 882.8671875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 00:37:08 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1437.82559299469
+prepare time ( 1 ):  1409.6491000652313
+syn_time     ( 1 ):  5.190618515014648
+backward_time( 1 ):  5.530184030532837
+峰值cache使用: 1080.0 MB
+峰值tensor使用: 847.3544921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 01:01:27 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1435.16948056221
+prepare time ( 1 ):  1407.0901095867157
+syn_time     ( 1 ):  5.186504125595093
+backward_time( 1 ):  5.529203414916992
+峰值cache使用: 1080.0 MB
+峰值tensor使用: 847.3544921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 01:25:41 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1439.6240346431732
+prepare time ( 1 ):  1413.367527961731
+syn_time     ( 1 ):  3.081826686859131
+backward_time( 1 ):  5.70521092414856
+峰值cache使用: 1080.0 MB
+峰值tensor使用: 847.3544921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 01:49:59 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1446.6843240261078
+prepare time ( 1 ):  1420.3393971920013
+syn_time     ( 1 ):  3.1641907691955566
+backward_time( 1 ):  5.824578046798706
+峰值cache使用: 1080.0 MB
+峰值tensor使用: 847.3544921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 02:14:24 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1486.0010781288147
+prepare time ( 1 ):  1444.051486492157
+syn_time     ( 1 ):  9.446188688278198
+backward_time( 1 ):  13.028093814849854
+峰值cache使用: 2164.0 MB
+峰值tensor使用: 1669.716796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 02:39:29 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1459.9523057937622
+prepare time ( 1 ):  1419.8859379291534
+syn_time     ( 1 ):  9.437264442443848
+backward_time( 1 ):  13.011810064315796
+峰值cache使用: 2164.0 MB
+峰值tensor使用: 1669.716796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 03:04:08 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1452.0651185512543
+prepare time ( 1 ):  1420.7189016342163
+syn_time     ( 1 ):  3.468292713165283
+backward_time( 1 ):  10.33600378036499
+峰值cache使用: 2164.0 MB
+峰值tensor使用: 1669.716796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 03:28:38 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1449.343827009201
+prepare time ( 1 ):  1418.1086585521698
+syn_time     ( 1 ):  3.5051448345184326
+backward_time( 1 ):  10.330670595169067
+峰值cache使用: 2164.0 MB
+峰值tensor使用: 1669.716796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 03:53:06 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1606.0978772640228
+prepare time ( 20 ):  1405.9490196704865
+syn_time     ( 20 ):  52.525606870651245
+backward_time( 20 ):  133.14142417907715
+峰值cache使用: 4002.0 MB
+峰值tensor使用: 3928.5869140625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 04:20:10 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1630.026564359665
+prepare time ( 20 ):  1427.7234437465668
+syn_time     ( 20 ):  52.75734233856201
+backward_time( 20 ):  135.1478750705719
+峰值cache使用: 4002.0 MB
+峰值tensor使用: 3928.5869140625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 04:47:39 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1603.5399363040924
+prepare time ( 20 ):  1401.8912725448608
+syn_time     ( 20 ):  53.052178382873535
+backward_time( 20 ):  133.81904768943787
+峰值cache使用: 4002.0 MB
+峰值tensor使用: 3928.5869140625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 05:14:41 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1636.7606644630432
+prepare time ( 20 ):  1433.5012102127075
+syn_time     ( 20 ):  52.66134190559387
+backward_time( 20 ):  136.12860107421875
+峰值cache使用: 4002.0 MB
+峰值tensor使用: 3928.5869140625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 05:42:16 | MODEL=ResNet18 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+1478.1832313537598
+prepare time ( 20 ):  1422.9032855033875
+syn_time     ( 20 ):  42.32192826271057
+backward_time( 20 ):  0.0005021095275878906
+峰值cache使用: 2092.0 MB
+峰值tensor使用: 1934.88720703125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:07:12 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+221.44735431671143
+prepare time ( 1 ):  202.82459473609924
+syn_time     ( 1 ):  1.4561278820037842
+backward_time( 1 ):  4.181874990463257
+峰值cache使用: 1712.0 MB
+峰值tensor使用: 1470.60107421875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:11:13 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+222.66497468948364
+prepare time ( 1 ):  204.04118609428406
+syn_time     ( 1 ):  1.4554054737091064
+backward_time( 1 ):  4.179830312728882
+峰值cache使用: 1712.0 MB
+峰值tensor使用: 1470.60107421875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:15:13 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+221.8860948085785
+prepare time ( 1 ):  203.2682831287384
+syn_time     ( 1 ):  0.5813853740692139
+backward_time( 1 ):  5.050848484039307
+峰值cache使用: 1712.0 MB
+峰值tensor使用: 1470.60107421875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:19:14 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+221.40475416183472
+prepare time ( 1 ):  202.87685132026672
+syn_time     ( 1 ):  0.5907464027404785
+backward_time( 1 ):  5.041313171386719
+峰值cache使用: 1712.0 MB
+峰值tensor使用: 1470.60107421875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:23:14 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+215.19420433044434
+prepare time ( 1 ):  202.26145601272583
+syn_time     ( 1 ):  0.4063534736633301
+backward_time( 1 ):  8.20159912109375e-05
+峰值cache使用: 1068.0 MB
+峰值tensor使用: 745.6572265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:27:08 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  225.1653664112091
+prepare time ( 1 ):  203.1712863445282
+syn_time     ( 1 ):  1.322054386138916
+backward_time( 1 ):  3.213195562362671
+峰值cache使用: 1610.0 MB
+峰值tensor使用: 1400.0556640625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:31:13 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  225.42959451675415
+prepare time ( 1 ):  203.43123316764832
+syn_time     ( 1 ):  1.323854923248291
+backward_time( 1 ):  3.214172840118408
+峰值cache使用: 1610.0 MB
+峰值tensor使用: 1400.0556640625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:35:16 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  223.3571174144745
+prepare time ( 1 ):  204.31966757774353
+syn_time     ( 1 ):  0.3587784767150879
+backward_time( 1 ):  1.4702606201171875
+峰值cache使用: 1610.0 MB
+峰值tensor使用: 1400.0556640625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:39:18 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  223.4441635608673
+prepare time ( 1 ):  204.2530529499054
+syn_time     ( 1 ):  0.35624170303344727
+backward_time( 1 ):  1.4710109233856201
+峰值cache使用: 1610.0 MB
+峰值tensor使用: 1400.0556640625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:43:20 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  232.1733946800232
+prepare time ( 1 ):  204.72399353981018
+syn_time     ( 1 ):  2.917041301727295
+backward_time( 1 ):  7.092941045761108
+峰值cache使用: 3270.0 MB
+峰值tensor使用: 2712.63525390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:47:30 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  232.9511091709137
+prepare time ( 1 ):  205.47416996955872
+syn_time     ( 1 ):  2.9155750274658203
+backward_time( 1 ):  7.08337140083313
+峰值cache使用: 3270.0 MB
+峰值tensor使用: 2712.63525390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:51:42 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  224.91084814071655
+prepare time ( 1 ):  203.93104195594788
+syn_time     ( 1 ):  0.3956303596496582
+backward_time( 1 ):  3.130971908569336
+峰值cache使用: 3270.0 MB
+峰值tensor使用: 2712.63525390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:55:45 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  226.60299968719482
+prepare time ( 1 ):  205.53202176094055
+syn_time     ( 1 ):  0.399522066116333
+backward_time( 1 ):  3.128857135772705
+峰值cache使用: 3270.0 MB
+峰值tensor使用: 2712.63525390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 06:59:50 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  227.09281396865845
+prepare time ( 1 ):  203.40372037887573
+syn_time     ( 1 ):  3.111504077911377
+backward_time( 1 ):  3.2364184856414795
+峰值cache使用: 2324.0 MB
+峰值tensor使用: 1851.26708984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 07:03:55 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  228.35320830345154
+prepare time ( 1 ):  204.5442934036255
+syn_time     ( 1 ):  3.1097805500030518
+backward_time( 1 ):  3.232689619064331
+峰值cache使用: 2324.0 MB
+峰值tensor使用: 1851.26708984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 07:08:02 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  225.8591492176056
+prepare time ( 1 ):  204.6738953590393
+syn_time     ( 1 ):  0.46352195739746094
+backward_time( 1 ):  3.185805082321167
+峰值cache使用: 2324.0 MB
+峰值tensor使用: 1851.26708984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 07:12:06 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  225.58264303207397
+prepare time ( 1 ):  204.55073928833008
+syn_time     ( 1 ):  0.46209049224853516
+backward_time( 1 ):  3.186760663986206
+峰值cache使用: 2324.0 MB
+峰值tensor使用: 1851.26708984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 07:16:10 | MODEL=ResNet18 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_resnet18.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ResNet18 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ResNet18/replay_buffer_0.pt

@@ -21,7 +21,7 @@ from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNorm
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
 
-from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_second_dim,recover_params,set_random_seed,unflatten_like_reparam
+from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_snd_dim,recover_params,set_random_seed,unflatten_like_reparam
 
 def iter_vit_fuse_chunks(t, Fuse):
     """
@@ -573,8 +573,8 @@ def main(args):
                 ce_loss = criterion(x_out, this_y)
                 ce_loss *= int(Fuse)
                 del x_out
-                # d_stem_activates, d_activates_list, d_weights_list, d_weights_list_all = student_net.module.run_first_bwd( tape=tape, target=this_y,Fuse=Fuse )
-                # d_stem_activates, d_activates_list, d_weights_list, d_weights_list_all = \
+
+
                 dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
                         forward_params,
                         student_net.module.run_first_bwd,

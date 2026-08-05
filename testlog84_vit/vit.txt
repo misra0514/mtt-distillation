@@ -1,0 +1,844 @@
+============================================================
+TIME TEST SWEEP START
+START_TIME: 2026-08-04 14:11:28
+MODEL BLOCK: ViT
+MODEL ARG:   ViT
+FLEX FILE:   distill_flexFuse_timeTest_ViT.py
+ORIGINAL FILE: distill_original_timeTest.py
+ORIGINAL FWDTEST FILE: distill_original_fwdtimetest.py
+IPC_LIST:    1 10 50 100
+ORIGINAL_SYN_STEPS: 1 20
+NORMAL_FLEX_SYN_STEPS: 1
+DEFAULT_ITERATION: 350
+USE_BARRIER_REPEATS: 2
+NO_BARRIER_REPEATS:  2
+FWDTEST_REPEATS: 1
+LOG_FILE:    testlog84_vit/vit.txt
+NOTE: no ckpt flex tests; --AccTest=True is removed; normal cases run twice with --use-barrier and twice without it; all flex cases use --v_fuse.
+FWDTEST: distill_original_fwdtimetest.py runs once only and never receives --use-barrier.
+EXTRA: normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ViT; ViT uses --Iteration=50 when --ipc>=50.
+============================================================
+
+==============================
+2026-08-04 14:11:28 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+411.0981662273407
+prepare time ( 1 ):  394.6371691226959
+syn_time     ( 1 ):  3.989457130432129
+backward_time( 1 ):  6.089788913726807
+峰值cache使用: 126.0 MB
+峰值tensor使用: 105.86376953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 14:18:36 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+406.05103302001953
+prepare time ( 1 ):  391.2551691532135
+syn_time     ( 1 ):  4.000878095626831
+backward_time( 1 ):  6.172271490097046
+峰值cache使用: 126.0 MB
+峰值tensor使用: 105.86376953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 14:25:35 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+406.4605793952942
+prepare time ( 1 ):  391.5766532421112
+syn_time     ( 1 ):  4.013500928878784
+backward_time( 1 ):  6.230286121368408
+峰值cache使用: 126.0 MB
+峰值tensor使用: 105.86376953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 14:32:33 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+406.7635188102722
+prepare time ( 1 ):  391.6630518436432
+syn_time     ( 1 ):  3.991121768951416
+backward_time( 1 ):  6.28051233291626
+峰值cache使用: 126.0 MB
+峰值tensor使用: 105.86376953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 14:39:31 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+402.8130304813385
+prepare time ( 1 ):  393.99269342422485
+syn_time     ( 1 ):  3.845486640930176
+backward_time( 1 ):  0.0009524822235107422
+峰值cache使用: 76.0 MB
+峰值tensor使用: 67.74853515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 14:46:26 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  411.5926432609558
+prepare time ( 1 ):  395.1974868774414
+syn_time     ( 1 ):  3.2122154235839844
+backward_time( 1 ):  6.459189414978027
+峰值cache使用: 134.0 MB
+峰值tensor使用: 104.48583984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 14:53:29 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  412.0282287597656
+prepare time ( 1 ):  396.12263321876526
+syn_time     ( 1 ):  3.1742117404937744
+backward_time( 1 ):  6.397818565368652
+峰值cache使用: 134.0 MB
+峰值tensor使用: 104.48583984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:00:32 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  412.6774318218231
+prepare time ( 1 ):  396.7183585166931
+syn_time     ( 1 ):  3.1847307682037354
+backward_time( 1 ):  6.429592132568359
+峰值cache使用: 134.0 MB
+峰值tensor使用: 104.48583984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:07:36 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  412.70786333084106
+prepare time ( 1 ):  396.70255732536316
+syn_time     ( 1 ):  3.1864304542541504
+backward_time( 1 ):  6.466567754745483
+峰值cache使用: 134.0 MB
+峰值tensor使用: 104.48583984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:14:40 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  414.13531160354614
+prepare time ( 1 ):  396.12021017074585
+syn_time     ( 1 ):  3.7740001678466797
+backward_time( 1 ):  7.18771505355835
+峰值cache使用: 234.0 MB
+峰值tensor使用: 207.0947265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:21:45 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  413.756352186203
+prepare time ( 1 ):  396.2047824859619
+syn_time     ( 1 ):  3.8134686946868896
+backward_time( 1 ):  7.241922378540039
+峰值cache使用: 234.0 MB
+峰值tensor使用: 207.0947265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:28:50 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  413.08548736572266
+prepare time ( 1 ):  395.776691198349
+syn_time     ( 1 ):  3.7573940753936768
+backward_time( 1 ):  7.1787049770355225
+峰值cache使用: 234.0 MB
+峰值tensor使用: 207.0947265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:35:54 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  412.01408553123474
+prepare time ( 1 ):  394.50730419158936
+syn_time     ( 1 ):  3.80910587310791
+backward_time( 1 ):  7.309900522232056
+峰值cache使用: 234.0 MB
+峰值tensor使用: 207.0947265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:42:57 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  415.93501234054565
+prepare time ( 1 ):  398.5577416419983
+syn_time     ( 1 ):  4.225121974945068
+backward_time( 1 ):  6.702556133270264
+峰值cache使用: 204.0 MB
+峰值tensor使用: 183.28955078125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:50:04 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  414.33176708221436
+prepare time ( 1 ):  396.89068818092346
+syn_time     ( 1 ):  4.251222610473633
+backward_time( 1 ):  6.77451229095459
+峰值cache使用: 204.0 MB
+峰值tensor使用: 183.28955078125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 15:57:10 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  412.30161690711975
+prepare time ( 1 ):  394.9776756763458
+syn_time     ( 1 ):  4.213623285293579
+backward_time( 1 ):  6.701092481613159
+峰值cache使用: 204.0 MB
+峰值tensor使用: 183.28955078125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 16:04:13 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  411.9478099346161
+prepare time ( 1 ):  394.2736506462097
+syn_time     ( 1 ):  4.2674560546875
+backward_time( 1 ):  6.7701756954193115
+峰值cache使用: 204.0 MB
+峰值tensor使用: 183.28955078125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 16:11:16 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  414.3392083644867
+prepare time ( 1 ):  395.4657266139984
+syn_time     ( 1 ):  4.826989412307739
+backward_time( 1 ):  7.436389923095703
+峰值cache使用: 440.0 MB
+峰值tensor使用: 361.09521484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 16:18:22 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  415.71599674224854
+prepare time ( 1 ):  396.9975006580353
+syn_time     ( 1 ):  4.819039821624756
+backward_time( 1 ):  7.467012405395508
+峰值cache使用: 440.0 MB
+峰值tensor使用: 361.09521484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 16:25:31 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  418.7705776691437
+prepare time ( 1 ):  399.6482446193695
+syn_time     ( 1 ):  4.850246906280518
+backward_time( 1 ):  7.472448825836182
+峰值cache使用: 440.0 MB
+峰值tensor使用: 361.09521484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 16:32:41 | MODEL=ViT | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  416.2116813659668
+prepare time ( 1 ):  397.3207378387451
+syn_time     ( 1 ):  4.848233699798584
+backward_time( 1 ):  7.503494501113892
+峰值cache使用: 440.0 MB
+峰值tensor使用: 361.09521484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 16:39:48 | MODEL=ViT | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+552.9987103939056
+prepare time ( 20 ):  406.3268551826477
+syn_time     ( 20 ):  53.58817505836487
+backward_time( 20 ):  87.26446223258972
+峰值cache使用: 1388.0 MB
+峰值tensor使用: 1321.10302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 16:49:12 | MODEL=ViT | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+560.5995237827301
+prepare time ( 20 ):  403.3295876979828
+syn_time     ( 20 ):  56.27134919166565
+backward_time( 20 ):  94.61924600601196
+峰值cache使用: 1388.0 MB
+峰值tensor使用: 1321.10302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 16:58:44 | MODEL=ViT | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+548.3023121356964
+prepare time ( 20 ):  401.7270596027374
+syn_time     ( 20 ):  53.368409872055054
+backward_time( 20 ):  87.42378544807434
+峰值cache使用: 1388.0 MB
+峰值tensor使用: 1321.10302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 17:08:03 | MODEL=ViT | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+554.0604193210602
+prepare time ( 20 ):  407.23060297966003
+syn_time     ( 20 ):  53.50867438316345
+backward_time( 20 ):  87.5133900642395
+峰值cache使用: 1388.0 MB
+峰值tensor使用: 1321.10302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 17:17:28 | MODEL=ViT | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+444.1324875354767
+prepare time ( 20 ):  390.7906107902527
+syn_time     ( 20 ):  47.95922827720642
+backward_time( 20 ):  0.0003254413604736328
+峰值cache使用: 216.0 MB
+峰值tensor使用: 179.15869140625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 17:25:03 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+411.6115083694458
+prepare time ( 1 ):  389.3876247406006
+syn_time     ( 1 ):  5.862207651138306
+backward_time( 1 ):  11.42983603477478
+峰值cache使用: 1054.0 MB
+峰值tensor使用: 1013.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 17:32:06 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+411.9075267314911
+prepare time ( 1 ):  389.90605998039246
+syn_time     ( 1 ):  5.840301752090454
+backward_time( 1 ):  11.474304676055908
+峰值cache使用: 1054.0 MB
+峰值tensor使用: 1013.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 17:39:10 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+412.0681059360504
+prepare time ( 1 ):  390.12457489967346
+syn_time     ( 1 ):  4.630009651184082
+backward_time( 1 ):  12.629191160202026
+峰值cache使用: 1054.0 MB
+峰值tensor使用: 1013.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 17:46:14 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+418.839964389801
+prepare time ( 1 ):  392.66051387786865
+syn_time     ( 1 ):  4.629944086074829
+backward_time( 1 ):  12.6352219581604
+峰值cache使用: 1054.0 MB
+峰值tensor使用: 1013.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 17:53:24 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+398.5903503894806
+prepare time ( 1 ):  389.3419086933136
+syn_time     ( 1 ):  4.764526128768921
+backward_time( 1 ):  0.0009741783142089844
+峰值cache使用: 528.0 MB
+峰值tensor使用: 494.36474609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:00:14 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  419.5286612510681
+prepare time ( 1 ):  396.1131851673126
+syn_time     ( 1 ):  4.6470019817352295
+backward_time( 1 ):  12.414345979690552
+峰值cache使用: 764.0 MB
+峰值tensor使用: 722.013671875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:07:25 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  419.6611874103546
+prepare time ( 1 ):  395.9630513191223
+syn_time     ( 1 ):  4.646805286407471
+backward_time( 1 ):  12.450773239135742
+峰值cache使用: 764.0 MB
+峰值tensor使用: 722.013671875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:14:35 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  412.71819138526917
+prepare time ( 1 ):  395.1413495540619
+syn_time     ( 1 ):  3.2163808345794678
+backward_time( 1 ):  7.975260257720947
+峰值cache使用: 764.0 MB
+峰值tensor使用: 722.013671875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:21:39 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  412.28783226013184
+prepare time ( 1 ):  394.7413921356201
+syn_time     ( 1 ):  3.2257602214813232
+backward_time( 1 ):  7.977863311767578
+峰值cache使用: 764.0 MB
+峰值tensor使用: 722.013671875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:28:42 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  445.5230813026428
+prepare time ( 1 ):  396.91180634498596
+syn_time     ( 1 ):  9.418414831161499
+backward_time( 1 ):  32.22000741958618
+峰值cache使用: 1574.0 MB
+峰值tensor使用: 1410.7275390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:36:19 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  444.2308175563812
+prepare time ( 1 ):  396.0675184726715
+syn_time     ( 1 ):  9.415583372116089
+backward_time( 1 ):  32.18277907371521
+峰值cache使用: 1574.0 MB
+峰值tensor使用: 1410.7275390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:43:54 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  435.29979491233826
+prepare time ( 1 ):  399.4616720676422
+syn_time     ( 1 ):  3.827327251434326
+backward_time( 1 ):  25.333037853240967
+峰值cache使用: 1574.0 MB
+峰值tensor使用: 1410.7275390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:51:21 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  430.38084864616394
+prepare time ( 1 ):  394.60228276252747
+syn_time     ( 1 ):  3.8050460815429688
+backward_time( 1 ):  25.417717933654785
+峰值cache使用: 1574.0 MB
+峰值tensor使用: 1410.7275390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 18:58:42 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  425.47402119636536
+prepare time ( 1 ):  395.88671875
+syn_time     ( 1 ):  10.22521185874939
+backward_time( 1 ):  12.738930225372314
+峰值cache使用: 1412.0 MB
+峰值tensor使用: 1313.505859375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 19:05:59 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  425.60598063468933
+prepare time ( 1 ):  396.18293142318726
+syn_time     ( 1 ):  10.223516702651978
+backward_time( 1 ):  12.728896856307983
+峰值cache使用: 1412.0 MB
+峰值tensor使用: 1313.505859375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 19:13:15 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  419.76677203178406
+prepare time ( 1 ):  396.26907205581665
+syn_time     ( 1 ):  4.309828042984009
+backward_time( 1 ):  12.73427963256836
+峰值cache使用: 1412.0 MB
+峰值tensor使用: 1313.505859375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 19:20:26 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  423.61082792282104
+prepare time ( 1 ):  400.13159012794495
+syn_time     ( 1 ):  4.271317958831787
+backward_time( 1 ):  12.731037616729736
+峰值cache使用: 1412.0 MB
+峰值tensor使用: 1313.505859375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 19:27:41 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  452.92790961265564
+prepare time ( 1 ):  394.2381558418274
+syn_time     ( 1 ):  19.178606033325195
+backward_time( 1 ):  32.47041702270508
+峰值cache使用: 2706.0 MB
+峰值tensor使用: 2535.27001953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 19:35:25 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  454.06505942344666
+prepare time ( 1 ):  395.6936848163605
+syn_time     ( 1 ):  19.177297592163086
+backward_time( 1 ):  32.489604234695435
+峰值cache使用: 2706.0 MB
+峰值tensor使用: 2535.27001953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 19:43:10 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  443.22346782684326
+prepare time ( 1 ):  397.05510997772217
+syn_time     ( 1 ):  4.93001389503479
+backward_time( 1 ):  34.36373019218445
+峰值cache使用: 2706.0 MB
+峰值tensor使用: 2535.27001953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 19:50:44 | MODEL=ViT | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  442.30696177482605
+prepare time ( 1 ):  396.34523725509644
+syn_time     ( 1 ):  4.882874250411987
+backward_time( 1 ):  34.3913094997406
+峰值cache使用: 2706.0 MB
+峰值tensor使用: 2535.27001953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 19:58:18 | MODEL=ViT | IPC=10 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+736.9286715984344
+prepare time ( 20 ):  407.06641912460327
+syn_time     ( 20 ):  106.69360208511353
+backward_time( 20 ):  214.877911567688
+峰值cache使用: 18202.0 MB
+峰值tensor使用: 17988.345703125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 20:10:46 | MODEL=ViT | IPC=10 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
