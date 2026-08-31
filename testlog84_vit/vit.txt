@@ -842,3 +842,1169 @@ CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_origi
 Files already downloaded and verified
 Files already downloaded and verified
 loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+739.4652965068817
+prepare time ( 20 ):  409.06617975234985
+syn_time     ( 20 ):  107.3165647983551
+backward_time( 20 ):  215.0517544746399
+峰值cache使用: 18202.0 MB
+峰值tensor使用: 17988.345703125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 20:23:16 | MODEL=ViT | IPC=10 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+762.3579874038696
+prepare time ( 20 ):  426.5294246673584
+syn_time     ( 20 ):  109.8561806678772
+backward_time( 20 ):  218.497638463974
+峰值cache使用: 18202.0 MB
+峰值tensor使用: 17988.345703125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 20:36:10 | MODEL=ViT | IPC=10 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+734.0016281604767
+prepare time ( 20 ):  404.8841166496277
+syn_time     ( 20 ):  105.8624963760376
+backward_time( 20 ):  215.96220207214355
+峰值cache使用: 18202.0 MB
+峰值tensor使用: 17988.345703125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 20:48:36 | MODEL=ViT | IPC=10 | SYN_STEPS=20 | ITERATION=350 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+521.3182907104492
+prepare time ( 20 ):  411.95430850982666
+syn_time     ( 20 ):  104.08264422416687
+backward_time( 20 ):  0.0012049674987792969
+峰值cache使用: 654.0 MB
+峰值tensor使用: 608.35546875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 20:57:28 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+83.55482411384583
+prepare time ( 1 ):  58.013723850250244
+syn_time     ( 1 ):  5.679594039916992
+backward_time( 1 ):  13.7175931930542
+峰值cache使用: 12786.0 MB
+峰值tensor使用: 12610.35791015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 20:59:03 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+82.51486539840698
+prepare time ( 1 ):  57.482463121414185
+syn_time     ( 1 ):  5.682207822799683
+backward_time( 1 ):  13.711270332336426
+峰值cache使用: 12786.0 MB
+峰值tensor使用: 12610.35791015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:00:37 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+83.37273478507996
+prepare time ( 1 ):  58.26215958595276
+syn_time     ( 1 ):  2.285428524017334
+backward_time( 1 ):  17.109631061553955
+峰值cache使用: 12786.0 MB
+峰值tensor使用: 12610.35791015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:02:11 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+81.98537135124207
+prepare time ( 1 ):  56.91384267807007
+syn_time     ( 1 ):  2.2588088512420654
+backward_time( 1 ):  17.12655234336853
+峰值cache使用: 12786.0 MB
+峰值tensor使用: 12610.35791015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:03:44 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+63.81892967224121
+prepare time ( 1 ):  56.57415151596069
+syn_time     ( 1 ):  2.2824110984802246
+backward_time( 1 ):  0.00011539459228515625
+峰值cache使用: 5510.0 MB
+峰值tensor使用: 5176.302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:04:58 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  73.12706136703491
+prepare time ( 1 ):  57.189310789108276
+syn_time     ( 1 ):  2.6218454837799072
+backward_time( 1 ):  7.770866632461548
+峰值cache使用: 3650.0 MB
+峰值tensor使用: 3308.771484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:06:21 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  73.6366057395935
+prepare time ( 1 ):  57.61357402801514
+syn_time     ( 1 ):  2.6242854595184326
+backward_time( 1 ):  7.781688213348389
+峰值cache使用: 3650.0 MB
+峰值tensor使用: 3308.771484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:07:46 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  68.47378182411194
+prepare time ( 1 ):  56.88940143585205
+syn_time     ( 1 ):  0.4687957763671875
+backward_time( 1 ):  5.978798151016235
+峰值cache使用: 3650.0 MB
+峰值tensor使用: 3308.771484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:09:05 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  68.83695101737976
+prepare time ( 1 ):  57.21767234802246
+syn_time     ( 1 ):  0.4723517894744873
+backward_time( 1 ):  5.979410409927368
+峰值cache使用: 3650.0 MB
+峰值tensor使用: 3308.771484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:10:24 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  91.35996890068054
+prepare time ( 1 ):  56.77019238471985
+syn_time     ( 1 ):  6.077631235122681
+backward_time( 1 ):  21.856483221054077
+峰值cache使用: 7352.0 MB
+峰值tensor使用: 6634.47216796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:12:06 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  91.39412713050842
+prepare time ( 1 ):  57.43910264968872
+syn_time     ( 1 ):  6.074589729309082
+backward_time( 1 ):  21.857468843460083
+峰值cache使用: 7352.0 MB
+峰值tensor使用: 6634.47216796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:13:49 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  82.53649234771729
+prepare time ( 1 ):  57.0311233997345
+syn_time     ( 1 ):  0.5592098236083984
+backward_time( 1 ):  18.98591661453247
+峰值cache使用: 7352.0 MB
+峰值tensor使用: 6634.47216796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:15:21 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  83.85911631584167
+prepare time ( 1 ):  58.283565044403076
+syn_time     ( 1 ):  0.5628821849822998
+backward_time( 1 ):  18.99569058418274
+峰值cache使用: 7352.0 MB
+峰值tensor使用: 6634.47216796875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:16:56 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  76.53787159919739
+prepare time ( 1 ):  56.91449952125549
+syn_time     ( 1 ):  6.33832311630249
+backward_time( 1 ):  7.85400915145874
+峰值cache使用: 6432.0 MB
+峰值tensor使用: 6034.4697265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:18:24 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  76.49490022659302
+prepare time ( 1 ):  56.927027463912964
+syn_time     ( 1 ):  6.3237464427948
+backward_time( 1 ):  7.833094835281372
+峰值cache使用: 6432.0 MB
+峰值tensor使用: 6034.4697265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:19:55 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  72.63775157928467
+prepare time ( 1 ):  57.044559478759766
+syn_time     ( 1 ):  0.6220498085021973
+backward_time( 1 ):  9.570953845977783
+峰值cache使用: 6432.0 MB
+峰值tensor使用: 6034.4697265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:21:17 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  72.52517485618591
+prepare time ( 1 ):  56.91887640953064
+syn_time     ( 1 ):  0.6173272132873535
+backward_time( 1 ):  9.585916996002197
+峰值cache使用: 6432.0 MB
+峰值tensor使用: 6034.4697265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:22:41 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  98.39258408546448
+prepare time ( 1 ):  57.07986807823181
+syn_time     ( 1 ):  12.949081897735596
+backward_time( 1 ):  21.792499542236328
+峰值cache使用: 12470.0 MB
+峰值tensor使用: 11972.60400390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:24:29 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  98.93714356422424
+prepare time ( 1 ):  57.76398825645447
+syn_time     ( 1 ):  12.941649675369263
+backward_time( 1 ):  21.79115867614746
+峰值cache使用: 12470.0 MB
+峰值tensor使用: 11972.60400390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:26:19 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  90.21990180015564
+prepare time ( 1 ):  57.44640111923218
+syn_time     ( 1 ):  1.8874640464782715
+backward_time( 1 ):  24.483469009399414
+峰值cache使用: 12470.0 MB
+峰值tensor使用: 11972.60400390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:28:00 | MODEL=ViT | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  90.33727788925171
+prepare time ( 1 ):  57.298076152801514
+syn_time     ( 1 ):  1.889970302581787
+backward_time( 1 ):  24.49946355819702
+峰值cache使用: 12470.0 MB
+峰值tensor使用: 11972.60400390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:29:41 | MODEL=ViT | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 445, in main
+    out = student_net(x, flat_param=forward_params)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 68, in forward
+    x = self.transformer(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 42, in forward
+    attn_output, _ = self.attn(x_ln, x_ln, x_ln)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/activation.py", line 1368, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/functional.py", line 6246, in multi_head_attention_forward
+    attn_output = torch.bmm(attn_output_weights, v)
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:29:54 | MODEL=ViT | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 445, in main
+    out = student_net(x, flat_param=forward_params)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 68, in forward
+    x = self.transformer(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 42, in forward
+    attn_output, _ = self.attn(x_ln, x_ln, x_ln)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/activation.py", line 1368, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/functional.py", line 6246, in multi_head_attention_forward
+    attn_output = torch.bmm(attn_output_weights, v)
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:30:05 | MODEL=ViT | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 445, in main
+    out = student_net(x, flat_param=forward_params)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 68, in forward
+    x = self.transformer(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 42, in forward
+    attn_output, _ = self.attn(x_ln, x_ln, x_ln)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/activation.py", line 1368, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/functional.py", line 6246, in multi_head_attention_forward
+    attn_output = torch.bmm(attn_output_weights, v)
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:30:17 | MODEL=ViT | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 445, in main
+    out = student_net(x, flat_param=forward_params)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 157, in forward
+    return self._forward_with_param(flat_param, *inputs, **kwinputs)
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 146, in _forward_with_param
+    return self.module(*inputs, **kwinputs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 68, in forward
+    x = self.transformer(x)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/container.py", line 250, in forward
+    input = module(input)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_exptended.py", line 42, in forward
+    attn_output, _ = self.attn(x_ln, x_ln, x_ln)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/modules/activation.py", line 1368, in forward
+    attn_output, attn_output_weights = F.multi_head_attention_forward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/nn/functional.py", line 6246, in multi_head_attention_forward
+    attn_output = torch.bmm(attn_output_weights, v)
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:30:28 | MODEL=ViT | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+170.69755125045776
+prepare time ( 20 ):  58.035582065582275
+syn_time     ( 20 ):  102.34492349624634
+backward_time( 20 ):  0.00012612342834472656
+峰值cache使用: 5758.0 MB
+峰值tensor使用: 5296.86376953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:33:28 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:33:42 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:33:54 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:34:05 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:34:16 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+68.27680683135986
+prepare time ( 1 ):  56.94662165641785
+syn_time     ( 1 ):  6.374619483947754
+backward_time( 1 ):  0.00012135505676269531
+峰值cache使用: 18202.0 MB
+峰值tensor使用: 17870.47412109375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:35:34 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  83.65978026390076
+prepare time ( 1 ):  57.19074869155884
+syn_time     ( 1 ):  5.18332314491272
+backward_time( 1 ):  15.429346561431885
+峰值cache使用: 7142.0 MB
+峰值tensor使用: 6575.662109375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:37:08 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  83.35930824279785
+prepare time ( 1 ):  57.10483169555664
+syn_time     ( 1 ):  5.195762395858765
+backward_time( 1 ):  15.461927652359009
+峰值cache使用: 7142.0 MB
+峰值tensor使用: 6575.662109375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:38:43 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  75.44625043869019
+prepare time ( 1 ):  57.32020401954651
+syn_time     ( 1 ):  0.47237133979797363
+backward_time( 1 ):  12.079508304595947
+峰值cache使用: 7142.0 MB
+峰值tensor使用: 6575.662109375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:40:08 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  75.64280009269714
+prepare time ( 1 ):  57.10939383506775
+syn_time     ( 1 ):  0.4715306758880615
+backward_time( 1 ):  12.06308388710022
+峰值cache使用: 7142.0 MB
+峰值tensor使用: 6575.662109375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:41:35 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  123.037109375
+prepare time ( 1 ):  57.36407232284546
+syn_time     ( 1 ):  12.020277738571167
+backward_time( 1 ):  46.24154472351074
+峰值cache使用: 14572.0 MB
+峰值tensor使用: 13157.62939453125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:43:47 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  122.4306390285492
+prepare time ( 1 ):  56.86575484275818
+syn_time     ( 1 ):  12.021189212799072
+backward_time( 1 ):  46.24157691001892
+峰值cache使用: 14572.0 MB
+峰值tensor使用: 13157.62939453125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:46:01 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  106.86920976638794
+prepare time ( 1 ):  58.49722194671631
+syn_time     ( 1 ):  0.568220853805542
+backward_time( 1 ):  40.45557641983032
+峰值cache使用: 14572.0 MB
+峰值tensor使用: 13157.62939453125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:47:59 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  105.43555784225464
+prepare time ( 1 ):  56.89841628074646
+syn_time     ( 1 ):  0.5610947608947754
+backward_time( 1 ):  40.464343786239624
+峰值cache使用: 14572.0 MB
+峰值tensor使用: 13157.62939453125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:49:55 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  91.0167601108551
+prepare time ( 1 ):  56.99241328239441
+syn_time     ( 1 ):  12.501721858978271
+backward_time( 1 ):  15.486987590789795
+峰值cache使用: 12446.0 MB
+峰值tensor使用: 11960.099609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:51:37 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  91.3132758140564
+prepare time ( 1 ):  57.26936674118042
+syn_time     ( 1 ):  12.512531042098999
+backward_time( 1 ):  15.513036012649536
+峰值cache使用: 12446.0 MB
+峰值tensor使用: 11960.099609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:53:20 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  83.10279536247253
+prepare time ( 1 ):  57.15124821662903
+syn_time     ( 1 ):  0.6318826675415039
+backward_time( 1 ):  19.309189319610596
+峰值cache使用: 12446.0 MB
+峰值tensor使用: 11960.099609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:54:55 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  83.05378556251526
+prepare time ( 1 ):  57.070106983184814
+syn_time     ( 1 ):  0.6216812133789062
+backward_time( 1 ):  19.36622977256775
+峰值cache使用: 12446.0 MB
+峰值tensor使用: 11960.099609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-08-04 21:56:27 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 578, in main
+    dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2377, in run_first_bwd
+    g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1567, in run_first_bwd
+    dx_norm1, d_attn_activates, d_attn_weights, d_attn_weights_all = self.attn.run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1156, in run_first_bwd
+    dx, dqkvw, dqkvb = grouped_linear_bwd( x, module.qkv.weight, grad_output=dqkv_linear, Fuse=Fuse )
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless_basicblock.py", line 500, in grouped_linear_bwd
+    dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/functional.py", line 402, in einsum
+    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:56:42 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 578, in main
+    dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2377, in run_first_bwd
+    g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1567, in run_first_bwd
+    dx_norm1, d_attn_activates, d_attn_weights, d_attn_weights_all = self.attn.run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1156, in run_first_bwd
+    dx, dqkvw, dqkvb = grouped_linear_bwd( x, module.qkv.weight, grad_output=dqkv_linear, Fuse=Fuse )
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless_basicblock.py", line 500, in grouped_linear_bwd
+    dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/functional.py", line 402, in einsum
+    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:56:53 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 578, in main
+    dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2377, in run_first_bwd
+    g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1567, in run_first_bwd
+    dx_norm1, d_attn_activates, d_attn_weights, d_attn_weights_all = self.attn.run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1156, in run_first_bwd
+    dx, dqkvw, dqkvb = grouped_linear_bwd( x, module.qkv.weight, grad_output=dqkv_linear, Fuse=Fuse )
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless_basicblock.py", line 500, in grouped_linear_bwd
+    dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/functional.py", line 402, in einsum
+    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:57:05 | MODEL=ViT | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_ViT.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 806, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_flexFuse_timeTest_ViT.py", line 578, in main
+    dx_in,d_activates,d_weights, d_weights_list_all =  student_net.call_with_param(
+  File "/home/yguo25/MTT/mtt-distillation/reparam_module.py", line 163, in call_with_param
+    return fn(*args, **kwargs)
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 2377, in run_first_bwd
+    g, d_act_i, d_w_i, d_w_all_i = flat_blocks[i].run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1567, in run_first_bwd
+    dx_norm1, d_attn_activates, d_attn_weights, d_attn_weights_all = self.attn.run_first_bwd(
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_Fuse.py", line 1156, in run_first_bwd
+    dx, dqkvw, dqkvb = grouped_linear_bwd( x, module.qkv.weight, grad_output=dqkv_linear, Fuse=Fuse )
+  File "/home/yguo25/MTT/mtt-distillation/networks/networks_stateless_basicblock.py", line 500, in grouped_linear_bwd
+    dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/functional.py", line 402, in einsum
+    return _VF.einsum(equation, operands)  # type: ignore[attr-defined]
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:57:17 | MODEL=ViT | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:57:28 | MODEL=ViT | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:57:39 | MODEL=ViT | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:57:51 | MODEL=ViT | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: NVML_SUCCESS == DriverAPI::get()->nvmlInit_v2_() INTERNAL ASSERT FAILED at "/opt/conda/conda-bld/pytorch_1729647380992/work/c10/cuda/CUDACachingAllocator.cpp":963, please report a bug to PyTorch. 
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-08-04 21:58:02 | MODEL=ViT | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ViT --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ViT/replay_buffer_0.pt
+------------FIN TIME-------------
+404.87374544143677
+prepare time ( 20 ):  58.14162731170654
+syn_time     ( 20 ):  323.64465975761414
+backward_time( 20 ):  0.00014209747314453125
+峰值cache使用: 19194.0 MB
+峰值tensor使用: 17983.94775390625 MB
+------------------------------
+EXIT_CODE: 0
+
+
+============================================================
+TIME TEST SWEEP END
+END_TIME: 2026-08-04 22:04:56
+============================================================

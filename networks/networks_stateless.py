@@ -34,7 +34,6 @@ from script_fuseParallel.base import instanceNorm_backward
 def ConvBlock_bwd1_2(x_conv, x_norm, x_pool, conv_w, norm_w, dx_lin_d1, Fuse =2, v_fuse = True):
     # double bwd 的bwd阶段。区别与1-2的主要特点是有dx_norm_d2？ 然后dxnorm 和dxpool 也需要
     dx_pool_d1 = avgPool_bwd( x_pool, grad_output= dx_lin_d1 )
-    # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
     dx_norm_d1, d_norm_weight, d_norm_bias = insNormNRelu_bwd(x_norm, norm_w, x_pool, grad_output=dx_pool_d1, v_fuse=v_fuse)
     # del dx_pool_d1
     dx_conv_d1, d_conv_weight_d1, d_conv_bias_d1 = conv_bwd(x_conv, conv_w, grad_output=dx_norm_d1, groups=Fuse)
@@ -54,6 +53,22 @@ def ConvBlock_bwd2_1(x_conv, x_norm, x_pool, conv_w, norm_w, dx_lin_d1, dx_norm_
     dx_conv_d1 += dxconv_d2
     
     return dx_conv_d1, d_conv_weight_d1, d_conv_bias_d1 , d_norm_weight, d_norm_bias
+
+def ConvBlock_bwd_full(x_conv, x_norm, x_pool, conv_w, norm_w, dx_lin_d1, dx_norm_d2=torch.zeros([1]).cuda() ,dxconv_d2 =torch.zeros([1]).cuda(), Fuse =2, v_fuse=True):
+    # 2-1 和 1-2 的结合体。 也就是把dx_norm_d2 和 dxconv_d2 都加上了。 
+    # dx_norm_d2 和 dxconv_d2 应该提前配置好shape？
+    dx_pool_d1 = avgPool_bwd( x_pool, grad_output= dx_lin_d1 )
+    dx_norm_d1, d_norm_weight, d_norm_bias = insNormNRelu_bwd(x_norm, norm_w, x_pool, grad_output=dx_pool_d1, v_fuse=v_fuse)
+    del dx_pool_d1
+    dx_norm_d1 += dx_norm_d2
+    dx_conv_d1, d_conv_weight_d1, d_conv_bias_d1 = conv_bwd(x_conv, conv_w, grad_output=dx_norm_d1, groups=Fuse)
+    del dx_norm_d1
+    dx_conv_d1 += dxconv_d2
+    
+    return dx_conv_d1, d_conv_weight_d1, d_conv_bias_d1 , d_norm_weight, d_norm_bias
+    
+
+
     
 
 def ConvBlock_double_bwd(x_conv, x_norm, x_pool, dx_norm, dx_pool, ddx_conv, conv_w, norm_w,ddcon_w, ddconv_b, ddnorm_w, ddnorm_b, Fuse=2, v_fuse=True):

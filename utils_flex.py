@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import random 
 import warnings
+import math
 
 
 def build_global_group_mask(starting_params, fuse_mask_list):
@@ -99,6 +100,39 @@ def split_half_snd_dim(param_list, fuse_mask_list):
             output.append(p[ s:e, ...].contiguous())
             # output.append(p[ s:e, ...])
             # output.append(p)
+
+    return output
+
+
+def split_half_snd_dim_countious(param_list, fuse_mask_list):
+    # 测试用的接口。不做内存拷贝。 flattern之后再切片。再view回去。
+    output = []
+    Fuse = len(fuse_mask_list)
+    active_fuse = fuse_mask_list.count(1)
+
+    for p in param_list:
+        if p.ndim > 2:
+            block = p.shape[1] // Fuse
+
+            target_shape = (
+                p.shape[0],
+                block * active_fuse,
+                *p.shape[2:]
+            )
+
+        else:
+            block = p.shape[0] // Fuse
+
+            target_shape = (
+                block * active_fuse,
+                *p.shape[1:]
+            )
+        n = math.prod(target_shape)
+
+        # 随便取一段连续内存，内容不保证有任何意义
+        out = p.view(-1)[:n].clone().view(target_shape)
+
+        output.append(out)
 
     return output
 

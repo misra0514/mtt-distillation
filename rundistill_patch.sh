@@ -1,37 +1,45 @@
 #!/usr/bin/env bash
-# Test --fuse_mask_list 1 1 0 0 for ConvNet / ViT / ResNet18.
+# Distill-only timing sweep for testing split/layout changes.
 #
-# 老规矩：
-#   - 每个 case 跑 1 次 --use-barrier
-#   - 再跑 2 次不带 --use-barrier
-#   - fwd/bwd 后面用 barrier 那次
-#   - time sumation 后面用 no_barrier 两次平均
+# Default behavior:
+#   - ConvNet only
+#   - CIFAR10
+#   - IPC: 1 10 50 100
+#   - syn_steps=1
+#   - optional original distill baseline
+#   - flex masks: 1 / 1 1 / 1 0 / 1 1 0 0
+#   - --v_fuse always enabled
+#   - each case: 2x --use-barrier + 2x without barrier
+#   - NO fwdtest / NO ckpt / NO AccTest
 #
-# Iteration / IPC 规则：
-#   - ConvNet:   IPC 1 10 100,       Iteration=350
-#   - ViT:       IPC 1 10 100 1000,  IPC>=100 用 Iteration=50，否则 350
-#   - ResNet18:  IPC 1 10 100 1000,  IPC>=100 用 Iteration=50，否则 350
+# Typical usage:
+#   bash rundistill_only_split_contig_test.sh
 #
-# Run with bash, not sh:
-#   bash run_flex_mask_1100_all_models.sh
+# Test a modified flex file without editing this script:
+#   FLEX_FILE=distill_flexFuse_timeTest_conv_fake_contig.py \
+#   CASE_NAME=fake_contig \
+#   bash rundistill_only_split_contig_test.sh
+#
+# Skip original baseline and only test flex cases:
+#   RUN_ORIGINAL=0 bash rundistill_only_split_contig_test.sh
+#
+# Only test split-related masks:
+#   MASKS="1 0|1 1 0 0" bash rundistill_only_split_contig_test.sh
 
 set -u
 set -o pipefail
 
-LOG_DIR="${LOG_DIR:-testlog524}"
-mkdir -p "${LOG_DIR}"
-
-# All models write into the same log file.
-LOG_FILE="${LOG_FILE:-${LOG_DIR}/flex_mask_1100_all_models.txt}"
-
+# ------------------------------------------------------------
+# User-overridable settings
+# ------------------------------------------------------------
+MODEL="${MODEL:-ConvNet}"
 DATASET="${DATASET:-CIFAR10}"
 PIX_INIT="${PIX_INIT:-real}"
+
 BUFFER_PATH="${BUFFER_PATH:-/scratch/yguo25/files/mtt-distillation/buffer}"
 DATA_PATH="${DATA_PATH:-/scratch/yguo25/files/mtt-distillation/dataset}"
 
-DEFAULT_ITERATION="${DEFAULT_ITERATION:-350}"
-FAST_ITERATION="${FAST_ITERATION:-50}"
-
+ITERATION="${ITERATION:-350}"
 MAX_EXPERTS="${MAX_EXPERTS:-1}"
 EXPERT_EPOCHS="${EXPERT_EPOCHS:-1}"
 MAX_START_EPOCH="${MAX_START_EPOCH:-1}"
@@ -42,222 +50,226 @@ LR_LR="${LR_LR:-1e-05}"
 LR_TEACHER="${LR_TEACHER:-0.01}"
 
 FUSE="${FUSE:-1}"
-FUSE_MASK=(1 1 0 0)
-CASE_NAME="flex_mask_1100_vfuse"
+SYN_STEPS="${SYN_STEPS:-1}"
 
-CONV_FLEX_FILE="${CONV_FLEX_FILE:-distill_flexFuse_timeTest_conv.py}"
-VIT_FLEX_FILE="${VIT_FLEX_FILE:-distill_flexFuse_timeTest_ViT.py}"
-RESNET_FLEX_FILE="${RESNET_FLEX_FILE:-distill_flexFuse_timeTest_resnet18.py}"
+USE_BARRIER_REPEATS="${USE_BARRIER_REPEATS:-2}"
+NO_BARRIER_REPEATS="${NO_BARRIER_REPEATS:-2}"
 
-CONV_IPC_LIST=(1 10 100)
-VIT_IPC_LIST=(1 10 100 1000)
-RESNET_IPC_LIST=(1 10 100 1000)
+RUN_ORIGINAL="${RUN_ORIGINAL:-1}"
 
-SYN_STEPS=1
+ORIGINAL_FILE="${ORIGINAL_FILE:-distill_original_timeTest.py}"
+FLEX_FILE="${FLEX_FILE:-distill_flexFuse_timeTest_conv_v2.py}"
 
-# Overwrite old log by default, same as previous sweep scripts.
+# Pipe-separated masks because each mask itself contains spaces.
+# Control masks 1 and 1 1 are useful for checking whether the slowdown is
+# specifically caused by the split/layout path.
+MASKS="${MASKS:-1|1 1|1 0|1 1 0 0}"
+
+IPC_LIST_STR="${IPC_LIST:-1 10 50 100}"
+read -r -a IPC_LIST_ARR <<< "${IPC_LIST_STR}"
+
+CASE_NAME="${CASE_NAME:-default}"
+LOG_DIR="${LOG_DIR:-testlog_split_contig}"
+mkdir -p "${LOG_DIR}"
+LOG_FILE="${LOG_FILE:-${LOG_DIR}/${MODEL}_${CASE_NAME}.txt}"
+
 : > "${LOG_FILE}"
 
+# ------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------
 iteration_for_model_ipc() {
-  local model="$1"
-  local ipc="$2"
+    local model="$1"
+    local ipc="$2"
 
-  if [ "${model}" = "ConvNet" ]; then
-    echo "${DEFAULT_ITERATION}"
-    return
-  fi
+    if [ "${model}" = "ViT" ] && [ "${ipc}" -ge 50 ]; then
+        echo "50"
+    elif [ "${model}" = "ResNet18" ] && [ "${ipc}" -ge 10 ]; then
+        echo "50"
+    else
+        echo "${ITERATION}"
+    fi
+}
 
-  # ViT / ResNet18: IPC 100 and 1000 use 50.
-  if [ "${ipc}" -ge 100 ]; then
-    echo "${FAST_ITERATION}"
-  else
-    echo "${DEFAULT_ITERATION}"
-  fi
+common_args() {
+    local ipc="$1"
+    local iteration="$2"
+
+    echo \
+        --dataset="${DATASET}" \
+        --pix_init="${PIX_INIT}" \
+        --ipc="${ipc}" \
+        --syn_steps="${SYN_STEPS}" \
+        --max_experts="${MAX_EXPERTS}" \
+        --expert_epochs="${EXPERT_EPOCHS}" \
+        --max_start_epoch="${MAX_START_EPOCH}" \
+        --Iteration="${iteration}" \
+        --detachNum="${DETACH_NUM}" \
+        --lr_img="${LR_IMG}" \
+        --lr_lr="${LR_LR}" \
+        --lr_teacher="${LR_TEACHER}" \
+        --buffer_path="${BUFFER_PATH}" \
+        --data_path="${DATA_PATH}" \
+        --model="${MODEL}" \
+        --Fuse="${FUSE}"
 }
 
 clean_output() {
-  sed -u \
-    -e '/Warning:/d' \
-    -e '/warnings.warn/d' \
-    -e '/FutureWarning/d' \
-    -e '/UserWarning/d' \
-    -e '/torch.cuda.amp.custom_fwd/d' \
-    -e '/Triggered internally at/d' \
-    -e '/SECURITY.md#untrusted-models/d' \
-    -e '/weights_only=False/d' \
-    -e '/Please consider converting the list/d' \
-    -e '/Please open an issue/d' \
-    -e '/^[[:space:]]*[0-9]\+%|/d' \
-    -e '/^[[:space:]]*100%|/d' \
-    -e '/^[[:space:]]*[0-9]\+it \[/d' \
-    -e '/it\/s]/d' \
-    -e '/it\/s/d'
+    sed -u \
+        -e '/Warning:/d' \
+        -e '/warnings.warn/d' \
+        -e '/FutureWarning/d' \
+        -e '/UserWarning/d' \
+        -e '/torch.cuda.amp.custom_fwd/d' \
+        -e '/Triggered internally at/d' \
+        -e '/SECURITY.md#untrusted-models/d' \
+        -e '/weights_only=False/d' \
+        -e '/Please consider converting the list/d' \
+        -e '/Please open an issue/d' \
+        -e '/^[[:space:]]*[0-9]\+%|/d' \
+        -e '/^[[:space:]]*100%|/d' \
+        -e '/^[[:space:]]*[0-9]\+it \[/d' \
+        -e '/it\/s]/d' \
+        -e '/it\/s/d'
 }
 
-write_global_header() {
-  {
-    echo "============================================================"
-    echo "FLEX MASK 1 1 0 0 SWEEP START"
-    echo "START_TIME: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "MODELS: ConvNet ViT ResNet18"
-    echo "CASE: ${CASE_NAME}"
-    echo "FUSE_MASK_LIST: ${FUSE_MASK[*]}"
-    echo "V_FUSE: --v_fuse"
-    echo "SYN_STEPS: ${SYN_STEPS}"
-    echo "CONV_IPC_LIST: ${CONV_IPC_LIST[*]}"
-    echo "VIT_IPC_LIST: ${VIT_IPC_LIST[*]}"
-    echo "RESNET_IPC_LIST: ${RESNET_IPC_LIST[*]}"
-    echo "DEFAULT_ITERATION: ${DEFAULT_ITERATION}"
-    echo "FAST_ITERATION: ${FAST_ITERATION}"
-    echo "USE_BARRIER_REPEATS: 1"
-    echo "NO_BARRIER_REPEATS: 2"
-    echo "ITERATION RULE: ConvNet always 350; ViT/ResNet18 use 50 when IPC>=100, otherwise 350."
-    echo "LOG_FILE: ${LOG_FILE}"
-    echo "NOTE: this script only runs distill_flexFuse_timeTest_* with --fuse_mask_list 1 1 0 0 --v_fuse."
-    echo "============================================================"
-    echo ""
-  } >> "${LOG_FILE}"
-}
+run_once() {
+    local tag="$1"
+    local barrier_mode="$2"
+    local repeat_id="$3"
+    local repeat_total="$4"
+    shift 4
 
-write_global_footer() {
-  {
-    echo ""
-    echo "============================================================"
-    echo "FLEX MASK 1 1 0 0 SWEEP END"
-    echo "END_TIME: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "============================================================"
-  } >> "${LOG_FILE}"
-}
-
-run_one() {
-  local model_label="$1"
-  local model_arg="$2"
-  local flex_file="$3"
-  local ipc="$4"
-  local barrier_mode="$5"
-  local repeat_id="$6"
-  local repeat_total="$7"
-
-  local iteration
-  iteration="$(iteration_for_model_ipc "${model_arg}" "${ipc}")"
-
-  local barrier_args=()
-  if [ "${barrier_mode}" = "use_barrier" ]; then
-    barrier_args=(--use-barrier)
-  fi
-
-  local args=(
-    --fuse_mask_list "${FUSE_MASK[@]}"
-    --v_fuse
-    "${barrier_args[@]}"
-    --dataset="${DATASET}"
-    --pix_init="${PIX_INIT}"
-    --ipc="${ipc}"
-    --syn_steps="${SYN_STEPS}"
-    --max_experts="${MAX_EXPERTS}"
-    --expert_epochs="${EXPERT_EPOCHS}"
-    --max_start_epoch="${MAX_START_EPOCH}"
-    --Iteration="${iteration}"
-    --detachNum="${DETACH_NUM}"
-    --lr_img="${LR_IMG}"
-    --lr_lr="${LR_LR}"
-    --lr_teacher="${LR_TEACHER}"
-    --buffer_path="${BUFFER_PATH}"
-    --data_path="${DATA_PATH}"
-    --model="${model_arg}"
-    --Fuse="${FUSE}"
-  )
-
-  local tag="MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${SYN_STEPS} | ITERATION=${iteration} | CASE=${CASE_NAME} | BARRIER=${barrier_mode}"
-
-  echo "[RUN] ${tag} | REPEAT=${repeat_id}/${repeat_total}"
-
-  {
-    echo "=============================="
-    echo "$(date '+%Y-%m-%d %H:%M:%S') | ${tag} | REPEAT=${repeat_id}/${repeat_total}"
-    echo "CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python ${flex_file} ${args[*]}"
-    echo "------------------------------"
-  } >> "${LOG_FILE}"
-
-  WANDB_SILENT=true \
-  PYTHONWARNINGS=ignore \
-  TQDM_DISABLE=1 \
-  PYTHONUNBUFFERED=1 \
-  python "${flex_file}" "${args[@]}" 2>&1 | clean_output >> "${LOG_FILE}"
-
-  local exit_code=${PIPESTATUS[0]}
-
-  {
-    echo "------------------------------"
-    echo "EXIT_CODE: ${exit_code}"
-    if [ "${exit_code}" -ne 0 ]; then
-      echo "ERROR: command failed with EXIT_CODE=${exit_code}"
+    local barrier_args=()
+    if [ "${barrier_mode}" = "use_barrier" ]; then
+        barrier_args=(--use-barrier)
     fi
-    echo ""
-  } >> "${LOG_FILE}"
 
-  if [ "${exit_code}" -ne 0 ]; then
-    echo "[ERROR] ${tag} | REPEAT=${repeat_id}/${repeat_total} | EXIT_CODE=${exit_code}"
-  fi
+    echo "[RUN] ${tag} | ${barrier_mode} | ${repeat_id}/${repeat_total}"
 
-  # Always continue the sweep even if one run fails.
-  return 0
+    {
+        echo "============================================================"
+        echo "$(date '+%Y-%m-%d %H:%M:%S')"
+        echo "${tag}"
+        echo "BARRIER=${barrier_mode} | REPEAT=${repeat_id}/${repeat_total}"
+        echo "CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 $* ${barrier_args[*]}"
+        echo "------------------------------------------------------------"
+    } >> "${LOG_FILE}"
+
+    WANDB_SILENT=true \
+    PYTHONWARNINGS=ignore \
+    TQDM_DISABLE=1 \
+    PYTHONUNBUFFERED=1 \
+    "$@" "${barrier_args[@]}" 2>&1 | clean_output >> "${LOG_FILE}"
+
+    local exit_code=${PIPESTATUS[0]}
+
+    {
+        echo "------------------------------------------------------------"
+        echo "EXIT_CODE: ${exit_code}"
+        echo ""
+    } >> "${LOG_FILE}"
+
+    if [ "${exit_code}" -ne 0 ]; then
+        echo "[ERROR] ${tag} failed with EXIT_CODE=${exit_code}"
+    fi
+
+    # Keep the sweep running even if one case fails.
+    return 0
 }
 
-run_case_for_ipc() {
-  local model_label="$1"
-  local model_arg="$2"
-  local flex_file="$3"
-  local ipc="$4"
+run_case() {
+    local tag="$1"
+    shift
 
-  # One synchronized/barrier run.
-  run_one "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "use_barrier" "1" "1"
+    local r
+    for r in $(seq 1 "${USE_BARRIER_REPEATS}"); do
+        run_once "${tag}" "use_barrier" "${r}" "${USE_BARRIER_REPEATS}" "$@"
+    done
 
-  # Two normal/no-barrier runs.
-  run_one "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "no_barrier" "1" "2"
-  run_one "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "no_barrier" "2" "2"
+    for r in $(seq 1 "${NO_BARRIER_REPEATS}"); do
+        run_once "${tag}" "no_barrier" "${r}" "${NO_BARRIER_REPEATS}" "$@"
+    done
 }
 
-run_model_block() {
-  local model_label="$1"
-  local model_arg="$2"
-  local flex_file="$3"
-  shift 3
-  local ipc_list=( "$@" )
+run_original() {
+    local ipc="$1"
+    local iteration="$2"
 
-  {
+    # shellcheck disable=SC2207
+    local args=( $(common_args "${ipc}" "${iteration}") )
+
+    run_case \
+        "MODEL=${MODEL} | IPC=${ipc} | SYN_STEPS=${SYN_STEPS} | ITERATION=${iteration} | CASE=original_distill" \
+        python "${ORIGINAL_FILE}" "${args[@]}"
+}
+
+run_flex() {
+    local ipc="$1"
+    local iteration="$2"
+    local mask_string="$3"
+
+    read -r -a mask_args <<< "${mask_string}"
+    local mask_tag="${mask_string// /}"
+
+    # shellcheck disable=SC2207
+    local args=( $(common_args "${ipc}" "${iteration}") )
+
+    run_case \
+        "MODEL=${MODEL} | IPC=${ipc} | SYN_STEPS=${SYN_STEPS} | ITERATION=${iteration} | CASE=${CASE_NAME}_mask_${mask_tag}_vfuse" \
+        python "${FLEX_FILE}" \
+            --fuse_mask_list "${mask_args[@]}" \
+            --v_fuse \
+            "${args[@]}"
+}
+
+# ------------------------------------------------------------
+# Header
+# ------------------------------------------------------------
+{
     echo "============================================================"
-    echo "MODEL BLOCK START: ${model_label}"
-    echo "MODEL ARG: ${model_arg}"
-    echo "FLEX FILE: ${flex_file}"
-    echo "IPC_LIST: ${ipc_list[*]}"
+    echo "DISTILL-ONLY SPLIT/CONTIGUITY TEST"
+    echo "START_TIME: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "MODEL: ${MODEL}"
+    echo "DATASET: ${DATASET}"
+    echo "IPC_LIST: ${IPC_LIST_ARR[*]}"
     echo "SYN_STEPS: ${SYN_STEPS}"
-    echo "CASE: ${CASE_NAME}"
+    echo "DEFAULT_ITERATION: ${ITERATION}"
+    echo "ORIGINAL_FILE: ${ORIGINAL_FILE}"
+    echo "FLEX_FILE: ${FLEX_FILE}"
+    echo "CASE_NAME: ${CASE_NAME}"
+    echo "MASKS: ${MASKS}"
+    echo "RUN_ORIGINAL: ${RUN_ORIGINAL}"
+    echo "USE_BARRIER_REPEATS: ${USE_BARRIER_REPEATS}"
+    echo "NO_BARRIER_REPEATS: ${NO_BARRIER_REPEATS}"
+    echo "NOTE: distill only; no fwdtest; no ckpt; no AccTest."
     echo "============================================================"
     echo ""
-  } >> "${LOG_FILE}"
+} >> "${LOG_FILE}"
 
-  local ipc
-  for ipc in "${ipc_list[@]}"; do
-    run_case_for_ipc "${model_label}" "${model_arg}" "${flex_file}" "${ipc}"
-  done
+# ------------------------------------------------------------
+# Sweep
+# ------------------------------------------------------------
+IFS='|' read -r -a MASK_ARR <<< "${MASKS}"
 
-  {
+for ipc in "${IPC_LIST_ARR[@]}"; do
+    model_iteration="$(iteration_for_model_ipc "${MODEL}" "${ipc}")"
+
+    if [ "${RUN_ORIGINAL}" -eq 1 ]; then
+        run_original "${ipc}" "${model_iteration}"
+    fi
+
+    for mask in "${MASK_ARR[@]}"; do
+        run_flex "${ipc}" "${model_iteration}" "${mask}"
+    done
+done
+
+{
     echo "============================================================"
-    echo "MODEL BLOCK END: ${model_label}"
+    echo "DISTILL-ONLY TEST END"
     echo "END_TIME: $(date '+%Y-%m-%d %H:%M:%S')"
     echo "============================================================"
-    echo ""
-  } >> "${LOG_FILE}"
-}
+} >> "${LOG_FILE}"
 
-write_global_header
-
-run_model_block "ConvNet"  "ConvNet"  "${CONV_FLEX_FILE}"   "${CONV_IPC_LIST[@]}"
-run_model_block "ViT"      "ViT"      "${VIT_FLEX_FILE}"    "${VIT_IPC_LIST[@]}"
-run_model_block "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${RESNET_IPC_LIST[@]}"
-
-write_global_footer
-
-echo "[DONE] flex_mask_1100 sweep finished."
-echo "Log file: ${LOG_FILE}"
+echo "[DONE] Distill-only tests finished."
+echo "Log: ${LOG_FILE}"

@@ -1,0 +1,1606 @@
+============================================================
+DISTILL-ONLY SPLIT/CONTIGUITY TEST
+START_TIME: 2026-08-30 17:33:08
+MODEL: ConvNet
+DATASET: CIFAR10
+IPC_LIST: 1 10 50 100
+SYN_STEPS: 1
+DEFAULT_ITERATION: 350
+ORIGINAL_FILE: distill_original_timeTest.py
+FLEX_FILE: distill_flexFuse_timeTest_conv_v2.py
+CASE_NAME: default
+MASKS: 1|1 1|1 0|1 1 0 0
+RUN_ORIGINAL: 1
+USE_BARRIER_REPEATS: 2
+NO_BARRIER_REPEATS: 2
+NOTE: distill only; no fwdtest; no ckpt; no AccTest.
+============================================================
+
+============================================================
+2026-08-30 17:33:08
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+113.08554196357727
+prepare time ( 1 ):  109.0861029624939
+syn_time     ( 1 ):  1.0301761627197266
+backward_time( 1 ):  1.5070898532867432
+峰值cache使用: 86.0 MB
+峰值tensor使用: 69.7294921875 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:35:12
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+112.94986915588379
+prepare time ( 1 ):  109.16193175315857
+syn_time     ( 1 ):  1.0615510940551758
+backward_time( 1 ):  1.5319645404815674
+峰值cache使用: 86.0 MB
+峰值tensor使用: 69.7294921875 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:37:16
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+113.11165857315063
+prepare time ( 1 ):  109.39160203933716
+syn_time     ( 1 ):  1.0396418571472168
+backward_time( 1 ):  1.494516372680664
+峰值cache使用: 86.0 MB
+峰值tensor使用: 69.7294921875 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:39:19
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+113.21845364570618
+prepare time ( 1 ):  109.43903470039368
+syn_time     ( 1 ):  1.0483596324920654
+backward_time( 1 ):  1.5204851627349854
+峰值cache使用: 86.0 MB
+峰值tensor使用: 69.7294921875 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:41:23
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  138.45805144309998
+prepare time ( 1 ):  131.76811504364014
+syn_time     ( 1 ):  0.8420028686523438
+backward_time( 1 ):  1.0746886730194092
+param_dist_time( 1 ):  0.015740394592285156
+峰值cache使用: 88.0 MB
+峰值tensor使用: 67.427734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:43:51
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  131.80672121047974
+prepare time ( 1 ):  128.1475019454956
+syn_time     ( 1 ):  0.850963830947876
+backward_time( 1 ):  1.0755946636199951
+param_dist_time( 1 ):  0.01596808433532715
+峰值cache使用: 88.0 MB
+峰值tensor使用: 67.427734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:46:13
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  135.03303241729736
+prepare time ( 1 ):  131.48577642440796
+syn_time     ( 1 ):  0.8340559005737305
+backward_time( 1 ):  0.9391806125640869
+param_dist_time( 1 ):  0.0156552791595459
+峰值cache使用: 88.0 MB
+峰值tensor使用: 67.427734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:48:38
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  91.57832837104797
+prepare time ( 1 ):  88.18311667442322
+syn_time     ( 1 ):  0.8297841548919678
+backward_time( 1 ):  0.9275038242340088
+param_dist_time( 1 ):  0.015454530715942383
+峰值cache使用: 88.0 MB
+峰值tensor使用: 67.427734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:50:20
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  135.97078037261963
+prepare time ( 1 ):  131.22397184371948
+syn_time     ( 1 ):  0.9270830154418945
+backward_time( 1 ):  1.955458164215088
+param_dist_time( 1 ):  0.016647815704345703
+峰值cache使用: 162.0 MB
+峰值tensor使用: 125.53125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:52:45
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  136.99938225746155
+prepare time ( 1 ):  132.3792417049408
+syn_time     ( 1 ):  0.9352831840515137
+backward_time( 1 ):  1.9547982215881348
+param_dist_time( 1 ):  0.016153335571289062
+峰值cache使用: 162.0 MB
+峰值tensor使用: 125.53125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:55:12
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  131.90399718284607
+prepare time ( 1 ):  128.12415313720703
+syn_time     ( 1 ):  0.9106645584106445
+backward_time( 1 ):  1.1081745624542236
+param_dist_time( 1 ):  0.017014503479003906
+峰值cache使用: 162.0 MB
+峰值tensor使用: 125.53125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 17:57:35
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  136.27368116378784
+prepare time ( 1 ):  132.49419379234314
+syn_time     ( 1 ):  0.8884353637695312
+backward_time( 1 ):  1.086388349533081
+param_dist_time( 1 ):  0.016176223754882812
+峰值cache使用: 162.0 MB
+峰值tensor使用: 125.53125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:00:01
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  133.25882720947266
+prepare time ( 1 ):  129.1084349155426
+syn_time     ( 1 ):  1.2938473224639893
+backward_time( 1 ):  1.106334924697876
+param_dist_time( 1 ):  0.018207788467407227
+峰值cache使用: 128.0 MB
+峰值tensor使用: 96.73486328125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:02:24
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  139.68766140937805
+prepare time ( 1 ):  135.3265097141266
+syn_time     ( 1 ):  1.365614652633667
+backward_time( 1 ):  1.14487624168396
+param_dist_time( 1 ):  0.018739700317382812
+峰值cache使用: 128.0 MB
+峰值tensor使用: 96.73486328125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:04:54
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  139.98463034629822
+prepare time ( 1 ):  135.76529383659363
+syn_time     ( 1 ):  1.3244199752807617
+backward_time( 1 ):  1.0892117023468018
+param_dist_time( 1 ):  0.018908977508544922
+峰值cache使用: 128.0 MB
+峰值tensor使用: 96.73486328125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:07:24
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  138.16162967681885
+prepare time ( 1 ):  133.9905128479004
+syn_time     ( 1 ):  1.3184103965759277
+backward_time( 1 ):  1.0344069004058838
+param_dist_time( 1 ):  0.017818927764892578
+峰值cache使用: 128.0 MB
+峰值tensor使用: 96.73486328125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:09:53
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  138.68538403511047
+prepare time ( 1 ):  133.1995553970337
+syn_time     ( 1 ):  1.670015573501587
+backward_time( 1 ):  1.9836115837097168
+param_dist_time( 1 ):  0.01841115951538086
+峰值cache使用: 218.0 MB
+峰值tensor使用: 183.42333984375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:12:22
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  134.38407516479492
+prepare time ( 1 ):  128.92526268959045
+syn_time     ( 1 ):  1.6333372592926025
+backward_time( 1 ):  1.9727435111999512
+param_dist_time( 1 ):  0.017882108688354492
+峰值cache使用: 218.0 MB
+峰值tensor使用: 183.42333984375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:14:47
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  135.00986552238464
+prepare time ( 1 ):  130.3526120185852
+syn_time     ( 1 ):  1.6687889099121094
+backward_time( 1 ):  1.1593105792999268
+param_dist_time( 1 ):  0.018946170806884766
+峰值cache使用: 218.0 MB
+峰值tensor使用: 183.42333984375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:17:12
+MODEL=ConvNet | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  135.7235827445984
+prepare time ( 1 ):  131.0820598602295
+syn_time     ( 1 ):  1.6710338592529297
+backward_time( 1 ):  1.1740961074829102
+param_dist_time( 1 ):  0.018630504608154297
+峰值cache使用: 218.0 MB
+峰值tensor使用: 183.42333984375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:19:38
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+112.42851662635803
+prepare time ( 1 ):  103.98725891113281
+syn_time     ( 1 ):  2.157949924468994
+backward_time( 1 ):  5.076184272766113
+峰值cache使用: 574.0 MB
+峰值tensor使用: 463.38427734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:21:40
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+111.84792923927307
+prepare time ( 1 ):  103.45416593551636
+syn_time     ( 1 ):  2.1625657081604004
+backward_time( 1 ):  5.081798315048218
+峰值cache使用: 574.0 MB
+峰值tensor使用: 463.38427734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:23:43
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+111.6423192024231
+prepare time ( 1 ):  103.24786639213562
+syn_time     ( 1 ):  0.9002153873443604
+backward_time( 1 ):  6.307035684585571
+峰值cache使用: 574.0 MB
+峰值tensor使用: 463.38427734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:25:45
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+110.47066473960876
+prepare time ( 1 ):  102.04628038406372
+syn_time     ( 1 ):  0.912480354309082
+backward_time( 1 ):  6.3167335987091064
+峰值cache使用: 574.0 MB
+峰值tensor使用: 463.38427734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:27:46
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  134.44043827056885
+prepare time ( 1 ):  125.93869495391846
+syn_time     ( 1 ):  1.8614835739135742
+backward_time( 1 ):  4.885349750518799
+param_dist_time( 1 ):  0.016035079956054688
+峰值cache使用: 582.0 MB
+峰值tensor使用: 516.5361328125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:30:10
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  136.28767251968384
+prepare time ( 1 ):  127.7737500667572
+syn_time     ( 1 ):  1.879136085510254
+backward_time( 1 ):  4.898449897766113
+param_dist_time( 1 ):  0.01699686050415039
+峰值cache使用: 582.0 MB
+峰值tensor使用: 516.5361328125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:32:37
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  131.07169795036316
+prepare time ( 1 ):  126.46547794342041
+syn_time     ( 1 ):  0.8448319435119629
+backward_time( 1 ):  1.9679601192474365
+param_dist_time( 1 ):  0.016254901885986328
+峰值cache使用: 582.0 MB
+峰值tensor使用: 516.5361328125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:34:58
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  132.20497822761536
+prepare time ( 1 ):  127.59628558158875
+syn_time     ( 1 ):  0.8584742546081543
+backward_time( 1 ):  1.9739112854003906
+param_dist_time( 1 ):  0.016209840774536133
+峰值cache使用: 582.0 MB
+峰值tensor使用: 516.5361328125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:37:20
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  146.55175948143005
+prepare time ( 1 ):  131.74434089660645
+syn_time     ( 1 ):  3.4510319232940674
+backward_time( 1 ):  9.575517177581787
+param_dist_time( 1 ):  0.0162966251373291
+峰值cache使用: 1150.0 MB
+峰值tensor使用: 1022.52783203125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:39:57
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  146.92519736289978
+prepare time ( 1 ):  132.09710049629211
+syn_time     ( 1 ):  3.448948860168457
+backward_time( 1 ):  9.581267595291138
+param_dist_time( 1 ):  0.016844749450683594
+峰值cache使用: 1150.0 MB
+峰值tensor使用: 1022.52783203125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:42:34
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  138.15493083000183
+prepare time ( 1 ):  131.88960361480713
+syn_time     ( 1 ):  0.8740894794464111
+backward_time( 1 ):  3.6235995292663574
+param_dist_time( 1 ):  0.016048908233642578
+峰值cache使用: 1150.0 MB
+峰值tensor使用: 1022.52783203125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:45:02
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  94.36981272697449
+prepare time ( 1 ):  88.13974118232727
+syn_time     ( 1 ):  0.9095633029937744
+backward_time( 1 ):  3.6096084117889404
+param_dist_time( 1 ):  0.016499042510986328
+峰值cache使用: 1150.0 MB
+峰值tensor使用: 1022.52783203125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:46:47
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  144.37223625183105
+prepare time ( 1 ):  133.89276814460754
+syn_time     ( 1 ):  3.6847589015960693
+backward_time( 1 ):  4.920480251312256
+param_dist_time( 1 ):  0.018460512161254883
+峰值cache使用: 904.0 MB
+峰值tensor使用: 753.54541015625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:49:22
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  142.13988137245178
+prepare time ( 1 ):  131.64902186393738
+syn_time     ( 1 ):  3.690128803253174
+backward_time( 1 ):  4.920642137527466
+param_dist_time( 1 ):  0.01791214942932129
+峰值cache使用: 904.0 MB
+峰值tensor使用: 753.54541015625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:51:54
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  142.05086088180542
+prepare time ( 1 ):  135.4053394794464
+syn_time     ( 1 ):  3.684288740158081
+backward_time( 1 ):  1.084749460220337
+param_dist_time( 1 ):  0.0184781551361084
+峰值cache使用: 904.0 MB
+峰值tensor使用: 753.54541015625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:54:26
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  138.9005994796753
+prepare time ( 1 ):  132.3737587928772
+syn_time     ( 1 ):  3.673668622970581
+backward_time( 1 ):  1.03597092628479
+param_dist_time( 1 ):  0.018075227737426758
+峰值cache使用: 904.0 MB
+峰值tensor使用: 753.54541015625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:56:55
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  149.34883642196655
+prepare time ( 1 ):  129.859787940979
+syn_time     ( 1 ):  7.977160215377808
+backward_time( 1 ):  9.622781753540039
+param_dist_time( 1 ):  0.01895880699157715
+峰值cache使用: 1658.0 MB
+峰值tensor使用: 1488.9052734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 18:59:35
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  151.3558292388916
+prepare time ( 1 ):  131.97719168663025
+syn_time     ( 1 ):  7.9480140209198
+backward_time( 1 ):  9.614092588424683
+param_dist_time( 1 ):  0.01840806007385254
+峰值cache使用: 1658.0 MB
+峰值tensor使用: 1488.9052734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:02:16
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  146.79844212532043
+prepare time ( 1 ):  135.72822403907776
+syn_time     ( 1 ):  7.955160617828369
+backward_time( 1 ):  1.1773457527160645
+param_dist_time( 1 ):  0.018936872482299805
+峰值cache使用: 1658.0 MB
+峰值tensor使用: 1488.9052734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:04:53
+MODEL=ConvNet | IPC=10 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  143.15426659584045
+prepare time ( 1 ):  132.2254331111908
+syn_time     ( 1 ):  7.941626310348511
+backward_time( 1 ):  1.1245288848876953
+param_dist_time( 1 ):  0.018050193786621094
+峰值cache使用: 1658.0 MB
+峰值tensor使用: 1488.9052734375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:07:26
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+138.28454780578613
+prepare time ( 1 ):  104.12972521781921
+syn_time     ( 1 ):  8.819963455200195
+backward_time( 1 ):  23.836467504501343
+峰值cache使用: 2802.0 MB
+峰值tensor使用: 2202.40869140625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:09:55
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+137.9852864742279
+prepare time ( 1 ):  103.89426970481873
+syn_time     ( 1 ):  8.82434892654419
+backward_time( 1 ):  23.922030448913574
+峰值cache使用: 2802.0 MB
+峰值tensor使用: 2202.40869140625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:12:23
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+138.08200573921204
+prepare time ( 1 ):  104.10174679756165
+syn_time     ( 1 ):  0.8915703296661377
+backward_time( 1 ):  31.724534511566162
+峰值cache使用: 2802.0 MB
+峰值tensor使用: 2202.40869140625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:14:51
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+138.59018635749817
+prepare time ( 1 ):  104.51360416412354
+syn_time     ( 1 ):  0.9587979316711426
+backward_time( 1 ):  31.73214888572693
+峰值cache使用: 2802.0 MB
+峰值tensor使用: 2202.40869140625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:17:20
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  158.03788471221924
+prepare time ( 1 ):  126.5482017993927
+syn_time     ( 1 ):  7.5041937828063965
+backward_time( 1 ):  22.13680648803711
+param_dist_time( 1 ):  0.016332626342773438
+峰值cache使用: 2858.0 MB
+峰值tensor使用: 2503.1923828125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:20:09
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  159.89845776557922
+prepare time ( 1 ):  128.4460208415985
+syn_time     ( 1 ):  7.5087525844573975
+backward_time( 1 ):  22.13468647003174
+param_dist_time( 1 ):  0.01682138442993164
+峰值cache使用: 2858.0 MB
+峰值tensor使用: 2503.1923828125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:22:59
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  136.83308458328247
+prepare time ( 1 ):  126.58838534355164
+syn_time     ( 1 ):  0.8511223793029785
+backward_time( 1 ):  7.611197233200073
+param_dist_time( 1 ):  0.016365528106689453
+峰值cache使用: 2858.0 MB
+峰值tensor使用: 2503.1923828125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:25:26
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  136.6594467163086
+prepare time ( 1 ):  126.4346604347229
+syn_time     ( 1 ):  0.8452885150909424
+backward_time( 1 ):  7.601474285125732
+param_dist_time( 1 ):  0.016278505325317383
+峰值cache使用: 2858.0 MB
+峰值tensor使用: 2503.1923828125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:27:53
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  193.14314532279968
+prepare time ( 1 ):  131.3342308998108
+syn_time     ( 1 ):  15.008581638336182
+backward_time( 1 ):  44.90073776245117
+param_dist_time( 1 ):  0.01670098304748535
+峰值cache使用: 5576.0 MB
+峰值tensor使用: 4989.7412109375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:31:16
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  193.7092523574829
+prepare time ( 1 ):  132.46808290481567
+syn_time     ( 1 ):  14.986603260040283
+backward_time( 1 ):  44.35920286178589
+param_dist_time( 1 ):  0.01645970344543457
+峰值cache使用: 5576.0 MB
+峰值tensor使用: 4989.7412109375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:34:40
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  151.83347725868225
+prepare time ( 1 ):  133.81656980514526
+syn_time     ( 1 ):  0.9084091186523438
+backward_time( 1 ):  15.181432247161865
+param_dist_time( 1 ):  0.016845226287841797
+峰值cache使用: 5576.0 MB
+峰值tensor使用: 4989.7412109375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:37:22
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  154.3033537864685
+prepare time ( 1 ):  136.28001928329468
+syn_time     ( 1 ):  0.9391252994537354
+backward_time( 1 ):  15.206143856048584
+param_dist_time( 1 ):  0.01754450798034668
+峰值cache使用: 5576.0 MB
+峰值tensor使用: 4989.7412109375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:40:06
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  172.04880619049072
+prepare time ( 1 ):  132.61642694473267
+syn_time     ( 1 ):  15.203794002532959
+backward_time( 1 ):  22.32976460456848
+param_dist_time( 1 ):  0.017821073532104492
+峰值cache使用: 4074.0 MB
+峰值tensor使用: 3659.05712890625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:43:08
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  172.6848955154419
+prepare time ( 1 ):  133.18876385688782
+syn_time     ( 1 ):  15.212090492248535
+backward_time( 1 ):  22.314125061035156
+param_dist_time( 1 ):  0.01815485954284668
+峰值cache使用: 4074.0 MB
+峰值tensor使用: 3659.05712890625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:46:11
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  152.92778325080872
+prepare time ( 1 ):  134.69657039642334
+syn_time     ( 1 ):  15.214432954788208
+backward_time( 1 ):  1.0417821407318115
+param_dist_time( 1 ):  0.01804661750793457
+峰值cache使用: 4074.0 MB
+峰值tensor使用: 3659.05712890625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:48:54
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  151.0691258907318
+prepare time ( 1 ):  132.8089747428894
+syn_time     ( 1 ):  15.208285570144653
+backward_time( 1 ):  1.056809902191162
+param_dist_time( 1 ):  0.01828289031982422
+峰值cache使用: 4074.0 MB
+峰值tensor使用: 3659.05712890625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:51:35
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  210.94546341896057
+prepare time ( 1 ):  132.79539394378662
+syn_time     ( 1 ):  30.965954303741455
+backward_time( 1 ):  45.10194182395935
+param_dist_time( 1 ):  0.018220186233520508
+峰值cache使用: 9188.0 MB
+峰值tensor使用: 7295.375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:55:17
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  211.95580673217773
+prepare time ( 1 ):  133.77002501487732
+syn_time     ( 1 ):  30.923107147216797
+backward_time( 1 ):  45.1013879776001
+param_dist_time( 1 ):  0.018381595611572266
+峰值cache使用: 9188.0 MB
+峰值tensor使用: 7295.375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 19:58:59
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  167.55211472511292
+prepare time ( 1 ):  133.3246431350708
+syn_time     ( 1 ):  30.962739944458008
+backward_time( 1 ):  1.1043524742126465
+param_dist_time( 1 ):  0.018279314041137695
+峰值cache使用: 9188.0 MB
+峰值tensor使用: 7295.375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:01:56
+MODEL=ConvNet | IPC=50 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  164.08125352859497
+prepare time ( 1 ):  129.93620014190674
+syn_time     ( 1 ):  30.970741510391235
+backward_time( 1 ):  1.09035062789917
+param_dist_time( 1 ):  0.018051624298095703
+峰值cache使用: 9188.0 MB
+峰值tensor使用: 7295.375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:04:50
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+170.34838485717773
+prepare time ( 1 ):  104.64746356010437
+syn_time     ( 1 ):  17.286190509796143
+backward_time( 1 ):  46.768397092819214
+峰值cache使用: 5502.0 MB
+峰值tensor使用: 4380.8798828125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:07:51
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+170.42144513130188
+prepare time ( 1 ):  104.73571848869324
+syn_time     ( 1 ):  17.286082983016968
+backward_time( 1 ):  46.785009145736694
+峰值cache使用: 5502.0 MB
+峰值tensor使用: 4380.8798828125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:10:52
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+153.70302963256836
+prepare time ( 1 ):  88.07075476646423
+syn_time     ( 1 ):  0.9653687477111816
+backward_time( 1 ):  63.070128202438354
+峰值cache使用: 5502.0 MB
+峰值tensor使用: 4380.8798828125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:13:35
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=original_distill
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+168.55160307884216
+prepare time ( 1 ):  102.89323687553406
+syn_time     ( 1 ):  0.9074451923370361
+backward_time( 1 ):  63.08840370178223
+峰值cache使用: 5502.0 MB
+峰值tensor使用: 4380.8798828125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:16:34
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  186.174298286438
+prepare time ( 1 ):  126.86344933509827
+syn_time     ( 1 ):  14.667926788330078
+backward_time( 1 ):  42.792762994766235
+param_dist_time( 1 ):  0.016513824462890625
+峰值cache使用: 5686.0 MB
+峰值tensor使用: 4989.47607421875 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:19:51
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  186.7127480506897
+prepare time ( 1 ):  127.38245987892151
+syn_time     ( 1 ):  14.67223834991455
+backward_time( 1 ):  42.81118988990784
+param_dist_time( 1 ):  0.016907453536987305
+峰值cache使用: 5686.0 MB
+峰值tensor使用: 4989.47607421875 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:23:08
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  143.4911904335022
+prepare time ( 1 ):  125.9843602180481
+syn_time     ( 1 ):  0.8575773239135742
+backward_time( 1 ):  14.800521850585938
+param_dist_time( 1 ):  0.016746044158935547
+峰值cache使用: 5686.0 MB
+峰值tensor使用: 4989.47607421875 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:25:41
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  144.51935625076294
+prepare time ( 1 ):  126.9626636505127
+syn_time     ( 1 ):  0.8604674339294434
+backward_time( 1 ):  14.805491924285889
+param_dist_time( 1 ):  0.016678571701049805
+峰值cache使用: 5686.0 MB
+峰值tensor使用: 4989.47607421875 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:28:16
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  251.1198661327362
+prepare time ( 1 ):  132.45283436775208
+syn_time     ( 1 ):  29.889240503311157
+backward_time( 1 ):  86.7297191619873
+param_dist_time( 1 ):  0.016495227813720703
+峰值cache使用: 11106.0 MB
+峰值tensor使用: 9945.9892578125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:32:37
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  250.84225487709045
+prepare time ( 1 ):  132.26093244552612
+syn_time     ( 1 ):  29.870855569839478
+backward_time( 1 ):  86.66645574569702
+param_dist_time( 1 ):  0.016087055206298828
+峰值cache使用: 11106.0 MB
+峰值tensor使用: 9945.9892578125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:36:58
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  166.26386380195618
+prepare time ( 1 ):  133.12909722328186
+syn_time     ( 1 ):  0.893357515335083
+backward_time( 1 ):  30.148464918136597
+param_dist_time( 1 ):  0.016278505325317383
+峰值cache使用: 11106.0 MB
+峰值tensor使用: 9945.9892578125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:39:55
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_11_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  164.9285111427307
+prepare time ( 1 ):  131.80849480628967
+syn_time     ( 1 ):  0.8847723007202148
+backward_time( 1 ):  30.193859577178955
+param_dist_time( 1 ):  0.0167081356048584
+峰值cache使用: 11106.0 MB
+峰值tensor使用: 9945.9892578125 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:42:50
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  208.23923230171204
+prepare time ( 1 ):  132.90010476112366
+syn_time     ( 1 ):  30.096325874328613
+backward_time( 1 ):  43.15400218963623
+param_dist_time( 1 ):  0.01791548728942871
+峰值cache使用: 7602.0 MB
+峰值tensor使用: 7289.2353515625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:46:28
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  208.5296540260315
+prepare time ( 1 ):  133.18513917922974
+syn_time     ( 1 ):  30.091963529586792
+backward_time( 1 ):  43.174360513687134
+param_dist_time( 1 ):  0.017517566680908203
+峰值cache使用: 7602.0 MB
+峰值tensor使用: 7289.2353515625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:50:07
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  165.53771114349365
+prepare time ( 1 ):  132.26682996749878
+syn_time     ( 1 ):  30.12442636489868
+backward_time( 1 ):  1.0457358360290527
+param_dist_time( 1 ):  0.017940998077392578
+峰值cache使用: 7602.0 MB
+峰值tensor使用: 7289.2353515625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:53:03
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_10_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  166.34623646736145
+prepare time ( 1 ):  133.11001324653625
+syn_time     ( 1 ):  30.116801261901855
+backward_time( 1 ):  1.041944980621338
+param_dist_time( 1 ):  0.018407106399536133
+峰值cache使用: 7602.0 MB
+峰值tensor使用: 7289.2353515625 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 20:55:59
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  283.8844473361969
+prepare time ( 1 ):  132.10724687576294
+syn_time     ( 1 ):  62.28701138496399
+backward_time( 1 ):  86.96647071838379
+param_dist_time( 1 ):  0.01887989044189453
+峰值cache使用: 18284.0 MB
+峰值tensor使用: 14556.109375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 21:00:53
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 --use-barrier
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  280.68369340896606
+prepare time ( 1 ):  129.13490295410156
+syn_time     ( 1 ):  62.20155167579651
+backward_time( 1 ):  86.90145182609558
+param_dist_time( 1 ):  0.018925905227661133
+峰值cache使用: 18284.0 MB
+峰值tensor使用: 14556.109375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 21:05:44
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  162.5565047264099
+prepare time ( 1 ):  96.06767749786377
+syn_time     ( 1 ):  62.95933747291565
+backward_time( 1 ):  1.1530461311340332
+param_dist_time( 1 ):  0.01881718635559082
+峰值cache使用: 18284.0 MB
+峰值tensor使用: 14556.109375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+2026-08-30 21:08:37
+MODEL=ConvNet | IPC=100 | SYN_STEPS=1 | ITERATION=350 | CASE=default_mask_1100_vfuse
+BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_conv_v2.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=ConvNet --Fuse=1 
+------------------------------------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/ConvNet/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  197.04125261306763
+prepare time ( 1 ):  131.03210711479187
+syn_time     ( 1 ):  62.35545253753662
+backward_time( 1 ):  1.140021562576294
+param_dist_time( 1 ):  0.01848006248474121
+峰值cache使用: 18284.0 MB
+峰值tensor使用: 14556.109375 MB
+------------------------------------------------------------
+EXIT_CODE: 0
+
+============================================================
+DISTILL-ONLY TEST END
+END_TIME: 2026-08-30 21:12:04
+============================================================

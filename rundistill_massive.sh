@@ -47,7 +47,7 @@ FWDTEST_REPEATS=1
 ORIGINAL_FILE="distill_original_timeTest.py"
 ORIGINAL_FWD_FILE="distill_original_fwdtimetest.py"
 
-CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py" # BACKUP!!
+CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py"
 VIT_FLEX_FILE="distill_flexFuse_timeTest_ViT.py"
 RESNET_FLEX_FILE="distill_flexFuse_timeTest_resnet18.py"
 
@@ -370,33 +370,33 @@ run_model_block() {
   done
 }
 
-# # ============================================================
-# # ConvNet tests
-# # ============================================================
-# write_header \
-#   "${CONV_LOG}" \
-#   "ConvNet" \
-#   "ConvNet" \
-#   "${CONV_FLEX_FILE}" \
-#   "${CONV_IPC_LIST[*]}" \
-#   "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no ckpt flex; ConvNet keeps --Iteration=${ITERATION} for all IPCs."
-
-# run_model_block "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${CONV_IPC_LIST[@]}"
-# write_footer "${CONV_LOG}"
-
 # ============================================================
-# ViT tests
+# ConvNet tests
 # ============================================================
 write_header \
-  "${VIT_LOG}" \
-  "ViT" \
-  "ViT" \
-  "${VIT_FLEX_FILE}" \
-  "${VIT_IPC_LIST[*]}" \
-  "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ViT; ViT uses --Iteration=50 when --ipc>=50."
+  "${CONV_LOG}" \
+  "ConvNet" \
+  "ConvNet" \
+  "${CONV_FLEX_FILE}" \
+  "${CONV_IPC_LIST[*]}" \
+  "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no ckpt flex; ConvNet keeps --Iteration=${ITERATION} for all IPCs."
 
-run_model_block "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${VIT_IPC_LIST[@]}"
-write_footer "${VIT_LOG}"
+run_model_block "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${CONV_IPC_LIST[@]}"
+write_footer "${CONV_LOG}"
+
+# # ============================================================
+# # ViT tests
+# # ============================================================
+# write_header \
+#   "${VIT_LOG}" \
+#   "ViT" \
+#   "ViT" \
+#   "${VIT_FLEX_FILE}" \
+#   "${VIT_IPC_LIST[*]}" \
+#   "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ViT; ViT uses --Iteration=50 when --ipc>=50."
+
+# run_model_block "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${VIT_IPC_LIST[@]}"
+# write_footer "${VIT_LOG}"
 
 # # ============================================================
 # # ResNet18 tests
