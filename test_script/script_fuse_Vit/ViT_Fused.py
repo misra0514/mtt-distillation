@@ -42,7 +42,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from torch.nn.attention import sdpa_kernel, SDPBackend
-from testing_utils import clear_tensorlists, set_random_seed,load_state_dict_by_position, repeat_params_for_fuse
+from test_script.script_fuse_Vit.testing_utils import clear_tensorlists, set_random_seed,load_state_dict_by_position, repeat_params_for_fuse
 
 from networks.networks_Fuse import LinearStacked_2,GroupedLinear,GroupedLayerNorm
 

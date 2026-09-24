@@ -1,4 +1,4 @@
-from ViT_FlexFused import MultiHeadSelfAttention_Fused
+from test_script.script_fuse_Vit.ViT_FlexFused import MultiHeadSelfAttention_Fused
 
 import torch
 

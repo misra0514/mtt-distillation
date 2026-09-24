@@ -28,7 +28,7 @@ from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNorm
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd, crossEntropy_bwd,crossEntropy_double_bwd,\
     insNorm_bwd ,instanceNorm_double_backwards_fn
-from script_fuseParallel.base import instanceNorm_backward
+from test_script.script_fuseParallel.base import instanceNorm_backward
 
 
 def ConvBlock_bwd1_2(x_conv, x_norm, x_pool, conv_w, norm_w, dx_lin_d1, Fuse =2, v_fuse = True):

@@ -111,10 +111,14 @@ class NormActive(nn.Module):
 
 
 class Conv_Flexfuse_backup(nn.Module):
+    # 区别就是加上了v_fuse的开关。v_fuse=True的时候，使用NormActive；否则使用InstanceNorm2d。
     def __init__(self, channel=3, num_classes=10, net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), Fuse=2, v_fuse=True):
         super(Conv_Flexfuse_backup, self).__init__()
         self.Fuse = Fuse
         self.v_fuse = v_fuse
+        self.num_classes = num_classes
+        self.channel = channel
+        self.im_size = im_size
         self.conv1 = nn.Conv2d(in_channels=channel*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
         if v_fuse:
             self.norm1 = NormActive(net_width*Fuse, affine=True) 
@@ -136,12 +140,23 @@ class Conv_Flexfuse_backup(nn.Module):
             self.norm3 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
             # self.norm3 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
         self.pool3 = nn.AvgPool2d(kernel_size=2)
-        self.linear = LinearStacked_2(net_width * 4 * 4, num_classes,Fuse )
+        # self.linear = LinearStacked_2(net_width * 4 * 4, num_classes,Fuse )
+        feat_h = im_size[0] // 8
+        feat_w = im_size[1] // 8
+        self.feat_h = feat_h
+        self.feat_w = feat_w
+        self.linear = LinearStacked_2(
+            net_width * feat_h * feat_w,
+            num_classes,
+            Fuse
+        )
+
         self.net_width= net_width
 
     def forward(self, x_conv1):
         if self.v_fuse:
-            x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
+            # x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
+            # x_conv1 = x_conv1.view( -1, self.Fuse * self.channel, self.im_size[0], self.im_size[1] )
             x_norm1 = self.conv1(x_conv1)          
             x_pool1 = self.norm1(x_norm1)    
             x_conv2 = self.pool1(x_pool1)
@@ -152,9 +167,9 @@ class Conv_Flexfuse_backup(nn.Module):
             x_pool3 = self.norm3(x_norm3)  
             x_lin  = self.pool3(x_pool3)
             x_out = self.linear(x_lin)    # N x 10
-            x_out = x_out.view(-1,10)
+            x_out = x_out.view(-1,self.num_classes)
         else:
-            x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
+            # x_conv1 = x_conv1.view(-1,self.Fuse*3 ,32,32)        # 10, 256, 4,4   -> 20, 2048
             x_norm1 = self.conv1(x_conv1)          
             x_pool1 = F.relu(self.norm1(x_norm1)    )
             x_conv2 = self.pool1(x_pool1)
@@ -165,12 +180,13 @@ class Conv_Flexfuse_backup(nn.Module):
             x_pool3 = F.relu(self.norm3(x_norm3))    
             x_lin  = self.pool3(x_pool3)
             x_out = self.linear(x_lin)    # N x 10
-            x_out = x_out.view(-1,10)
+            x_out = x_out.view(-1,self.num_classes)
         return  x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out
 
 
 
 class Conv_Flexfuse(nn.Module):
+    # 
     def __init__(self, channel=3, num_classes=10, net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), Fuse=2):
         super(Conv_Flexfuse, self).__init__()
         self.Fuse = Fuse
@@ -2999,3 +3015,414 @@ class ViT_FlexFuse(nn.Module):
             "ddheadb": ddheadb,
         }
 
+
+class VGG11_Flexfuse(nn.Module):
+    CFG = (64, 'A', 128, 'A', 256, 256, 'A',
+           512, 512, 'A', 512, 512, 'A')
+
+    def __init__(self, channel=3, num_classes=10, Fuse=1,
+                 im_size=(32, 32), v_fuse=False):
+        super().__init__()
+        self.Fuse = int(Fuse)
+        self.channel = channel
+        self.num_classes = num_classes
+        self.im_size = tuple(im_size)
+        self.v_fuse = v_fuse
+
+        layers = []
+        in_channels = channel
+        for ic, out_channels in enumerate(self.CFG):
+            if out_channels == 'A':
+                layers.append(nn.AvgPool2d(2, 2))
+            else:
+                pad = 3 if channel == 1 and ic == 0 else 1
+                layers.extend([
+                    nn.Conv2d(in_channels * self.Fuse,
+                              out_channels * self.Fuse, 3, padding=pad,
+                              groups=self.Fuse),
+                    nn.GroupNorm(out_channels * self.Fuse,
+                                 out_channels * self.Fuse, affine=True),
+                    nn.ReLU(inplace=False),
+                ])
+                in_channels = out_channels
+        layers.append(nn.AvgPool2d(1, 1))
+        self.features = nn.Sequential(*layers)
+        self.classifier = LinearStacked_2(512, num_classes, self.Fuse)
+
+    def forward(self, x, return_tape=False):
+        # Keep the original one-tensor forward interface for existing tests.
+        if not return_tape:
+            h = self.features(x)
+            return self.classifier(h).view(-1, self.num_classes)
+
+        # Record exactly the activation inputs required by the existing
+        # manual backward primitives; no autograd graph is needed here.
+        blocks, events = [], []
+        h = x
+        i = 0
+        while i < len(self.features):
+            layer = self.features[i]
+            if isinstance(layer, nn.Conv2d):
+                x_conv = h
+                x_norm = layer(x_conv)
+                x_pool = self.features[i + 2](self.features[i + 1](x_norm))
+                blocks.append({
+                    'feature_idx': i,
+                    'x_conv': x_conv,     # input to grouped conv
+                    'x_norm': x_norm,     # output of grouped conv
+                    'x_pool': x_pool,     # output of GroupNorm + ReLU
+                })
+                events.append(('block', len(blocks) - 1))
+                h = x_pool
+                i += 3
+            elif isinstance(layer, nn.AvgPool2d):
+                events.append(('pool', i, h))  # pre-pool input
+                h = layer(h)
+                i += 1
+            else:
+                raise RuntimeError(f'Unexpected VGG feature {i}: {type(layer)}')
+
+        x_lin = h
+        x_out = self.classifier(x_lin).view(-1, self.num_classes)
+        return x_out, {
+            'blocks': blocks,
+            'events': events,
+            'head': {'x_lin': x_lin, 'x_out': x_out},
+        }
+
+    def get_weight_pack(self):
+        blocks = []
+        for b in range(0, len(self.features)):
+            conv = self.features[b]
+            if isinstance(conv, nn.Conv2d):
+                norm = self.features[b + 1]
+                blocks.append({
+                    'convw': conv.weight, 'convb': conv.bias,
+                    'normw': norm.weight, 'normb': norm.bias,
+                })
+        return {'blocks': blocks,
+                'head': {'linw': self.classifier.weight,
+                         'linb': self.classifier.bias}}
+
+    @staticmethod
+    def collect_ordered_grads(d_weights_list, dlin_w, dlin_b):
+        grads = []
+        for dw in d_weights_list:
+            grads.extend((dw['dconvw'], dw['dconvb'],
+                          dw['dnormw'], dw['dnormb']))
+        grads.extend((dlin_w, dlin_b))
+        return grads
+
+    def run_first_bwd(self, tape, target, Fuse=None, weights=None,
+                      fuse_mask_list=None, keep_input_grad=True,
+                      keep_weight_dicts=True):
+        """Manual full-Fuse bwd, progressively releasing inactive activations.
+
+        keep_input_grad=True and keep_weight_dicts=True preserve the old return
+        contract. For a production MTT step, they may be set False if the caller
+        does not use dx_input or the block dictionaries after forming grad_list.
+        first-bwd parameter gradients are *always* computed for the entire Fuse.
+        """
+        fuse = self.Fuse if Fuse is None else int(Fuse)
+        if fuse != self.Fuse:
+            raise ValueError('First backward must use full Fuse')
+        active_range = self._active_fuse_range(fuse_mask_list)
+        if weights is None:
+            weights = self.get_weight_pack()
+
+        head = tape['head']
+        dx_out = crossEntropy_bwd(head['x_out'], target, fuse)
+        g, dlin_w, dlin_b = linerFused_bwd(
+            head['x_lin'], weights['head']['linw'],
+            grad_output=dx_out, Fuse=fuse)
+        g = g.reshape_as(head['x_lin'])
+
+        # The head is no longer needed at full Fuse after linear first-bwd.
+        # This does not change the separately returned full-Fuse logits.
+        d_head_tensors = {'dx_out': dx_out}
+        split_cache = {}
+        if active_range is not None:
+            self._split_head(tape, d_head_tensors, active_range, split_cache)
+        del dx_out
+
+        d_activates_list = [None] * len(tape['blocks'])
+        d_weights_list = [None] * len(tape['blocks'])
+        grad_list = [None] * (4 * len(tape['blocks']) + 2)
+        grad_list[-2:] = (dlin_w, dlin_b)
+        events = tape['events']
+
+        for ev_ix in range(len(events) - 1, -1, -1):
+            event = events[ev_ix]
+            if event[0] == 'pool':
+                _, i, pool_input = event
+                pool = self.features[i]
+                if pool.kernel_size != 1:
+                    g = avgPool_bwd(
+                        pool_input, grad_output=g,
+                        kernel_size=self._pair(pool.kernel_size),
+                        stride=self._pair(pool.stride or pool.kernel_size),
+                        padding=self._pair(pool.padding),
+                        ceil_mode=pool.ceil_mode,
+                        count_include_pad=pool.count_include_pad,
+                    )
+                # The full pool input has fulfilled its last first-bwd use.
+                if active_range is not None:
+                    events[ev_ix] = ('pool', i, self._split_tensor(
+                        pool_input, active_range, split_cache))
+                del pool_input, event
+                continue
+
+            idx = event[1]
+            block = tape['blocks'][idx]
+            w = weights['blocks'][idx]
+            dx_pool = g
+            dx_norm, dnorm_w, dnorm_b = insNormNRelu_bwd(
+                block['x_norm'], w['normw'], block['x_pool'],
+                grad_output=dx_pool, v_fuse=self.v_fuse)
+            g, dconv_w, dconv_b = conv_bwd(
+                block['x_conv'], w['convw'],
+                grad_output=dx_norm, groups=fuse)
+
+            d_activates_list[idx] = {'dx_pool': dx_pool, 'dx_norm': dx_norm}
+            if keep_weight_dicts:
+                d_weights_list[idx] = {
+                    'dconvw': dconv_w, 'dconvb': dconv_b,
+                    'dnormw': dnorm_w, 'dnormb': dnorm_b}
+            grad_list[4*idx:4*idx+4] = (dconv_w, dconv_b, dnorm_w, dnorm_b)
+
+            # This block's full-Fuse activations and intermediate derivatives
+            # are finished with first-bwd. Split immediately instead of waiting
+            # until all 8 blocks have computed full-Fuse gradients.
+            if active_range is not None:
+                for key in ('x_conv', 'x_norm', 'x_pool'):
+                    block[key] = self._split_tensor(block[key], active_range, split_cache)
+                act = d_activates_list[idx]
+                act['dx_pool'] = self._split_tensor(act['dx_pool'], active_range, split_cache)
+                act['dx_norm'] = self._split_tensor(act['dx_norm'], active_range, split_cache)
+            del block, w, dx_pool, dx_norm, dconv_w, dconv_b, dnorm_w, dnorm_b
+
+        # dx_input exists only for diagnostic first-bwd comparisons. It is never
+        # used by run_double_bwd; production distillation can omit it.
+        if keep_input_grad:
+            d_head_tensors['dx_input'] = g
+        return d_head_tensors, d_activates_list, d_weights_list, grad_list
+
+    @staticmethod
+    def _pair(x):
+        return [x, x] if isinstance(x, int) else list(x)
+
+    def _active_fuse_range(self, mask):
+        if mask is None:
+            return None
+        if len(mask) != self.Fuse or any(m not in (0, 1) for m in mask):
+            raise ValueError('Expected a length-Fuse 0/1 mask')
+        active = [i for i, m in enumerate(mask) if m]
+        if not active or active != list(range(active[0], active[-1] + 1)):
+            raise ValueError('Active branches must be a nonempty contiguous range')
+        if len(active) == self.Fuse:
+            return None
+        return active[0], active[-1] + 1, self.Fuse
+
+    @staticmethod
+    def _split_tensor(t, active_range, cache=None, *, batch=False):
+        if t is None:
+            return None
+        if active_range is None:
+            return t
+        start, stop, full = active_range
+        key = (id(t), 'batch' if batch else 'channel')
+        if cache is not None and key in cache:
+            src_weak, cached = cache[key]
+            if src_weak() is t:
+                return cached
+        dim = 0 if batch else 1
+        unit = t.shape[dim] // full
+        view = t.narrow(dim, start * unit, (stop - start) * unit)
+        # MUST clone: for B=1, a sliced-channel view is often already contiguous;
+        # .contiguous() alone would keep the full-Fuse underlying storage alive.
+        result = view.clone(memory_format=torch.contiguous_format)
+        if cache is not None:
+            import weakref
+            cache[key] = (weakref.ref(t), result)
+        return result
+
+    def _split_head(self, tape, d_head_tensors, active_range, cache):
+        head = tape['head']
+        head['x_lin'] = self._split_tensor(head['x_lin'], active_range, cache)
+        head['x_out'] = self._split_tensor(head['x_out'], active_range, cache, batch=True)
+        d_head_tensors['dx_out'] = self._split_tensor(
+            d_head_tensors['dx_out'], active_range, cache, batch=True)
+
+    def _split_saved_for_double_bwd(self, tape, d_activates_list,
+                                     d_head_tensors, mask):
+        """Retained for callers that split *after* run_first_bwd instead."""
+        active_range = self._active_fuse_range(mask)
+        if active_range is None:
+            return
+        cache = {}
+        self._split_head(tape, d_head_tensors, active_range, cache)
+        for b in tape['blocks']:
+            for key in ('x_conv', 'x_norm', 'x_pool'):
+                b[key] = self._split_tensor(b[key], active_range, cache)
+        for a in d_activates_list:
+            for key in ('dx_pool', 'dx_norm'):
+                a[key] = self._split_tensor(a[key], active_range, cache)
+        tape['events'] = [
+            ('pool', ev[1], self._split_tensor(ev[2], active_range, cache))
+            if ev[0] == 'pool' else ev for ev in tape['events']]
+
+    def get_active_weight_pack(self, mask):
+        """Active-only views of the currently bound (possibly Reparam) weights.
+
+        Call this while the module is bound to the original full-Fuse flat
+        parameters, e.g. inside call_with_param. No active flat cat/recover.
+        The returned views share the storage of full parameters intentionally.
+        """
+        active_range = self._active_fuse_range(mask)
+        full_pack = self.get_weight_pack()
+        if active_range is None:
+            return full_pack
+        start, stop, full = active_range
+        def rows(t):
+            if t is None:
+                return None
+            unit = t.shape[0] // full
+            return t.narrow(0, start * unit, (stop - start) * unit)
+        return {
+            'blocks': [{k: rows(v) for k, v in block.items()}
+                       for block in full_pack['blocks']],
+            'head': {k: rows(v) for k, v in full_pack['head'].items()},
+        }
+
+    def pack_recovered_weights(self, tensors_all):
+        """Pack recover_params(flat, base_shapes, bwd_Fuse) in parameter order."""
+        if len(tensors_all) != 34:
+            raise ValueError(f'Expected 34 VGG11 parameter tensors, got {len(tensors_all)}')
+        blocks = [
+            dict(convw=tensors_all[4*i], convb=tensors_all[4*i+1],
+                 normw=tensors_all[4*i+2], normb=tensors_all[4*i+3])
+            for i in range(8)
+        ]
+        return {'blocks': blocks,
+                'head': {'linw': tensors_all[32], 'linb': tensors_all[33]}}
+
+    def pack_recovered_dd(self, dd_tensors_all, x=None, tape=None):
+        """Pack the OUTER-loss seed dL/d(dW) into per-layer tensors."""
+        if len(dd_tensors_all) != 34:
+            raise ValueError(f'Expected 34 dd tensors, got {len(dd_tensors_all)}')
+        if x is None:
+            x = tape['blocks'][0]['x_conv']
+        dd_blocks = [
+            dict(ddconvw=dd_tensors_all[4*i], ddconvb=dd_tensors_all[4*i+1],
+                 ddnormw=dd_tensors_all[4*i+2], ddnormb=dd_tensors_all[4*i+3])
+            for i in range(8)
+        ]
+        dd_head = {'ddx_input': torch.zeros_like(x),
+                   'ddlinw': dd_tensors_all[32], 'ddlinb': dd_tensors_all[33]}
+        return dd_head, dd_blocks
+
+    def run_double_bwd(self, tape, d_activates_list, dd_weights_list,
+                       d_head_tensors, dd_head_tensors, Fuse=None, weights=None,
+                       release_intermediates=True):
+        """Manual active-Fuse double-bwd + bwd2_1.
+
+        release_intermediates=True consumes tape, d_activates_list and
+        dd_weights_list; do not reuse them afterward. This is appropriate for
+        a single distillation step and reduces peak live activation storage.
+        """
+        fuse = self.Fuse if Fuse is None else int(Fuse)
+        if weights is None:
+            if fuse != self.Fuse:
+                raise ValueError('For split bwd supply active-only weights')
+            weights = self.get_weight_pack()
+
+        blocks, events, head = tape['blocks'], tape['events'], tape['head']
+        dd_cur = dd_head_tensors['ddx_input']
+        d2_cache = [None] * len(blocks)
+
+        # Phase 1: propagate dL/d(dX) forward and save the two additional
+        # input-gradient paths which will be merged in phase 3.
+        for event in events:
+            if event[0] == 'pool':
+                pool = self.features[event[1]]
+                # In THIS VGG all pools are nonoverlapping AvgPool(2,2) or
+                # identity AvgPool(1,1). The adjoint of avgPool backward is
+                # just avgPool forward. Avoid avgPool_double_bwd's dummy
+                # allocations + grouped convolution + crop/scatter.
+                if pool.kernel_size != 1:
+                    dd_cur = pool(dd_cur)
+                continue
+
+            idx = event[1]
+            b, w = blocks[idx], weights['blocks'][idx]
+            da, dd = d_activates_list[idx], dd_weights_list[idx]
+            ddx_norm, dxconv_d2, _ = conv_double_bwd(
+                dd_cur, dd['ddconvw'], dd['ddconvb'],
+                da['dx_norm'], w['convw'], b['x_conv'], groups_=fuse)
+            dd_cur, dx_norm_d2, _ = insNormNRelu_double_bwd(
+                ddx_norm, dd['ddnormw'], dd['ddnormb'],
+                da['dx_pool'], b['x_pool'], w['normw'], b['x_norm'],
+                v_fuse=self.v_fuse)
+            d2_cache[idx] = (dxconv_d2, dx_norm_d2)
+            if release_intermediates:
+                d_activates_list[idx] = None
+                dd_weights_list[idx] = None
+            del b, w, da, dd, ddx_norm, dxconv_d2, dx_norm_d2
+
+        # Phase 2: classifier + CE; merge the two paths to its input.
+        x_lin, x_out = head['x_lin'], head['x_out']
+        dx_out = d_head_tensors['dx_out']
+        ddx_out, dx_lin_d2, _ = linearFused_double_bwd(
+            x_lin, weights['head']['linw'], dx_out, dd_cur,
+            dd_head_tensors['ddlinw'], dd_head_tensors['ddlinb'], fuse)
+        dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, fuse)
+        dx_lin_d1, _, _ = linerFused_bwd(
+            x_lin, weights['head']['linw'],
+            grad_output=dx_out_d1, Fuse=fuse)
+        g = dx_lin_d1.reshape_as(x_lin) + dx_lin_d2.reshape_as(x_lin)
+        del dd_cur, ddx_out, dx_lin_d2, dx_out_d1, dx_lin_d1, x_lin, x_out, dx_out
+        if release_intermediates:
+            head.clear()
+            d_head_tensors.clear()
+            dd_head_tensors.clear()
+
+        # Phase 3: bwd2_1 traverses pooling and blocks in reverse order.
+        for ev_ix in range(len(events) - 1, -1, -1):
+            event = events[ev_ix]
+            if event[0] == 'pool':
+                _, feature_idx, pool_input = event
+                pool = self.features[feature_idx]
+                if pool.kernel_size != 1:
+                    g = avgPool_bwd(
+                        pool_input, grad_output=g,
+                        kernel_size=self._pair(pool.kernel_size),
+                        stride=self._pair(pool.stride or pool.kernel_size),
+                        padding=self._pair(pool.padding),
+                        ceil_mode=pool.ceil_mode,
+                        count_include_pad=pool.count_include_pad)
+                if release_intermediates:
+                    events[ev_ix] = None
+                del pool_input, event
+                continue
+
+            idx = event[1]
+            b, w = blocks[idx], weights['blocks'][idx]
+            dxconv_d2, dx_norm_d2 = d2_cache[idx]
+            dx_norm_d1, _, _ = insNormNRelu_bwd(
+                b['x_norm'], w['normw'], b['x_pool'],
+                grad_output=g, v_fuse=self.v_fuse)
+            dx_norm_total = dx_norm_d1 + dx_norm_d2
+            # Unlike conv_bwd(...), conv2d_input ONLY computes dX, NOT dW/dB.
+            # This is the only convolution result needed in bwd2_1.
+            conv = self.features[b['feature_idx']]
+            g = torch.nn.grad.conv2d_input(
+                b['x_conv'].shape, w['convw'], dx_norm_total,
+                stride=conv.stride, padding=conv.padding,
+                dilation=conv.dilation, groups=fuse)
+            g = g + dxconv_d2
+            if release_intermediates:
+                blocks[idx] = None
+                events[ev_ix] = None
+                d2_cache[idx] = None
+            del b, w, dxconv_d2, dx_norm_d2, dx_norm_d1, dx_norm_total, conv
+        return g

@@ -167,8 +167,14 @@ def main(args):
     # exit()
 
 
-    if(args.AccTest):
-        image_syn = torch.load("./script/in_ip10.pt")
+    if(args.AccTest ):
+        if( args.dataset == "Tiny"):
+            image_syn = torch.load("./script/in_Tiny.pt")
+        else:
+        # elif( args.dataset == "CIFAR10" or args.dataset == "CIFAR100"):
+            args.ipc = 10
+            image_syn = torch.load("./script/in_ip10.pt")
+
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)

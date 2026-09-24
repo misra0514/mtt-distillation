@@ -109,6 +109,8 @@ def split_half_snd_dim_countious(param_list, fuse_mask_list):
     output = []
     Fuse = len(fuse_mask_list)
     active_fuse = fuse_mask_list.count(1)
+    start = fuse_mask_list.index(1)
+    end = start + active_fuse   # 不包括 end（Python 切片习惯）
 
     for p in param_list:
         if p.ndim > 2:
@@ -119,20 +121,19 @@ def split_half_snd_dim_countious(param_list, fuse_mask_list):
                 block * active_fuse,
                 *p.shape[2:]
             )
+            n = math.prod(target_shape)
+            # 随便取一段连续内存，内容不保证有任何意义
+            out = p.view(-1)[:n].clone().view(target_shape)
 
         else:
-            block = p.shape[0] // Fuse
-
-            target_shape = (
-                block * active_fuse,
-                *p.shape[1:]
-            )
-        n = math.prod(target_shape)
-
-        # 随便取一段连续内存，内容不保证有任何意义
-        out = p.view(-1)[:n].clone().view(target_shape)
-
-        output.append(out)
+            # 似乎只有x_out 系列是2维,在第一维切
+            c = p.shape[0]
+            block = c // Fuse               # 每一份的长度
+            # 计算切片范围
+            s = start * block
+            e = end * block
+            # 切分并保证连续（减少显存峰值）
+            output.append(p[ s:e, ...].contiguous())
 
     return output
 

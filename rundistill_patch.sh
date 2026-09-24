@@ -58,7 +58,7 @@ NO_BARRIER_REPEATS="${NO_BARRIER_REPEATS:-2}"
 RUN_ORIGINAL="${RUN_ORIGINAL:-1}"
 
 ORIGINAL_FILE="${ORIGINAL_FILE:-distill_original_timeTest.py}"
-FLEX_FILE="${FLEX_FILE:-distill_flexFuse_timeTest_conv_v2.py}"
+FLEX_FILE="${FLEX_FILE:-distill_flexFuse_timeTest_conv.py}"
 
 # Pipe-separated masks because each mask itself contains spaces.
 # Control masks 1 and 1 1 are useful for checking whether the slowdown is

@@ -229,13 +229,19 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    # torch.save(image_syn, "./script/in.pt")
+    # torch.save(image_syn, "./script/in_ip10.pt")
     # exit()
 
 
-    if(args.AccTest):
-        args.ipc = 10
-        image_syn = torch.load("./script/in_ip10.pt")
+    if(args.AccTest ):
+        if( args.dataset == "Tiny"):
+            image_syn = torch.load("./script/in_Tiny.pt")
+        else:
+        # elif( args.dataset == "CIFAR10" or args.dataset == "CIFAR100"):
+            args.ipc = 10
+            image_syn = torch.load("./script/in_ip10.pt")
+
+
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)
@@ -649,7 +655,13 @@ def main(args):
                 # dx_out= torch.autograd.grad(ce_loss, x_out)[0] # 改成分段计算了。麻烦的点在于weight。需要全部手动改。而且会收到reparam影响
                 dx_out = crossEntropy_bwd(x_out, this_y, Fuse)
                 dx_lin, dlin_w, dlin_b = linerFused_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse)
-                dx_lin = dx_lin.reshape(-1, student_net.module.net_width * Fuse, 4,4)  # 4*4 可能需要灵活改
+                feat_h, feat_w = x_lin.shape[-2:]
+                dx_lin = dx_lin.reshape(
+                    -1,
+                    student_net.module.net_width * Fuse,
+                    feat_h,
+                    feat_w
+                )
                 x_lin,x_out,dx_out = split_half_snd_dim([x_lin,x_out,dx_out],fuse_mask_list)
                 dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse, v_fuse=args.v_fuse)
                 del dx_lin
@@ -785,7 +797,14 @@ def main(args):
             del ddx_out,x_out
 
             dx_lin_d1, _, _ = linerFused_bwd(x_lin, lin_w, grad_output=dx_out_d1, Fuse=bwd_Fuse)
-            dx_lin_d1 = dx_lin_d1.reshape(-1, student_net.module.net_width * bwd_Fuse, 4,4)  # 这里128是net_width， 但是distill里面好像没有这个变量。。
+            # dx_lin_d1 = dx_lin_d1.reshape(-1, student_net.module.net_width * bwd_Fuse, 4,4)  # 这里128是net_width， 但是distill里面好像没有这个变量。。
+            dx_lin_d1 = dx_lin_d1.reshape(
+                -1,
+                student_net.module.net_width * bwd_Fuse,
+                feat_h,
+                feat_w
+            )
+            
             dx_lin_d1 += dx_lin_d2 
             del x_lin,dx_out_d1,dx_lin_d2
             dx_conv3_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv3, x_norm3, x_pool3,conv3_w, norm3_w, dx_lin_d1,dx_norm3_d2,dxconv3_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse )
@@ -831,10 +850,11 @@ def main(args):
     iter_end = time.time()
     print("------------FIN TIME-------------")
     print("time sumation: ", iter_end - pre_end)
-    print("prepare time (", args.syn_steps ,"): ", prep_time)
-    print("syn_time     (", args.syn_steps ,"): ", syn_time)
-    print("backward_time(", args.syn_steps ,"): ", bwd_time)
-    print("param_dist_time(", args.syn_steps ,"): ", param_dist_time)
+    if( not args.use_barrier):
+        print("prepare time (", args.syn_steps ,"): ", prep_time)
+        print("syn_time     (", args.syn_steps ,"): ", syn_time)
+        print("backward_time(", args.syn_steps ,"): ", bwd_time)
+        # print("param_dist_time(", args.syn_steps ,"): ", param_dist_time)
 
     print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
     print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
