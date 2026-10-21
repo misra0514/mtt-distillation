@@ -420,12 +420,12 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    # torch.save(image_syn, "./script/in.pt")
+    # torch.save(image_syn, "./test_script/script/in.pt")
     # exit()
 
 
     if(args.AccTest):
-        image_syn = torch.load("./script/in_ip10.pt")
+        image_syn = torch.load("./test_script/script/in_ip10.pt")
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)

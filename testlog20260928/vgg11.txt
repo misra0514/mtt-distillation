@@ -1,0 +1,1826 @@
+============================================================
+TIME TEST SWEEP START
+START_TIME: 2026-09-28 20:40:41
+MODEL BLOCK: VGG11
+MODEL ARG:   VGG11
+FLEX FILE:   distill_flexFuse_timeTest_vgg.py
+ORIGINAL FILE: distill_original_timeTest.py
+ORIGINAL FWDTEST FILE: distill_original_fwdtimetest.py
+IPC_LIST:    1 10 50 100
+ORIGINAL_SYN_STEPS: 1 20
+NORMAL_FLEX_SYN_STEPS: 1
+DEFAULT_ITERATION: 350
+USE_BARRIER_REPEATS: 2
+NO_BARRIER_REPEATS:  2
+FWDTEST_REPEATS: 1
+LOG_FILE:    testlog20260928/vgg11.txt
+NOTE: no ckpt flex tests; --AccTest=True is removed; normal cases run twice with --use-barrier and twice without it; all flex cases use --v_fuse.
+FWDTEST: distill_original_fwdtimetest.py runs once only and never receives --use-barrier.
+EXTRA: same settings as ResNet18: flex syn_steps=1, --v_fuse, masks 1 / 1 1 / 1 0 / 1 1 0 0; original syn_steps=1/20; --Iteration=50 when --ipc>=10.
+============================================================
+
+==============================
+2026-09-28 20:40:41 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1108.1413254737854
+prepare time ( 1 ):  1093.063884973526
+syn_time     ( 1 ):  1.7929956912994385
+backward_time( 1 ):  3.1443233489990234
+峰值cache使用: 456.0 MB
+峰值tensor使用: 403.33203125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 20:59:28 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1100.6414322853088
+prepare time ( 1 ):  1085.8822917938232
+syn_time     ( 1 ):  1.7702646255493164
+backward_time( 1 ):  3.1141128540039062
+峰值cache使用: 456.0 MB
+峰值tensor使用: 403.33203125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 21:18:06 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1104.4456062316895
+prepare time ( 1 ):  1089.8543601036072
+syn_time     ( 1 ):  1.6164898872375488
+backward_time( 1 ):  3.1476128101348877
+峰值cache使用: 456.0 MB
+峰值tensor使用: 403.33203125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 21:36:48 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1101.5470526218414
+prepare time ( 1 ):  1086.8230938911438
+syn_time     ( 1 ):  1.7229642868041992
+backward_time( 1 ):  3.185992479324341
+峰值cache使用: 456.0 MB
+峰值tensor使用: 403.33203125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 21:55:27 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1094.0688345432281
+prepare time ( 1 ):  1083.221148967743
+syn_time     ( 1 ):  1.2533221244812012
+backward_time( 1 ):  0.0005888938903808594
+峰值cache使用: 340.0 MB
+峰值tensor使用: 269.20458984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 22:13:58 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1145.4314863681793
+prepare time ( 1 ):  1127.4633197784424
+syn_time     ( 1 ):  1.526289939880371
+backward_time( 1 ):  2.147747755050659
+峰值cache使用: 400.0 MB
+峰值tensor使用: 358.56298828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 22:33:21 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1151.2721474170685
+prepare time ( 1 ):  1133.2274844646454
+syn_time     ( 1 ):  1.5284922122955322
+backward_time( 1 ):  2.1421573162078857
+峰值cache使用: 400.0 MB
+峰值tensor使用: 358.56298828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 22:52:50 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1144.8013579845428
+prepare time ( 1 ):  1126.8964910507202
+syn_time     ( 1 ):  1.3246490955352783
+backward_time( 1 ):  2.2641677856445312
+峰值cache使用: 400.0 MB
+峰值tensor使用: 358.56298828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 23:12:12 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1140.7462418079376
+prepare time ( 1 ):  1122.834820508957
+syn_time     ( 1 ):  1.347947597503662
+backward_time( 1 ):  2.2636165618896484
+峰值cache使用: 400.0 MB
+峰值tensor使用: 358.56298828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 23:31:30 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1150.2153296470642
+prepare time ( 1 ):  1129.561334848404
+syn_time     ( 1 ):  2.082744836807251
+backward_time( 1 ):  4.019286632537842
+峰值cache使用: 800.0 MB
+峰值tensor使用: 695.150390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-28 23:50:58 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1145.7247521877289
+prepare time ( 1 ):  1125.1980085372925
+syn_time     ( 1 ):  2.1007533073425293
+backward_time( 1 ):  4.018048286437988
+峰值cache使用: 800.0 MB
+峰值tensor使用: 695.150390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 00:10:22 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1153.7868957519531
+prepare time ( 1 ):  1133.2847819328308
+syn_time     ( 1 ):  1.4839673042297363
+backward_time( 1 ):  4.634242534637451
+峰值cache使用: 800.0 MB
+峰值tensor使用: 695.150390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 00:29:53 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1146.633197069168
+prepare time ( 1 ):  1126.1141350269318
+syn_time     ( 1 ):  1.502105474472046
+backward_time( 1 ):  4.6226725578308105
+峰值cache使用: 800.0 MB
+峰值tensor使用: 695.150390625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 00:49:18 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1148.4357841014862
+prepare time ( 1 ):  1129.6139390468597
+syn_time     ( 1 ):  2.232389450073242
+backward_time( 1 ):  2.1932027339935303
+峰值cache使用: 854.0 MB
+峰值tensor使用: 672.8857421875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 01:08:44 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1154.765643119812
+prepare time ( 1 ):  1136.0011854171753
+syn_time     ( 1 ):  2.216925621032715
+backward_time( 1 ):  2.1810781955718994
+峰值cache使用: 854.0 MB
+峰值tensor使用: 672.8857421875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 01:28:17 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1148.4312109947205
+prepare time ( 1 ):  1129.7047264575958
+syn_time     ( 1 ):  1.651258945465088
+backward_time( 1 ):  2.744199275970459
+峰值cache使用: 854.0 MB
+峰值tensor使用: 672.8857421875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 01:47:43 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1147.22820687294
+prepare time ( 1 ):  1128.3936245441437
+syn_time     ( 1 ):  1.704378604888916
+backward_time( 1 ):  2.7279341220855713
+峰值cache使用: 854.0 MB
+峰值tensor使用: 672.8857421875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 02:07:08 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1173.52308011055
+prepare time ( 1 ):  1151.2108283042908
+syn_time     ( 1 ):  3.6496994495391846
+backward_time( 1 ):  4.01776647567749
+峰值cache使用: 1694.0 MB
+峰值tensor使用: 1329.14599609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 02:27:27 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1173.335693359375
+prepare time ( 1 ):  1151.1039860248566
+syn_time     ( 1 ):  3.6471610069274902
+backward_time( 1 ):  4.018212080001831
+峰值cache使用: 1694.0 MB
+峰值tensor使用: 1329.14599609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 02:47:18 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1173.4093158245087
+prepare time ( 1 ):  1151.0135293006897
+syn_time     ( 1 ):  1.909590482711792
+backward_time( 1 ):  5.847901821136475
+峰值cache使用: 1694.0 MB
+峰值tensor使用: 1329.14599609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 03:07:09 | MODEL=VGG11 | IPC=1 | SYN_STEPS=1 | ITERATION=350 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  1179.6538424491882
+prepare time ( 1 ):  1157.2994129657745
+syn_time     ( 1 ):  1.893829345703125
+backward_time( 1 ):  5.860995054244995
+峰值cache使用: 1694.0 MB
+峰值tensor使用: 1329.14599609375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 03:27:07 | MODEL=VGG11 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1179.6546454429626
+prepare time ( 20 ):  1088.4215409755707
+syn_time     ( 20 ):  28.07800030708313
+backward_time( 20 ):  52.707115650177
+峰值cache使用: 2352.0 MB
+峰值tensor使用: 2269.2890625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 03:47:05 | MODEL=VGG11 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1174.4567894935608
+prepare time ( 20 ):  1083.4304325580597
+syn_time     ( 20 ):  27.928271532058716
+backward_time( 20 ):  52.613335609436035
+峰值cache使用: 2352.0 MB
+峰值tensor使用: 2269.2890625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 04:06:57 | MODEL=VGG11 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1176.9492042064667
+prepare time ( 20 ):  1086.4690551757812
+syn_time     ( 20 ):  27.39108896255493
+backward_time( 20 ):  52.638341665267944
+峰值cache使用: 2352.0 MB
+峰值tensor使用: 2269.2890625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 04:26:52 | MODEL=VGG11 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1177.1421601772308
+prepare time ( 20 ):  1085.91623878479
+syn_time     ( 20 ):  27.923194885253906
+backward_time( 20 ):  52.899163484573364
+峰值cache使用: 2352.0 MB
+峰值tensor使用: 2269.2890625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 04:46:47 | MODEL=VGG11 | IPC=1 | SYN_STEPS=20 | ITERATION=350 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=1 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=350 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+1110.618774652481
+prepare time ( 20 ):  1078.5703508853912
+syn_time     ( 20 ):  22.29857587814331
+backward_time( 20 ):  0.000339508056640625
+峰值cache使用: 1708.0 MB
+峰值tensor使用: 1636.7041015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:05:35 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+170.0895495414734
+prepare time ( 1 ):  158.62790441513062
+syn_time     ( 1 ):  0.47890186309814453
+backward_time( 1 ):  1.178774356842041
+峰值cache使用: 964.0 MB
+峰值tensor使用: 652.03271484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:08:43 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+170.0212562084198
+prepare time ( 1 ):  158.5401840209961
+syn_time     ( 1 ):  0.4824042320251465
+backward_time( 1 ):  1.1815645694732666
+峰值cache使用: 964.0 MB
+峰值tensor使用: 652.03271484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:11:51 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+170.391179561615
+prepare time ( 1 ):  158.90524744987488
+syn_time     ( 1 ):  0.23882675170898438
+backward_time( 1 ):  1.4189143180847168
+峰值cache使用: 964.0 MB
+峰值tensor使用: 652.03271484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:14:59 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+170.9405641555786
+prepare time ( 1 ):  159.44622659683228
+syn_time     ( 1 ):  0.25268101692199707
+backward_time( 1 ):  1.412580966949463
+峰值cache使用: 964.0 MB
+峰值tensor使用: 652.03271484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:18:07 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+168.79528141021729
+prepare time ( 1 ):  159.0132224559784
+syn_time     ( 1 ):  0.19698095321655273
+backward_time( 1 ):  0.0001010894775390625
+峰值cache使用: 552.0 MB
+峰值tensor使用: 376.21826171875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:21:14 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  180.21899962425232
+prepare time ( 1 ):  164.38382983207703
+syn_time     ( 1 ):  0.5063490867614746
+backward_time( 1 ):  0.9091200828552246
+峰值cache使用: 864.0 MB
+峰值tensor使用: 649.701171875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:24:31 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  179.34866428375244
+prepare time ( 1 ):  163.6150505542755
+syn_time     ( 1 ):  0.5033266544342041
+backward_time( 1 ):  0.908452033996582
+峰值cache使用: 864.0 MB
+峰值tensor使用: 649.701171875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:27:48 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  180.63380646705627
+prepare time ( 1 ):  164.87726354599
+syn_time     ( 1 ):  0.20813345909118652
+backward_time( 1 ):  1.204970121383667
+峰值cache使用: 864.0 MB
+峰值tensor使用: 649.701171875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:31:06 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  179.55097556114197
+prepare time ( 1 ):  163.7900710105896
+syn_time     ( 1 ):  0.19916033744812012
+backward_time( 1 ):  1.207914113998413
+峰值cache使用: 864.0 MB
+峰值tensor使用: 649.701171875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:34:23 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  183.87210178375244
+prepare time ( 1 ):  165.70298981666565
+syn_time     ( 1 ):  1.2367582321166992
+backward_time( 1 ):  2.358358144760132
+峰值cache使用: 1732.0 MB
+峰值tensor使用: 1265.8056640625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:37:45 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  184.514151096344
+prepare time ( 1 ):  166.36752486228943
+syn_time     ( 1 ):  1.2354607582092285
+backward_time( 1 ):  2.3621227741241455
+峰值cache使用: 1732.0 MB
+峰值tensor使用: 1265.8056640625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:41:07 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  183.92198991775513
+prepare time ( 1 ):  165.8098475933075
+syn_time     ( 1 ):  0.22516965866088867
+backward_time( 1 ):  3.375101327896118
+峰值cache使用: 1732.0 MB
+峰值tensor使用: 1265.8056640625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:44:28 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  184.5438940525055
+prepare time ( 1 ):  166.30301904678345
+syn_time     ( 1 ):  0.2263782024383545
+backward_time( 1 ):  3.372291088104248
+峰值cache使用: 1732.0 MB
+峰值tensor使用: 1265.8056640625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:47:50 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  182.52275919914246
+prepare time ( 1 ):  165.82448554039001
+syn_time     ( 1 ):  1.2870543003082275
+backward_time( 1 ):  0.9197511672973633
+峰值cache使用: 1430.0 MB
+峰值tensor使用: 943.5302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:51:10 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  168.20221757888794
+prepare time ( 1 ):  151.742995262146
+syn_time     ( 1 ):  1.2881786823272705
+backward_time( 1 ):  0.9189131259918213
+峰值cache使用: 1430.0 MB
+峰值tensor使用: 943.5302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:54:16 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  182.98592948913574
+prepare time ( 1 ):  166.295348405838
+syn_time     ( 1 ):  0.250260591506958
+backward_time( 1 ):  1.9527432918548584
+峰值cache使用: 1430.0 MB
+峰值tensor使用: 943.5302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 05:57:36 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  184.36361575126648
+prepare time ( 1 ):  167.56769609451294
+syn_time     ( 1 ):  0.26435232162475586
+backward_time( 1 ):  1.9445860385894775
+峰值cache使用: 1430.0 MB
+峰值tensor使用: 943.5302734375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:00:58 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  186.18833589553833
+prepare time ( 1 ):  167.21723437309265
+syn_time     ( 1 ):  1.8975515365600586
+backward_time( 1 ):  2.3858633041381836
+峰值cache使用: 2772.0 MB
+峰值tensor使用: 1834.2333984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:04:22 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  186.3140823841095
+prepare time ( 1 ):  167.34024119377136
+syn_time     ( 1 ):  1.899172306060791
+backward_time( 1 ):  2.3841190338134766
+峰值cache使用: 2772.0 MB
+峰值tensor使用: 1834.2333984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:07:46 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  185.821453332901
+prepare time ( 1 ):  166.8712568283081
+syn_time     ( 1 ):  0.2920856475830078
+backward_time( 1 ):  3.9969372749328613
+峰值cache使用: 2772.0 MB
+峰值tensor使用: 1834.2333984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:11:10 | MODEL=VGG11 | IPC=10 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  186.26352763175964
+prepare time ( 1 ):  167.32568836212158
+syn_time     ( 1 ):  0.3033449649810791
+backward_time( 1 ):  3.9924981594085693
+峰值cache使用: 2772.0 MB
+峰值tensor使用: 1834.2333984375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:14:33 | MODEL=VGG11 | IPC=10 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+198.67286205291748
+prepare time ( 20 ):  155.47945737838745
+syn_time     ( 20 ):  9.378934860229492
+backward_time( 20 ):  22.289945363998413
+峰值cache使用: 7464.0 MB
+峰值tensor使用: 7011.00439453125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:18:09 | MODEL=VGG11 | IPC=10 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+200.1033170223236
+prepare time ( 20 ):  157.01020336151123
+syn_time     ( 20 ):  9.43836784362793
+backward_time( 20 ):  22.06954574584961
+峰值cache使用: 7464.0 MB
+峰值tensor使用: 7011.00439453125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:21:47 | MODEL=VGG11 | IPC=10 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+200.11057710647583
+prepare time ( 20 ):  156.93195629119873
+syn_time     ( 20 ):  9.091845273971558
+backward_time( 20 ):  22.50167179107666
+峰值cache使用: 7464.0 MB
+峰值tensor使用: 7011.00439453125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:25:24 | MODEL=VGG11 | IPC=10 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+199.51059460639954
+prepare time ( 20 ):  156.5193612575531
+syn_time     ( 20 ):  9.139878273010254
+backward_time( 20 ):  22.3389310836792
+峰值cache使用: 7464.0 MB
+峰值tensor使用: 7011.00439453125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:29:02 | MODEL=VGG11 | IPC=10 | SYN_STEPS=20 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=10 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+176.54893493652344
+prepare time ( 20 ):  158.43037295341492
+syn_time     ( 20 ):  8.08812403678894
+backward_time( 20 ):  8.845329284667969e-05
+峰值cache使用: 1920.0 MB
+峰值tensor使用: 1700.45751953125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:32:16 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+166.83911180496216
+prepare time ( 1 ):  150.62960505485535
+syn_time     ( 1 ):  1.7348415851593018
+backward_time( 1 ):  4.37475848197937
+峰值cache使用: 2934.0 MB
+峰值tensor使用: 2017.361328125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:35:20 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+164.832946062088
+prepare time ( 1 ):  148.91348886489868
+syn_time     ( 1 ):  1.7346882820129395
+backward_time( 1 ):  4.368773698806763
+峰值cache使用: 2934.0 MB
+峰值tensor使用: 2017.361328125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:38:22 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+165.3062024116516
+prepare time ( 1 ):  149.39660143852234
+syn_time     ( 1 ):  0.2529904842376709
+backward_time( 1 ):  5.858580827713013
+峰值cache使用: 2934.0 MB
+峰值tensor使用: 2017.361328125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:41:25 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+174.9167938232422
+prepare time ( 1 ):  158.70580530166626
+syn_time     ( 1 ):  0.2474055290222168
+backward_time( 1 ):  5.8547587394714355
+峰值cache使用: 2934.0 MB
+峰值tensor使用: 2017.361328125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:44:37 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+167.49697160720825
+prepare time ( 1 ):  157.7081549167633
+syn_time     ( 1 ):  0.18118786811828613
+backward_time( 1 ):  9.965896606445312e-05
+峰值cache使用: 1456.0 MB
+峰值tensor使用: 908.49365234375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:47:43 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  171.16253972053528
+prepare time ( 1 ):  151.14269924163818
+syn_time     ( 1 ):  1.9302167892456055
+backward_time( 1 ):  3.8222715854644775
+峰值cache使用: 2782.0 MB
+峰值tensor使用: 2171.22509765625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:50:51 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  169.92348980903625
+prepare time ( 1 ):  149.95610690116882
+syn_time     ( 1 ):  1.928096055984497
+backward_time( 1 ):  3.821467161178589
+峰值cache使用: 2782.0 MB
+峰值tensor使用: 2171.22509765625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:53:59 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  184.99160623550415
+prepare time ( 1 ):  164.71405029296875
+syn_time     ( 1 ):  0.2070016860961914
+backward_time( 1 ):  5.543348550796509
+峰值cache使用: 2782.0 MB
+峰值tensor使用: 2171.22509765625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 06:57:21 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  184.60672974586487
+prepare time ( 1 ):  164.26721906661987
+syn_time     ( 1 ):  0.20118951797485352
+backward_time( 1 ):  5.549756765365601
+峰值cache使用: 2782.0 MB
+峰值tensor使用: 2171.22509765625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:00:43 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  197.95181393623352
+prepare time ( 1 ):  166.30779337882996
+syn_time     ( 1 ):  5.410080909729004
+backward_time( 1 ):  10.953461647033691
+峰值cache使用: 6046.0 MB
+峰值tensor使用: 4305.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:04:19 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  197.94535064697266
+prepare time ( 1 ):  166.22573709487915
+syn_time     ( 1 ):  5.4210450649261475
+backward_time( 1 ):  11.010211706161499
+峰值cache使用: 6046.0 MB
+峰值tensor使用: 4305.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:07:54 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  198.45873427391052
+prepare time ( 1 ):  166.8171901702881
+syn_time     ( 1 ):  0.2279071807861328
+backward_time( 1 ):  16.178858757019043
+峰值cache使用: 6046.0 MB
+峰值tensor使用: 4305.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:11:30 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  197.20473837852478
+prepare time ( 1 ):  165.61273312568665
+syn_time     ( 1 ):  0.22378921508789062
+backward_time( 1 ):  16.208226442337036
+峰值cache使用: 6046.0 MB
+峰值tensor使用: 4305.7294921875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:15:05 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  189.98120045661926
+prepare time ( 1 ):  165.73548483848572
+syn_time     ( 1 ):  5.617245197296143
+backward_time( 1 ):  3.828372001647949
+峰值cache使用: 3898.0 MB
+峰值tensor使用: 3102.37060546875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:18:32 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  190.2510416507721
+prepare time ( 1 ):  165.9294650554657
+syn_time     ( 1 ):  5.615852355957031
+backward_time( 1 ):  3.8281946182250977
+峰值cache使用: 3898.0 MB
+峰值tensor使用: 3102.37060546875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:22:00 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  191.7373149394989
+prepare time ( 1 ):  167.36103177070618
+syn_time     ( 1 ):  0.270672082901001
+backward_time( 1 ):  9.190231800079346
+峰值cache使用: 3898.0 MB
+峰值tensor使用: 3102.37060546875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:25:29 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  190.70755863189697
+prepare time ( 1 ):  166.39326071739197
+syn_time     ( 1 ):  0.2602274417877197
+backward_time( 1 ):  9.193665504455566
+峰值cache使用: 3898.0 MB
+峰值tensor使用: 3102.37060546875 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:28:58 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  188.18708634376526
+prepare time ( 1 ):  153.37398719787598
+syn_time     ( 1 ):  8.607681512832642
+backward_time( 1 ):  11.055437803268433
+峰值cache使用: 7482.0 MB
+峰值tensor使用: 5546.9697265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:32:23 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  186.38692569732666
+prepare time ( 1 ):  151.7650146484375
+syn_time     ( 1 ):  8.507900476455688
+backward_time( 1 ):  10.970105648040771
+峰值cache使用: 7482.0 MB
+峰值tensor使用: 5546.9697265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:35:48 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  202.9018361568451
+prepare time ( 1 ):  167.79649662971497
+syn_time     ( 1 ):  0.30858898162841797
+backward_time( 1 ):  19.335002899169922
+峰值cache使用: 7482.0 MB
+峰值tensor使用: 5546.9697265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:39:28 | MODEL=VGG11 | IPC=50 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  202.92212581634521
+prepare time ( 1 ):  167.75216221809387
+syn_time     ( 1 ):  0.2891421318054199
+backward_time( 1 ):  19.353368520736694
+峰值cache使用: 7482.0 MB
+峰值tensor使用: 5546.9697265625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:43:09 | MODEL=VGG11 | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 23.55 GiB of which 14.62 MiB is free. Including non-PyTorch memory, this process has 23.19 GiB memory in use. Of the allocated memory 22.48 GiB is allocated by PyTorch, and 464.23 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-09-29 07:43:30 | MODEL=VGG11 | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 23.55 GiB of which 14.62 MiB is free. Including non-PyTorch memory, this process has 23.19 GiB memory in use. Of the allocated memory 22.48 GiB is allocated by PyTorch, and 464.23 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-09-29 07:43:50 | MODEL=VGG11 | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 23.55 GiB of which 14.62 MiB is free. Including non-PyTorch memory, this process has 23.19 GiB memory in use. Of the allocated memory 22.48 GiB is allocated by PyTorch, and 464.23 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-09-29 07:44:09 | MODEL=VGG11 | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 23.55 GiB of which 14.62 MiB is free. Including non-PyTorch memory, this process has 23.19 GiB memory in use. Of the allocated memory 22.48 GiB is allocated by PyTorch, and 464.23 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-09-29 07:44:29 | MODEL=VGG11 | IPC=50 | SYN_STEPS=20 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=50 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+201.0966272354126
+prepare time ( 20 ):  158.98339748382568
+syn_time     ( 20 ):  30.74473524093628
+backward_time( 20 ):  7.581710815429688e-05
+峰值cache使用: 3178.0 MB
+峰值tensor使用: 2208.05859375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:48:06 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+180.52605986595154
+prepare time ( 1 ):  158.41741251945496
+syn_time     ( 1 ):  3.3484997749328613
+backward_time( 1 ):  8.400983572006226
+峰值cache使用: 5394.0 MB
+峰值tensor使用: 3716.40478515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:51:25 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+172.91592407226562
+prepare time ( 1 ):  151.03453278541565
+syn_time     ( 1 ):  3.3460164070129395
+backward_time( 1 ):  8.371250629425049
+峰值cache使用: 5394.0 MB
+峰值tensor使用: 3716.40478515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:54:36 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+181.03504848480225
+prepare time ( 1 ):  158.97018957138062
+syn_time     ( 1 ):  0.25077295303344727
+backward_time( 1 ):  11.509454488754272
+峰值cache使用: 5394.0 MB
+峰值tensor使用: 3716.40478515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 07:57:54 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+170.66937851905823
+prepare time ( 1 ):  148.7573013305664
+syn_time     ( 1 ):  0.24608755111694336
+backward_time( 1 ):  11.511388778686523
+峰值cache使用: 5394.0 MB
+峰值tensor使用: 3716.40478515625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:01:02 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+167.68054342269897
+prepare time ( 1 ):  157.9163646697998
+syn_time     ( 1 ):  0.1988847255706787
+backward_time( 1 ):  0.000110626220703125
+峰值cache使用: 2904.0 MB
+峰值tensor使用: 1567.5771484375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:04:08 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  190.09227991104126
+prepare time ( 1 ):  164.07604551315308
+syn_time     ( 1 ):  3.751305103302002
+backward_time( 1 ):  7.389634847640991
+峰值cache使用: 4778.0 MB
+峰值tensor使用: 4073.923828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:07:35 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  190.1776921749115
+prepare time ( 1 ):  164.2150800228119
+syn_time     ( 1 ):  3.7516415119171143
+backward_time( 1 ):  7.3886120319366455
+峰值cache使用: 4778.0 MB
+峰值tensor使用: 4073.923828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:11:03 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  189.39908647537231
+prepare time ( 1 ):  163.4239284992218
+syn_time     ( 1 ):  0.2014315128326416
+backward_time( 1 ):  10.936070203781128
+峰值cache使用: 4778.0 MB
+峰值tensor使用: 4073.923828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:14:29 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  190.88139629364014
+prepare time ( 1 ):  164.8059675693512
+syn_time     ( 1 ):  0.2124326229095459
+backward_time( 1 ):  10.918160676956177
+峰值cache使用: 4778.0 MB
+峰值tensor使用: 4073.923828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:17:58 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  214.55549478530884
+prepare time ( 1 ):  166.15083193778992
+syn_time     ( 1 ):  10.791653156280518
+backward_time( 1 ):  21.4597384929657
+峰值cache使用: 9468.0 MB
+峰值tensor使用: 8107.1923828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:21:50 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  215.1061236858368
+prepare time ( 1 ):  166.68918681144714
+syn_time     ( 1 ):  10.773208379745483
+backward_time( 1 ):  21.440694093704224
+峰值cache使用: 9468.0 MB
+峰值tensor使用: 8107.1923828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:25:43 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  214.00148558616638
+prepare time ( 1 ):  165.63194584846497
+syn_time     ( 1 ):  0.23488688468933105
+backward_time( 1 ):  31.918733835220337
+峰值cache使用: 9468.0 MB
+峰值tensor使用: 8107.1923828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:29:35 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_11_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  215.25728559494019
+prepare time ( 1 ):  166.90649509429932
+syn_time     ( 1 ):  0.2302999496459961
+backward_time( 1 ):  31.889790773391724
+峰值cache使用: 9468.0 MB
+峰值tensor使用: 8107.1923828125 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:33:27 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  200.11947512626648
+prepare time ( 1 ):  166.22223615646362
+syn_time     ( 1 ):  11.14032530784607
+backward_time( 1 ):  7.351484060287476
+峰值cache使用: 7176.0 MB
+峰值tensor使用: 5805.38916015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:37:05 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  200.17788124084473
+prepare time ( 1 ):  166.32902097702026
+syn_time     ( 1 ):  11.149339437484741
+backward_time( 1 ):  7.363680124282837
+峰值cache使用: 7176.0 MB
+峰值tensor使用: 5805.38916015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:40:43 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  200.44387912750244
+prepare time ( 1 ):  166.56923580169678
+syn_time     ( 1 ):  0.26052021980285645
+backward_time( 1 ):  18.26824378967285
+峰值cache使用: 7176.0 MB
+峰值tensor使用: 5805.38916015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:44:21 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_10_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  201.21375703811646
+prepare time ( 1 ):  167.34182333946228
+syn_time     ( 1 ):  0.2675628662109375
+backward_time( 1 ):  18.258063316345215
+峰值cache使用: 7176.0 MB
+峰值tensor使用: 5805.38916015625 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:48:00 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  223.10750532150269
+prepare time ( 1 ):  167.9385280609131
+syn_time     ( 1 ):  17.04185676574707
+backward_time( 1 ):  21.527928352355957
+峰值cache使用: 14192.0 MB
+峰值tensor使用: 10301.8115234375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:52:00 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  222.73670196533203
+prepare time ( 1 ):  167.62728786468506
+syn_time     ( 1 ):  17.01622200012207
+backward_time( 1 ):  21.478253602981567
+峰值cache使用: 14192.0 MB
+峰值tensor使用: 10301.8115234375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 08:56:01 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  223.62140369415283
+prepare time ( 1 ):  168.43462347984314
+syn_time     ( 1 ):  0.2886486053466797
+backward_time( 1 ):  38.261321783065796
+峰值cache使用: 14192.0 MB
+峰值tensor使用: 10301.8115234375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 09:00:02 | MODEL=VGG11 | IPC=100 | SYN_STEPS=1 | ITERATION=50 | CASE=flex_mask_1100_vfuse | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_flexFuse_timeTest_vgg.py --fuse_mask_list 1 1 0 0 --v_fuse --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+time sumation:  222.2634093761444
+prepare time ( 1 ):  167.03012108802795
+syn_time     ( 1 ):  0.29157567024230957
+backward_time( 1 ):  38.28464078903198
+峰值cache使用: 14192.0 MB
+峰值tensor使用: 10301.8115234375 MB
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-09-29 09:04:01 | MODEL=VGG11 | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 23.55 GiB of which 20.62 MiB is free. Including non-PyTorch memory, this process has 23.18 GiB memory in use. Of the allocated memory 22.75 GiB is allocated by PyTorch, and 177.11 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-09-29 09:04:23 | MODEL=VGG11 | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=use_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 --use-barrier
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 23.55 GiB of which 20.62 MiB is free. Including non-PyTorch memory, this process has 23.18 GiB memory in use. Of the allocated memory 22.75 GiB is allocated by PyTorch, and 177.11 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-09-29 09:04:42 | MODEL=VGG11 | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=1/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 23.55 GiB of which 20.62 MiB is free. Including non-PyTorch memory, this process has 23.18 GiB memory in use. Of the allocated memory 22.75 GiB is allocated by PyTorch, and 177.11 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-09-29 09:05:02 | MODEL=VGG11 | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original | BARRIER=no_barrier | REPEAT=2/2
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_timeTest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1 
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+Traceback (most recent call last):
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 628, in <module>
+    main(args)
+  File "/home/yguo25/MTT/mtt-distillation/distill_original_timeTest.py", line 455, in main
+    grad = torch.autograd.grad(ce_loss, student_params[-1], create_graph=True)[0]
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/__init__.py", line 496, in grad
+    result = _engine_run_backward(
+  File "/home/yguo25/anaconda3/envs/t2cu13/lib/python3.9/site-packages/torch/autograd/graph.py", line 825, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 23.55 GiB of which 20.62 MiB is free. Including non-PyTorch memory, this process has 23.18 GiB memory in use. Of the allocated memory 22.75 GiB is allocated by PyTorch, and 177.11 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-09-29 09:05:22 | MODEL=VGG11 | IPC=100 | SYN_STEPS=20 | ITERATION=50 | CASE=original_fwdtest | BARRIER=no_barrier | REPEAT=1/1
+CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 python distill_original_fwdtimetest.py --dataset=CIFAR10 --pix_init=real --ipc=100 --syn_steps=20 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 --detachNum=0 --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer --data_path=/scratch/yguo25/files/mtt-distillation/dataset --model=VGG11 --Fuse=1
+------------------------------
+Files already downloaded and verified
+Files already downloaded and verified
+loading file /scratch/yguo25/files/mtt-distillation/buffer/CIFAR10_NO_ZCA/VGG11/replay_buffer_0.pt
+------------FIN TIME-------------
+231.62921977043152
+prepare time ( 20 ):  158.49195671081543
+syn_time     ( 20 ):  60.07232856750488
+backward_time( 20 ):  0.00010132789611816406
+峰值cache使用: 3544.0 MB
+峰值tensor使用: 2868.41357421875 MB
+------------------------------
+EXIT_CODE: 0
+
+
+============================================================
+TIME TEST SWEEP END
+END_TIME: 2026-09-29 09:09:29
+============================================================

@@ -1,0 +1,183 @@
+============================================================
+DC TIME TEST SWEEP START
+START_TIME: 2026-10-20 00:33:18
+DATASET: Tiny
+MODEL: ConvNet
+MAIN_FILE: main_fused.py
+BATCH_REAL_LIST: 1 10 50 100
+FUSE_LIST: 1 2
+REPEATS: 2
+IPC: 10
+USE_BARRIER: True
+ACC_TEST: True
+V_FUSE: True
+DATA_PATH: /scratch/yguo25/files/mtt-distillation/dataset
+SAVE_PATH: testlog_dc/results
+LOG_FILE: testlog_dc/Tiny/conv.txt
+============================================================
+
+==============================
+2026-10-20 00:33:18 | DATASET=Tiny | MODEL=ConvNet | FUSE=1 | BATCH_REAL=1 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=1 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=1 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:20 | DATASET=Tiny | MODEL=ConvNet | FUSE=1 | BATCH_REAL=1 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=1 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=1 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:22 | DATASET=Tiny | MODEL=ConvNet | FUSE=1 | BATCH_REAL=10 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=1 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:25 | DATASET=Tiny | MODEL=ConvNet | FUSE=1 | BATCH_REAL=10 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=1 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:27 | DATASET=Tiny | MODEL=ConvNet | FUSE=1 | BATCH_REAL=50 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=1 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:29 | DATASET=Tiny | MODEL=ConvNet | FUSE=1 | BATCH_REAL=50 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=1 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:32 | DATASET=Tiny | MODEL=ConvNet | FUSE=1 | BATCH_REAL=100 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=100 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=1 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:34 | DATASET=Tiny | MODEL=ConvNet | FUSE=1 | BATCH_REAL=100 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=100 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=1 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:36 | DATASET=Tiny | MODEL=ConvNet | FUSE=2 | BATCH_REAL=1 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=1 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=2 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:38 | DATASET=Tiny | MODEL=ConvNet | FUSE=2 | BATCH_REAL=1 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=1 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=2 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:41 | DATASET=Tiny | MODEL=ConvNet | FUSE=2 | BATCH_REAL=10 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=2 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:43 | DATASET=Tiny | MODEL=ConvNet | FUSE=2 | BATCH_REAL=10 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=2 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:46 | DATASET=Tiny | MODEL=ConvNet | FUSE=2 | BATCH_REAL=50 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=2 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:48 | DATASET=Tiny | MODEL=ConvNet | FUSE=2 | BATCH_REAL=50 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=2 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:50 | DATASET=Tiny | MODEL=ConvNet | FUSE=2 | BATCH_REAL=100 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=100 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=2 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+==============================
+2026-10-20 00:33:52 | DATASET=Tiny | MODEL=ConvNet | FUSE=2 | BATCH_REAL=100 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=Tiny --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=100 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Fuse=2 --v_fuse --use-barrier --skip_eval --AccTest=True
+------------------------------
+eval_it_pool:  [0]
+unknown dataset: Tiny
+------------------------------
+EXIT_CODE: 1
+ERROR: command failed with EXIT_CODE=1
+
+
+============================================================
+DC TIME TEST SWEEP END
+END_TIME: 2026-10-20 00:33:55
+============================================================

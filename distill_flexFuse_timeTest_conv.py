@@ -229,17 +229,17 @@ def main(args):
     else:
         print('initialize synthetic data from random noise')
 
-    # torch.save(image_syn, "./script/in_ip10.pt")
+    # torch.save(image_syn, "./test_script/script/in_ip10.pt")
     # exit()
 
 
     if(args.AccTest ):
         if( args.dataset == "Tiny"):
-            image_syn = torch.load("./script/in_Tiny.pt")
+            image_syn = torch.load("./test_script/script/in_Tiny.pt")
         else:
         # elif( args.dataset == "CIFAR10" or args.dataset == "CIFAR100"):
             args.ipc = 10
-            image_syn = torch.load("./script/in_ip10.pt")
+            image_syn = torch.load("./test_script/script/in_ip10.pt")
 
 
     ''' training '''

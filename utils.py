@@ -243,7 +243,7 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True,v_fuse=
         net = Conv_Flexfuse_backup(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion,v_fuse=v_fuse)
     elif model.startswith("ConvFlexFuse"):
         fusion = int(model[12:])
-        net = Conv_Flexfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)
+        net = Conv_Flexfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion,v_fuse=v_fuse)
     elif model.startswith("ResNetFlexFuse"):
         fusion = int(model[14:])
         # net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)
@@ -271,11 +271,10 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True,v_fuse=
         net = ResNet18BN_AP(channel=channel, num_classes=num_classes)
     elif model == 'ResNet18_AP':
         net = ResNet18_AP(channel=channel, num_classes=num_classes)
-        
     elif model == 'ResNet50':
         net = ResNet50( channel=channel ,num_classes=num_classes)
     elif model == 'ViT':
-        net = ViT(im_size=im_size, num_classes=num_classes)
+        net = ViT(img_size=im_size[0], num_classes=num_classes)
 
     elif model == 'ConvNetD1':
         net = ConvNet(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=1, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)

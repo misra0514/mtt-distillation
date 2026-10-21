@@ -22,21 +22,22 @@ class PatchEmbedding(nn.Module):
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, emb_size=128, heads=4, mlp_dim=256, dropout=0.1):
+    def __init__(self, emb_size=128, heads=4, mlp_dim=256, dropout=0.0):
         super().__init__()
         self.ln1 = nn.LayerNorm(emb_size)
-        self.attn = nn.MultiheadAttention(emb_size, heads, dropout=dropout)
+        self.attn = nn.MultiheadAttention(
+            emb_size,
+            heads,
+            dropout=dropout,
+            batch_first=True,
+        )
         self.ln2 = nn.LayerNorm(emb_size)
-
         self.mlp = nn.Sequential(
             nn.Linear(emb_size, mlp_dim),
-            # nn.GELU(),
-            # nn.Dropout(dropout),
             GeluDrop(dropout),
             nn.Linear(mlp_dim, emb_size),
             nn.Dropout(dropout),
         )
-
     def forward(self, x):
         x_ln = self.ln1(x)
         attn_output, _ = self.attn(x_ln, x_ln, x_ln)

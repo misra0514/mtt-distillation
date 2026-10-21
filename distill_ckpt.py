@@ -182,7 +182,7 @@ def main(args):
         print('initialize synthetic data from random noise')
 
     if(args.AccTest):
-        image_syn = torch.load("./script/in.pt")    
+        image_syn = torch.load("./test_script/script/in.pt")    
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)

@@ -190,7 +190,7 @@ def main():
     p.add_argument('--num-classes', type=int, default=10)
     p.add_argument('--image-size', type=int, default=32)
     p.add_argument('--label', type=int, default=0)
-    p.add_argument('--image-pt', default=None, help='Optional saved synthetic-image tensor, e.g. ./script/in_ip10.pt')
+    p.add_argument('--image-pt', default=None, help='Optional saved synthetic-image tensor, e.g. ./test_script/script/in_ip10.pt')
     p.add_argument('--image-index', type=int, default=0)
     p.add_argument('--fuse-mask-list', '--fuse_mask_list', type=int, nargs='+', default=[1, 0], dest='fuse_mask_list')
     p.add_argument('--syn-lr', type=float, default=0.01)

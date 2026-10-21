@@ -5,9 +5,9 @@
 # Only selected model logs are truncated or written.
 #
 # Examples:
-#   bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg
-#   bash rundistill_massive_v9_select_model_date_logdir.sh --models vgg,resnet
-#   bash rundistill_massive_v9_select_model_date_logdir.sh --model all
+#   bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg --dataset cifar10
+#   bash rundistill_massive_v9_select_model_date_logdir.sh --models vgg,resnet --dataset tiny
+#   bash rundistill_massive_v9_select_model_date_logdir.sh --model all --dataset all
 
 set -u
 set -o pipefail
@@ -15,22 +15,24 @@ set -o pipefail
 usage() {
   cat <<'HELP'
 Usage:
-  bash rundistill_massive_v9_select_model_date_logdir.sh [--model conv|vit|resnet|vgg|all]
-  bash rundistill_massive_v9_select_model_date_logdir.sh [--models conv,vit,resnet,vgg]
+  bash rundistill_massive_v9_select_model_date_logdir.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|all]
+  bash rundistill_massive_v9_select_model_date_logdir.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|all]
 
 Examples:
-  bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg
-  bash rundistill_massive_v9_select_model_date_logdir.sh --models vgg,resnet
-  bash rundistill_massive_v9_select_model_date_logdir.sh --model all
-  LOG_DIR=testlog_custom bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg
+  bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg --dataset cifar10
+  bash rundistill_massive_v9_select_model_date_logdir.sh --models vgg,resnet --dataset tiny
+  bash rundistill_massive_v9_select_model_date_logdir.sh --model all --dataset all
+  LOG_DIR=testlog_custom bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg --dataset all
 
 Default:
   --model all
+  --dataset cifar10
   LOG_DIR=testlogYYYYMMDD
 HELP
 }
 
 MODEL_SELECTION="${MODEL_SELECTION:-all}"
+DATASET_SELECTION="${DATASET_SELECTION:-cifar10}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -45,6 +47,19 @@ while [ "$#" -gt 0 ]; do
       ;;
     --model=*|--models=*)
       MODEL_SELECTION="${1#*=}"
+      shift
+      ;;
+    --dataset|-d)
+      if [ "$#" -lt 2 ]; then
+        echo "[ERROR] $1 requires an argument: cifar10, tiny, or all" >&2
+        usage
+        exit 1
+      fi
+      DATASET_SELECTION="$2"
+      shift 2
+      ;;
+    --dataset=*)
+      DATASET_SELECTION="${1#*=}"
       shift
       ;;
     conv|ConvNet|convnet|vit|ViT|resnet|ResNet18|resnet18|vgg|VGG|vgg11|VGG11|all)
@@ -105,15 +120,30 @@ normalize_model_selection() {
   echo "${normalized# }"
 }
 
+normalize_dataset_selection() {
+  case "${1,,}" in
+    cifar10|cifar)
+      echo "CIFAR10"
+      ;;
+    tiny|tinyimagenet|tiny-imagenet)
+      echo "Tiny"
+      ;;
+    all)
+      echo "CIFAR10 Tiny"
+      ;;
+    *)
+      echo "[ERROR] unknown dataset selection: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+}
+
 SELECTED_MODELS="$(normalize_model_selection "${MODEL_SELECTION}")"
+SELECTED_DATASETS="$(normalize_dataset_selection "${DATASET_SELECTION}")"
 DATE_TAG="$(date '+%Y%m%d')"
 LOG_DIR="${LOG_DIR:-testlog${DATE_TAG}}"
 mkdir -p "${LOG_DIR}"
-
-CONV_LOG="${LOG_DIR}/conv.txt"
-VIT_LOG="${LOG_DIR}/vit.txt"
-RESNET_LOG="${LOG_DIR}/resnet18.txt"
-VGG_LOG="${LOG_DIR}/vgg11.txt"
 
 model_selected() {
   local target="$1"
@@ -123,8 +153,7 @@ model_selected() {
   esac
 }
 
-# DATASET="CIFAR10"
-DATASET="Tiny"
+DATASET=""
 PIX_INIT="real"
 BUFFER_PATH="/scratch/yguo25/files/mtt-distillation/buffer"
 DATA_PATH="/scratch/yguo25/files/mtt-distillation/dataset"
@@ -215,22 +244,22 @@ common_args() {
   local model="$3"
   local iteration="${4:-${ITERATION}}"
 
-  echo \
-    --dataset="${DATASET}" \
-    --pix_init="${PIX_INIT}" \
-    --ipc="${ipc}" \
-    --syn_steps="${syn_steps}" \
-    --max_experts="${MAX_EXPERTS}" \
-    --expert_epochs="${EXPERT_EPOCHS}" \
-    --max_start_epoch="${MAX_START_EPOCH}" \
-    --Iteration="${iteration}" \
-    --detachNum="${DETACH_NUM}" \
-    --lr_img="${LR_IMG}" \
-    --lr_lr="${LR_LR}" \
-    --lr_teacher="${LR_TEACHER}" \
-    --buffer_path="${BUFFER_PATH}" \
-    --data_path="${DATA_PATH}" \
-    --model="${model}" \
+  echo \\
+    --dataset="${DATASET}" \\
+    --pix_init="${PIX_INIT}" \\
+    --ipc="${ipc}" \\
+    --syn_steps="${syn_steps}" \\
+    --max_experts="${MAX_EXPERTS}" \\
+    --expert_epochs="${EXPERT_EPOCHS}" \\
+    --max_start_epoch="${MAX_START_EPOCH}" \\
+    --Iteration="${iteration}" \\
+    --detachNum="${DETACH_NUM}" \\
+    --lr_img="${LR_IMG}" \\
+    --lr_lr="${LR_LR}" \\
+    --lr_teacher="${LR_TEACHER}" \\
+    --buffer_path="${BUFFER_PATH}" \\
+    --data_path="${DATA_PATH}" \\
+    --model="${model}" \\
     --Fuse="${FUSE}"
 }
 
@@ -248,22 +277,22 @@ iteration_for_model_ipc() {
 }
 
 clean_output() {
-  sed -u \
-    -e '/Warning:/d' \
-    -e '/warnings.warn/d' \
-    -e '/FutureWarning/d' \
-    -e '/UserWarning/d' \
-    -e '/torch.cuda.amp.custom_fwd/d' \
-    -e '/Triggered internally at/d' \
-    -e '/SECURITY.md#untrusted-models/d' \
-    -e '/weights_only=False/d' \
-    -e '/Please consider converting the list/d' \
-    -e '/Please open an issue/d' \
-    -e '/^[[:space:]]*[0-9]\+%|/d' \
-    -e '/^[[:space:]]*100%|/d' \
-    -e '/^[[:space:]]*[0-9]\+it \[/d' \
-    -e '/it\/s]/d' \
-    -e '/it\/s/d'
+  sed -u \\
+    -e '/Warning:/d' \\
+    -e '/warnings.warn/d' \\
+    -e '/FutureWarning/d' \\
+    -e '/UserWarning/d' \\
+    -e '/torch.cuda.amp.custom_fwd/d' \\
+    -e '/Triggered internally at/d' \\
+    -e '/SECURITY.md#untrusted-models/d' \\
+    -e '/weights_only=False/d' \\
+    -e '/Please consider converting the list/d' \\
+    -e '/Please open an issue/d' \\
+    -e '/^[[:space:]]*[0-9]\\+%|/d' \\
+    -e '/^[[:space:]]*100%|/d' \\
+    -e '/^[[:space:]]*[0-9]\\+it \\[/d' \\
+    -e '/it\\/s]/d' \\
+    -e '/it\\/s/d'
 }
 
 run_cmd_once() {
@@ -288,10 +317,10 @@ run_cmd_once() {
     echo "------------------------------"
   } >> "${log_file}"
 
-  WANDB_SILENT=true \
-  PYTHONWARNINGS=ignore \
-  TQDM_DISABLE=1 \
-  PYTHONUNBUFFERED=1 \
+  WANDB_SILENT=true \\
+  PYTHONWARNINGS=ignore \\
+  TQDM_DISABLE=1 \\
+  PYTHONUNBUFFERED=1 \\
   "$@" "${barrier_args[@]}" 2>&1 | clean_output >> "${log_file}"
 
   local exit_code=${PIPESTATUS[0]}
@@ -345,10 +374,10 @@ run_fwdtest_once() {
     echo "------------------------------"
   } >> "${log_file}"
 
-  WANDB_SILENT=true \
-  PYTHONWARNINGS=ignore \
-  TQDM_DISABLE=1 \
-  PYTHONUNBUFFERED=1 \
+  WANDB_SILENT=true \\
+  PYTHONWARNINGS=ignore \\
+  TQDM_DISABLE=1 \\
+  PYTHONUNBUFFERED=1 \\
   "$@" 2>&1 | clean_output >> "${log_file}"
 
   local exit_code=${PIPESTATUS[0]}
@@ -380,9 +409,9 @@ run_original() {
   # shellcheck disable=SC2207
   local args=( $(common_args "${ipc}" "${syn_steps}" "${model_arg}" "${iteration}") )
 
-  run_cmd \
-    "${log_file}" \
-    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original" \
+  run_cmd \\
+    "${log_file}" \\
+    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original" \\
     python "${ORIGINAL_FILE}" "${args[@]}"
 }
 
@@ -397,9 +426,9 @@ run_original_fwdtest() {
   # shellcheck disable=SC2207
   local args=( $(common_args "${ipc}" "${syn_steps}" "${model_arg}" "${iteration}") )
 
-  run_fwdtest_once \
-    "${log_file}" \
-    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original_fwdtest" \
+  run_fwdtest_once \\
+    "${log_file}" \\
+    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original_fwdtest" \\
     python "${ORIGINAL_FWD_FILE}" "${args[@]}"
 }
 
@@ -428,12 +457,12 @@ run_flex_case() {
   # shellcheck disable=SC2207
   local args=( $(common_args "${ipc}" "${syn_steps}" "${model_arg}" "${iteration}") )
 
-  run_cmd \
-    "${log_file}" \
-    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=${case_prefix}_mask_${mask_tag}_${vfuse_tag}" \
-    python "${flex_file}" \
-      --fuse_mask_list "${mask_args[@]}" \
-      "${vfuse_arg}" \
+  run_cmd \\
+    "${log_file}" \\
+    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=${case_prefix}_mask_${mask_tag}_${vfuse_tag}" \\
+    python "${flex_file}" \\
+      --fuse_mask_list "${mask_args[@]}" \\
+      "${vfuse_arg}" \\
       "${args[@]}"
 }
 
@@ -466,12 +495,12 @@ run_model_block() {
 }
 
 run_convnet_tests() {
-  write_header \
-    "${CONV_LOG}" \
-    "ConvNet" \
-    "ConvNet" \
-    "${CONV_FLEX_FILE}" \
-    "${CONV_IPC_LIST[*]}" \
+  write_header \\
+    "${CONV_LOG}" \\
+    "ConvNet" \\
+    "ConvNet" \\
+    "${CONV_FLEX_FILE}" \\
+    "${CONV_IPC_LIST[*]}" \\
     "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no ckpt flex; ConvNet keeps --Iteration=${ITERATION} for all IPCs."
 
   run_model_block "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${CONV_IPC_LIST[@]}"
@@ -479,12 +508,12 @@ run_convnet_tests() {
 }
 
 run_vit_tests() {
-  write_header \
-    "${VIT_LOG}" \
-    "ViT" \
-    "ViT" \
-    "${VIT_FLEX_FILE}" \
-    "${VIT_IPC_LIST[*]}" \
+  write_header \\
+    "${VIT_LOG}" \\
+    "ViT" \\
+    "ViT" \\
+    "${VIT_FLEX_FILE}" \\
+    "${VIT_IPC_LIST[*]}" \\
     "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ViT; ViT uses --Iteration=50 when --ipc>=50."
 
   run_model_block "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${VIT_IPC_LIST[@]}"
@@ -492,12 +521,12 @@ run_vit_tests() {
 }
 
 run_resnet18_tests() {
-  write_header \
-    "${RESNET_LOG}" \
-    "ResNet18" \
-    "ResNet18" \
-    "${RESNET_FLEX_FILE}" \
-    "${RESNET_IPC_LIST[*]}" \
+  write_header \\
+    "${RESNET_LOG}" \\
+    "ResNet18" \\
+    "ResNet18" \\
+    "${RESNET_FLEX_FILE}" \\
+    "${RESNET_IPC_LIST[*]}" \\
     "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ResNet18; ResNet18 uses --Iteration=50 when --ipc>=10."
 
   run_model_block "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${RESNET_IPC_LIST[@]}"
@@ -505,55 +534,72 @@ run_resnet18_tests() {
 }
 
 run_vgg11_tests() {
-  write_header \
-    "${VGG_LOG}" \
-    "VGG11" \
-    "VGG11" \
-    "${VGG_FLEX_FILE}" \
-    "${VGG_IPC_LIST[*]}" \
+  write_header \\
+    "${VGG_LOG}" \\
+    "VGG11" \\
+    "VGG11" \\
+    "${VGG_FLEX_FILE}" \\
+    "${VGG_IPC_LIST[*]}" \\
     "same settings as ResNet18: flex syn_steps=1, --v_fuse, masks 1 / 1 1 / 1 0 / 1 1 0 0; original syn_steps=1/20; --Iteration=50 when --ipc>=10."
 
   run_model_block "${VGG_LOG}" "VGG11" "VGG11" "${VGG_FLEX_FILE}" "${VGG_IPC_LIST[@]}"
   write_footer "${VGG_LOG}"
 }
 
+run_dataset_tests() {
+  DATASET="$1"
+  local dataset_log_dir="${LOG_DIR}/${DATASET}"
+  mkdir -p "${dataset_log_dir}"
+  CONV_LOG="${dataset_log_dir}/conv.txt"
+  VIT_LOG="${dataset_log_dir}/vit.txt"
+  RESNET_LOG="${dataset_log_dir}/resnet18.txt"
+  VGG_LOG="${dataset_log_dir}/vgg11.txt"
+
+  echo "[INFO] DATASET=${DATASET}"
+  if model_selected "ConvNet"; then
+    run_convnet_tests
+  else
+    echo "[SKIP] ConvNet"
+  fi
+
+  if model_selected "ViT"; then
+    run_vit_tests
+  else
+    echo "[SKIP] ViT"
+  fi
+
+  if model_selected "ResNet18"; then
+    run_resnet18_tests
+  else
+    echo "[SKIP] ResNet18"
+  fi
+
+  if model_selected "VGG11"; then
+    run_vgg11_tests
+  else
+    echo "[SKIP] VGG11"
+  fi
+
+  if model_selected "ConvNet"; then
+    echo "ConvNet log:  ${CONV_LOG}"
+  fi
+  if model_selected "ViT"; then
+    echo "ViT log:      ${VIT_LOG}"
+  fi
+  if model_selected "ResNet18"; then
+    echo "ResNet18 log: ${RESNET_LOG}"
+  fi
+  if model_selected "VGG11"; then
+    echo "VGG11 log:    ${VGG_LOG}"
+  fi
+}
+
 echo "[INFO] LOG_DIR=${LOG_DIR}"
 echo "[INFO] SELECTED_MODELS=${SELECTED_MODELS}"
+echo "[INFO] SELECTED_DATASETS=${SELECTED_DATASETS}"
 
-if model_selected "ConvNet"; then
-  run_convnet_tests
-else
-  echo "[SKIP] ConvNet"
-fi
-
-if model_selected "ViT"; then
-  run_vit_tests
-else
-  echo "[SKIP] ViT"
-fi
-
-if model_selected "ResNet18"; then
-  run_resnet18_tests
-else
-  echo "[SKIP] ResNet18"
-fi
-
-if model_selected "VGG11"; then
-  run_vgg11_tests
-else
-  echo "[SKIP] VGG11"
-fi
+for dataset in ${SELECTED_DATASETS}; do
+  run_dataset_tests "${dataset}"
+done
 
 echo "[DONE] Selected commands finished."
-if model_selected "ConvNet"; then
-  echo "ConvNet log:  ${CONV_LOG}"
-fi
-if model_selected "ViT"; then
-  echo "ViT log:      ${VIT_LOG}"
-fi
-if model_selected "ResNet18"; then
-  echo "ResNet18 log: ${RESNET_LOG}"
-fi
-if model_selected "VGG11"; then
-  echo "VGG11 log:    ${VGG_LOG}"
-fi

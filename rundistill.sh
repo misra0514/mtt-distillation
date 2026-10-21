@@ -20,20 +20,21 @@
 # WANDB_SILENT=true python distill_batched_timeTest.py \
 
 # WANDB_SILENT=true python distill_memory_prof.py \
-# WANDB_SILENT=true python distill_flexFuse_timeTest_resnet18.py  --fuse_mask_list 1 1 0 0 \
 # WANDB_SILENT=true python distill_batched_timeTest.py   \
 # WANDB_SILENT=true python distill_original_timeTest.py  \
-# WANDB_SILENT=true python distill_flexFuse_timeTest_ViT.py  --fuse_mask_list 1 0 \
 # WANDB_SILENT=true python distill_flexFuse_timeTest_conv.py  --fuse_mask_list 1 1 0 0 \
 # WANDB_SILENT=true python distill_original_timeTest.py  \
-WANDB_SILENT=true python distill_flexFuse_timeTest_vgg.py  --fuse_mask_list 1 \
-    --dataset=CIFAR10 --pix_init=real --ipc=10 \
+# WANDB_SILENT=true python distill_flexFuse_timeTest_resnet18.py  --fuse_mask_list 1 1 0 0 \
+# WANDB_SILENT=true python distill_flexFuse_timeTest_conv.py --fuse_mask_list 1 0 \
+# WANDB_SILENT=true python distill_flexFuse_timeTest_vgg.py  --fuse_mask_list 1 \
+WANDB_SILENT=true python distill_flexFuse_timeTest_ViT.py  --fuse_mask_list 1 0 \
+    --dataset=Tiny --pix_init=real --ipc=10 \
     --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50 \
     --detachNum=0  \
     --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 \
     --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer  --data_path=/scratch/yguo25/files/mtt-distillation/dataset \
     --Fuse=1 \
-    --model=VGG11 \
+    --model=ViT \
     --v_fuse \
     --AccTest=True \
     # --use-barrier \
