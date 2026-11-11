@@ -1,3 +1,6 @@
+# 11.7: 做了新的preload。在开启load all的时候会提前把flattern、reshape、repeat都做了。
+# 11.4: 修改了统计口径
+
 # 7.18 sys overhgead还是比较多。按照gpt意见修改一下
 
 # 7.23 为了更贴近实际code，把sys overhead放进了fwd time 里。这样子带了barrier测出来的更接近实际表现。
@@ -6,6 +9,9 @@
 # 从v2复制来的stable版本！ 正式更名成conv！ 
 # TODO: NOTE 这个版本。或者前面的flex fuse 在 --fuse_mask_list 1  --> 11 的时候，grad都有问题。没有像Batched 一样成倍。
 # 同时，这个版本没有做过优化，可能会有一些sys上冗余的计算。
+# 11.4: 修改为在程序开始之前load all
+# 只是一个临时文件。load all 情况下把reshape、flattern、repeat都挪到preload下面了
+
 import os
 import argparse
 import numpy as np
@@ -33,7 +39,6 @@ def view_falf_fst_dim(weights, Fuse, bwd_Fuse):
     """
     从完整 Fuse 权重中保留前 bwd_Fuse 个 Fuse。
     返回的 tensor 都是 view，不发生数据复制。
-
     适用于 [1, 0]、[1, 1, 0] 这种从第一个 Fuse 开始保留的 mask。
     """
     if not 0 < bwd_Fuse <= Fuse:
@@ -88,6 +93,50 @@ def view_falf_fst_dim(weights, Fuse, bwd_Fuse):
 
 #     return param_dist_raw_mean, base_num_params
 
+def pack_expert_groups(trajectories, fuse_mask_list, target_epoch):
+    fuse = len(fuse_mask_list)
+    active_lanes = [lane for lane, keep in enumerate(fuse_mask_list) if keep]
+    # The backward weight views take a prefix of the forward lanes.
+    if not active_lanes or fuse_mask_list != [1] * len(active_lanes) + [0] * (fuse - len(active_lanes)):
+        raise ValueError("--load_all requires a fuse mask with leading ones followed by zeros")
+
+    if not trajectories:
+        raise ValueError("--load_all selected no expert trajectories")
+
+    # Use a fixed shuffle so separate timing runs see the same expert groups.
+    order = list(range(len(trajectories)))
+    random.Random(42).shuffle(order)
+    group_count = (len(order) + fuse - 1) // fuse
+    padding = group_count * fuse - len(order)
+    # Wrap around the shuffled experts to fill the final group, even when Fuse > N.
+    order = [order[index % len(order)] for index in range(group_count * fuse)]
+    shape_list = [param.shape for param in trajectories[order[0]][0]]
+    if any(len(shape) == 0 for shape in shape_list):
+        raise ValueError("Fused ConvNet expects non-scalar expert parameters")
+
+    groups = []
+    for offset in range(0, group_count * fuse, fuse):
+        group = [trajectories[index] for index in order[offset:offset + fuse]]
+        starts = [trajectory[0] for trajectory in group]
+        targets = [group[lane][target_epoch] for lane in active_lanes]
+        for params in starts + targets:
+            if [param.shape for param in params] != shape_list:
+                raise ValueError("Expert snapshots must have matching parameter shapes")
+
+        # recover_params expects layer-major order, with lanes contiguous within each layer.
+        groups.append(tuple(
+            torch.cat([param.detach().reshape(-1) for layer in zip(*snapshots) for param in layer])
+            for snapshots in (starts, targets)
+        ))
+
+    mask = None
+    if len(active_lanes) != fuse:
+        lane_mask = torch.tensor(fuse_mask_list, dtype=torch.bool)
+        mask = torch.cat([lane_mask.repeat_interleave(int(np.prod(shape))) for shape in shape_list])
+    print(f"Preloaded {group_count} expert groups of {fuse}; padded {padding} lanes by reusing experts")
+    return groups, shape_list, mask
+
+
 def main(args):
     args.model = 'ConvNet' # conv file 目前写死比较好。
     fuse_mask_list = args.fuse_mask_list 
@@ -99,12 +148,13 @@ def main(args):
 
     prep_time = 0
     test_time = 0
+    kernel_time = 0
+    system_time = 0
     syn_time = 0
     bwd_time = 0
     param_dist_time = 0
 
     Fuse = int(args.Fuse)
-  
     torch.cuda.reset_peak_memory_stats()
     torch.cuda.empty_cache()
 
@@ -112,25 +162,18 @@ def main(args):
 
     if args.zca and args.texture:
         raise AssertionError("Cannot use zca and texture together")
-
     if args.texture and args.pix_init == "real":
         print("WARNING: Using texture with real initialization will take a very long time to smooth out the boundaries between images.")
-
     if args.max_experts is not None and args.max_files is not None:
         args.total_experts = args.max_experts * args.max_files
-
     # print("CUDNN STATUS: {}".format(torch.backends.cudnn.enabled))
-
     args.dsa = True if args.dsa == 'True' else False
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
     eval_it_pool = np.arange(0, args.Iteration + 1, args.eval_it).tolist()
     eval_it_pool = []
     channel, im_size, num_classes, class_names, mean, std, dst_train, dst_test, testloader, loader_train_dict, class_map, class_map_inv = get_dataset(args.dataset, args.data_path, args.batch_real, args.subset, args=args)
     model_eval_pool = get_eval_pool(args.eval_mode, args.model, args.model)
-
     im_res = im_size[0]
-
     args.im_size = im_size
 
     accs_all_exps = dict() # record performances of all experiments
@@ -142,15 +185,12 @@ def main(args):
     if args.dsa:
         # args.epoch_eval_train = 1000
         args.dc_aug_param = None
-
     args.dsa_param = ParamDiffAug()
-
     dsa_params = args.dsa_param
     if args.zca:
         zca_trans = args.zca_trans
     else:
         zca_trans = None
-
     # wandb.init(sync_tensorboard=False,
     #            project="DatasetDistillation",
     #            job_type="CleanRepo",
@@ -159,21 +199,14 @@ def main(args):
     # args = type('', (), {})()
     # for key in wandb.config._items:
     #     setattr(args, key, wandb.config._items[key])
-
     args.dsa_param = dsa_params
     args.zca_trans = zca_trans
-
     if args.batch_syn is None:
         args.batch_syn = num_classes * args.ipc
-
     # args.distributed = torch.cuda.device_count() > 1
     args.distributed = False # 多卡情况目前不考虑
-    
-
-
     # print('Hyper-parameters: \n', args.__dict__)
     # print('Evaluation model pool: ', model_eval_pool)
-
     ''' organize the real dataset '''
     images_all = []
     labels_all = []
@@ -183,38 +216,28 @@ def main(args):
         sample = dst_train[i]
         images_all.append(torch.unsqueeze(sample[0], dim=0))
         labels_all.append(class_map[torch.tensor(sample[1]).item()])
-
     for i, lab in tqdm(enumerate(labels_all)):
         indices_class[lab].append(i)
     images_all = torch.cat(images_all, dim=0).to("cpu")
     labels_all = torch.tensor(labels_all, dtype=torch.long, device="cpu")
-
     # for c in range(num_classes):
     #     print('class c = %d: %d real images'%(c, len(indices_class[c])))
-
     # for ch in range(channel):
     #     print('real images channel %d, mean = %.4f, std = %.4f'%(ch, torch.mean(images_all[:, ch]), torch.std(images_all[:, ch])))
-
-
     def get_images(c, n):  # get random n images from class c
         idx_shuffle = np.random.permutation(indices_class[c])[:n]
         return images_all[idx_shuffle]
-
     ''' initialize the synthetic data '''
     label_syn = torch.tensor([np.ones(args.ipc,dtype=np.int_)*i for i in range(num_classes)], dtype=torch.long, requires_grad=False, device=args.device).view(-1) # [0,0,0, 1,1,1, ..., 9,9,9]
     # TODO: 修改建议：
     # label_syn = torch.from_numpy(
     #     np.repeat(np.arange(num_classes), args.ipc)
     # ).to(dtype=torch.long, device=args.device)
-
-
-
     if args.texture:
         image_syn = torch.randn(size=(num_classes * args.ipc, channel, im_size[0]*args.canvas_size, im_size[1]*args.canvas_size), dtype=torch.float)
     else:
         image_syn = torch.randn(size=(num_classes * args.ipc, channel, im_size[0], im_size[1]), dtype=torch.float)
     syn_lr = torch.tensor(args.lr_teacher).to(args.device)
-
     if args.pix_init == 'real':
         # print('initialize synthetic data from random real images')
         if args.texture:
@@ -228,11 +251,8 @@ def main(args):
             image_syn.data[c * args.ipc:(c + 1) * args.ipc] = get_images(c, args.ipc).detach().data
     else:
         print('initialize synthetic data from random noise')
-
     # torch.save(image_syn, "./test_script/script/in_ip10.pt")
     # exit()
-
-
     if(args.AccTest ):
         if( args.dataset == "Tiny"):
             image_syn = torch.load("./test_script/script/in_Tiny.pt")
@@ -240,8 +260,6 @@ def main(args):
         # elif( args.dataset == "CIFAR10" or args.dataset == "CIFAR100"):
             args.ipc = 10
             image_syn = torch.load("./test_script/script/in_ip10.pt")
-
-
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
     syn_lr = syn_lr.detach().to(args.device).requires_grad_(True)
@@ -250,10 +268,8 @@ def main(args):
     optimizer_img = torch.optim.SGD([image_syn], lr=args.lr_img)
     optimizer_lr = torch.optim.SGD([syn_lr], lr=args.lr_lr)    
     optimizer_img.zero_grad()
-
     criterion = nn.CrossEntropyLoss().to(args.device)
     # print('%s training begins'%get_time())
-
     expert_dir = os.path.join(args.buffer_path, args.dataset)
     if args.dataset == "ImageNet":
         expert_dir = os.path.join(expert_dir, args.subset, str(args.res))
@@ -261,39 +277,33 @@ def main(args):
         expert_dir += "_NO_ZCA"
     expert_dir = os.path.join(expert_dir, args.model)
     # print("Expert Dir: {}".format(expert_dir))
+    expert_files = []
+    n = 0
+    while os.path.exists(os.path.join(expert_dir, "replay_buffer_{}.pt".format(n))):
+        expert_files.append(os.path.join(expert_dir, "replay_buffer_{}.pt".format(n)))
+        n += 1
+    if args.max_files is not None:
+        expert_files = expert_files[:args.max_files]
+    if not expert_files:
+        raise ValueError("No replay buffers selected at {}".format(expert_dir))
 
+    expert_idx = 0
     if args.load_all:
         buffer = []
-        n = 0
-        while os.path.exists(os.path.join(expert_dir, "replay_buffer_{}.pt".format(n))):
-            buffer = buffer + torch.load(os.path.join(expert_dir, "replay_buffer_{}.pt".format(n)))
-            n += 1
-        if n == 0:
-            raise AssertionError("No buffers detected at {}".format(expert_dir))
-
+        for expert_file in expert_files:
+            trajectories = torch.load(expert_file, map_location="cpu")
+            buffer.extend(trajectories[:args.max_experts])
+        del trajectories
+        buffer, shape_list, mask = pack_expert_groups(buffer, fuse_mask_list, args.expert_epochs)
+        if mask is not None:
+            mask = mask.to(args.device)
     else:
-        expert_files = []
-        n = 0
-        while os.path.exists(os.path.join(expert_dir, "replay_buffer_{}.pt".format(n))):
-            expert_files.append(os.path.join(expert_dir, "replay_buffer_{}.pt".format(n)))
-            n += 1
-        if n == 0:
-            raise AssertionError("No buffers detected at {}".format(expert_dir))
-        file_idx = 0
-        expert_idx = 0
-        # random.shuffle(expert_files)
-        if args.max_files is not None:
-            expert_files = expert_files[:args.max_files]
-        print("loading file {}".format(expert_files[file_idx]))
-        buffer = torch.load(expert_files[file_idx])
-        if args.max_experts is not None:
-            buffer = buffer[:args.max_experts]
-        # random.shuffle(buffer)
-
+        print("loading file {}".format(expert_files[0]))
+        buffer = torch.load(expert_files[0])[:args.max_experts]
+        if not buffer:
+            raise ValueError("No expert trajectories selected in {}".format(expert_files[0]))
     best_acc = {m: 0 for m in model_eval_pool}
-
     best_std = {m: 0 for m in model_eval_pool}
-
     # TODO: Setups for L2 opt
     # import ctypes
     # curr_stm = torch.cuda.current_stream()
@@ -301,7 +311,6 @@ def main(args):
     # cuda.cudaStreamSetAttribute.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
     # class cudaStreamAttrValue(ctypes.Structure):
     #     _fields_ = [("accessPolicyWindow", ctypes.c_int * 5)]  # 示例结构，需根据 CUDA 版本调整
-
     # attr = cudaStreamAttrValue()
     # attr.accessPolicyWindow[0] = 1  # 假设这里是 L2 Residency 配置
     # cuda.cudaStreamSetAttribute(curr_stm, 1, ctypes.byref(attr))
@@ -329,17 +338,22 @@ def main(args):
         warmup = 3
     # warmup = 0
 
-    args.Iteration += warmup
 
+    torch.cuda.synchronize()
+
+    args.Iteration += warmup
     pre_end = time.time()
 
 
     for it in range(0, args.Iteration+1):
         if it >= warmup:
-            start = time.time()
-
+            if (args.use_barrier):
+                torch.cuda.synchronize()
+            if it == warmup:
+                torch.cuda.synchronize()  # exclude pending warmup kernels
+                total_start = time.time()
+            pre_end = time.time()
         save_this_it = False
-
         # writer.add_scalar('Progress', it, it)
         # wandb.log({"Progress": it}, step=it)
         # ''' Evaluate synthetic data '''
@@ -351,17 +365,14 @@ def main(args):
         #             print('DSA augmentation parameters: \n', args.dsa_param.__dict__)
         #         else:
         #             print('DC augmentation parameters: \n', args.dc_aug_param)
-
         #         accs_test = []
         #         accs_train = []
         #         for it_eval in range(args.num_eval):
         #             net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
-
         #             eval_labs = label_syn
         #             with torch.no_grad():
         #                 image_save = image_syn
         #             image_syn_eval, label_syn_eval = copy.deepcopy(image_save.detach()), copy.deepcopy(eval_labs.detach()) # avoid any unaware modification
-
         #             args.lr_net = syn_lr.item()
         #             _, acc_train, acc_test = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args, texture=args.texture)
         #             accs_test.append(acc_test)
@@ -379,26 +390,18 @@ def main(args):
         #         wandb.log({'Max_Accuracy/{}'.format(model_eval): best_acc[model_eval]}, step=it)
         #         wandb.log({'Std/{}'.format(model_eval): acc_test_std}, step=it)
         #         wandb.log({'Max_Std/{}'.format(model_eval): best_std[model_eval]}, step=it)
-
-
         # if it in eval_it_pool and (save_this_it or it % 1000 == 0):
         #     with torch.no_grad():
         #         image_save = image_syn.cuda()
-
         #         save_dir = os.path.join(".", "logged_files", args.dataset, wandb.run.name)
-
         #         if not os.path.exists(save_dir):
         #             os.makedirs(save_dir)
-
         #         torch.save(image_save.cpu(), os.path.join(save_dir, "images_{}.pt".format(it)))
         #         torch.save(label_syn.cpu(), os.path.join(save_dir, "labels_{}.pt".format(it)))
-
         #         if save_this_it:
         #             torch.save(image_save.cpu(), os.path.join(save_dir, "images_best.pt".format(it)))
         #             torch.save(label_syn.cpu(), os.path.join(save_dir, "labels_best.pt".format(it)))
-
         #         wandb.log({"Pixels": wandb.Histogram(torch.nan_to_num(image_syn.detach().cpu()))}, step=it)
-
         #         if args.ipc < 50 or args.force_save:
         #             upsampled = image_save
         #             if args.dataset != "ImageNet":
@@ -407,7 +410,6 @@ def main(args):
         #             grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
         #             wandb.log({"Synthetic_Images": wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
         #             wandb.log({'Synthetic_Pixels': wandb.Histogram(torch.nan_to_num(image_save.detach().cpu()))}, step=it)
-
         #             for clip_val in [2.5]:
         #                 std = torch.std(image_save)
         #                 mean = torch.mean(image_save)
@@ -417,14 +419,11 @@ def main(args):
         #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=3)
         #                 grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
         #                 wandb.log({"Clipped_Synthetic_Images/std_{}".format(clip_val): wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
-
         #             if args.zca:
         #                 image_save = image_save.to(args.device)
         #                 image_save = args.zca_trans.inverse_transform(image_save)
         #                 image_save.cpu()
-
         #                 torch.save(image_save.cpu(), os.path.join(save_dir, "images_zca_{}.pt".format(it)))
-
         #                 upsampled = image_save
         #                 if args.dataset != "ImageNet":
         #                     upsampled = torch.repeat_interleave(upsampled, repeats=4, dim=2)
@@ -432,7 +431,6 @@ def main(args):
         #                 grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
         #                 wandb.log({"Reconstructed_Images": wandb.Image(torch.nan_to_num(grid.detach().cpu()))}, step=it)
         #                 wandb.log({'Reconstructed_Pixels': wandb.Histogram(torch.nan_to_num(image_save.detach().cpu()))}, step=it)
-
         #                 for clip_val in [2.5]:
         #                     std = torch.std(image_save)
         #                     mean = torch.mean(image_save)
@@ -443,93 +441,74 @@ def main(args):
         #                     grid = torchvision.utils.make_grid(upsampled, nrow=10, normalize=True, scale_each=True)
         #                     wandb.log({"Clipped_Reconstructed_Images/std_{}".format(clip_val): wandb.Image(
         #                         torch.nan_to_num(grid.detach().cpu()))}, step=it)
-
         # wandb.log({"Synthetic_LR": syn_lr.detach().cpu()}, step=it)
         student_net.train()
-
         # 这里有两个改动：1 不用student_net.parameters() 这个是前向的，应该直接用load上来的size（而且是在fuse 之前）
         # 但是因为fuse 之前的starting_params 长度 不太好获取。反正就是一个值而已。在这里处理一下吧。。
         # num_params 就是一个param的值
         num_params = sum([np.prod(p.size()) for p in (student_net.parameters())]) / (Fuse)
         # print(num_params)
-
         if args.load_all:
-            expert_trajectory = buffer[np.random.randint(0, len(buffer))]
+            start_flat, target_flat = buffer[expert_idx]
+            expert_idx = (expert_idx + 1) % len(buffer)
+            student_params = [start_flat.to(args.device, copy=True).requires_grad_(True)]
+            target_params = target_flat.to(args.device)
         else:
             expert_trajectory = buffer[expert_idx]
-            expert_idx += 1
-            if expert_idx == len(buffer): # expert_idx可能类似一个counter，全部读完之后再load
-                expert_idx = 0
-                file_idx += 1
-                if file_idx == len(expert_files): 
-                    file_idx = 0
-                    # random.shuffle(expert_files)
-                # print("loading file {}".format(expert_files[file_idx]))
-                if args.max_files != 1:
-                    del buffer
-                    buffer = torch.load(expert_files[file_idx])
-                if args.max_experts is not None:
-                    buffer = buffer[:args.max_experts]
-                # random.shuffle(buffer)
+            expert_idx += Fuse
+            # 模拟消耗 Fuse 个 expert；每跨过一个 buffer，重新 load 一次
+            while expert_idx >= len(buffer):
+                expert_idx -= len(buffer)
 
-        # start_epoch = np.random.randint(0, args.max_start_epoch)
-        start_epoch = 0
-        starting_params = expert_trajectory[start_epoch]
+                del buffer
+                buffer = torch.load(expert_files[0])[:args.max_experts]
+            # start_epoch = np.random.randint(0, args.max_start_epoch)
+            start_epoch = 0
+            # Copy the parameter lists because the fusion code replaces their entries.
+            starting_params = list(expert_trajectory[start_epoch])
+            target_params = list(expert_trajectory[start_epoch + args.expert_epochs])
+            #  TODO: 这里仍然是为了测试时间，因此还是用bwd fuse repeat。正式版本中应该修改。
+            for index, i in enumerate(target_params):
+                if i.ndim  != 0 :
+                    # target_params[index] = torch.cat([i, i], dim=0)   
+                    target_params[index] = i.repeat((int(bwd_Fuse),) + (1,) * (i.ndim - 1))  
+            target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
 
-        target_params = expert_trajectory[start_epoch+args.expert_epochs]
-        
-        #  TODO: 这里仍然是为了测试时间，因此还是用bwd fuse repeat。正式版本中应该修改。
+            # TODO: 2 stu param 作为forward 的flat_param传入，要么在这里修改，要么重载forward
+            # BUFFER:             1* 11* 14 * model Params
+            # expert_trajectory ： 11 * 14 * model Params
+            # starting_params   ： 14 * model Params
+            # # shape list 是一个的。后面可能需要expand
+            shape_list = [p.shape for p in starting_params]
+            mask_params = []
+            Fuse = len(fuse_mask_list)    # 关键：Fuse = 分组数
 
-        for index, i in enumerate(target_params):
-            if i.ndim  != 0 :
-                # target_params[index] = torch.cat([i, i], dim=0)   
-                target_params[index] = i.repeat((int(bwd_Fuse),) + (1,) * (i.ndim - 1))  
-        target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
+            for index, p in enumerate(starting_params):
+                if p.ndim != 0:
+                    # ===== 1）repeat（第 0 维复制 Fuse 次）=====
+                    B0 = p.shape[0]
+                    repeat_shape = (Fuse,) + (1,) * (p.ndim - 1)
+                    p_rep = p.repeat(repeat_shape)          # shape = [Fuse*B0, ...]
+                    starting_params[index] = p_rep
+                    # ===== 2）构造 mask（和 p_rep 同 shape），按 block 切 =====
+                    # row_mask.shape = [Fuse*B0]
+                    # fuse_mask_list = [1,1,0] → [True,True,False]
+                    row_mask = torch.tensor(fuse_mask_list, dtype=torch.bool, device=p.device)
+                    row_mask = row_mask.repeat_interleave(B0)
+                    # 现在 row_mask = [T,T,...B0 次, T,T,...B0 次, F,F,...B0 次]
+                    # 扩展成 p_rep 同 shape（广播）
+                    view_shape = (Fuse * B0,) + (1,) * (p_rep.ndim - 1)
+                    mask_param = row_mask.view(view_shape).expand_as(p_rep)
+                    mask_params.append(mask_param)
 
-        # TODO: 2 stu param 作为forward 的flat_param传入，要么在这里修改，要么重载forward
-        # BUFFER:             1* 11* 14 * model Params
-        # BUFFER 在每个Iter之中，有可能会重新load 新的参数进来。
-        # expert_trajectory ： 11 * 14 * model Params
-        # starting_params   ： 14 * model Params
-
-
-        # # shape list 是一个的。后面可能需要expand
-        shape_list = [p.shape for p in starting_params]
-
-        mask_params = []
-        Fuse = len(fuse_mask_list)    # 关键：Fuse = 分组数
-
-        for index, p in enumerate(starting_params):
-            if p.ndim != 0:
-
-                # ===== 1）repeat（第 0 维复制 Fuse 次）=====
-                B0 = p.shape[0]
-                repeat_shape = (Fuse,) + (1,) * (p.ndim - 1)
-                p_rep = p.repeat(repeat_shape)          # shape = [Fuse*B0, ...]
-                starting_params[index] = p_rep
-
-                # ===== 2）构造 mask（和 p_rep 同 shape），按 block 切 =====
-
-                # row_mask.shape = [Fuse*B0]
-                # fuse_mask_list = [1,1,0] → [True,True,False]
-                row_mask = torch.tensor(fuse_mask_list, dtype=torch.bool, device=p.device)
-                row_mask = row_mask.repeat_interleave(B0)
-                # 现在 row_mask = [T,T,...B0 次, T,T,...B0 次, F,F,...B0 次]
-
-                # 扩展成 p_rep 同 shape（广播）
-                view_shape = (Fuse * B0,) + (1,) * (p_rep.ndim - 1)
-                mask_param = row_mask.view(view_shape).expand_as(p_rep)
-
-                mask_params.append(mask_param)
-
-        # ===== flatten =====
-        student_params = [
-            torch.cat([pp.data.to(args.device).reshape(-1) for pp in starting_params], 0)
-            .requires_grad_(True)
-        ]
-        mask = torch.cat([mm.reshape(-1) for mm in mask_params], 0)   # already bool
-        del mask_params
-
+            # ===== flatten =====
+            student_params = [
+                torch.cat([pp.data.to(args.device).reshape(-1) for pp in starting_params], 0)
+                .requires_grad_(True)
+            ]
+            mask = torch.cat([mm.reshape(-1) for mm in mask_params], 0)   # already bool
+            del mask_params
+            del starting_params
 
         # mask_params = []
         # for index, p in enumerate(starting_params):
@@ -548,7 +527,6 @@ def main(args):
         #     # else:
         #     #     # 标量参数：原代码不处理，这里给一个同 shape 的 mask（全部 1，或者你想要的值）
         #     #     mask_params.append(torch.ones_like(p).to(args.device))
-
         # # =====  student_params 完全不动 =====
         # student_params = [
         #     torch.cat([pp.data.to(args.device).reshape(-1) for pp in starting_params], 0)
@@ -557,7 +535,6 @@ def main(args):
         # # ===== 新增：把 mask 也 flatten 成一维，和 student_params[0] 对齐 =====
         # mask = torch.cat([mm.reshape(-1).bool() for mm in mask_params], 0)
         # del mask_params
-
         # for index, i in enumerate(starting_params):
         #     # print(i)
         #     if i.ndim != 0 :
@@ -565,17 +542,10 @@ def main(args):
         #         starting_params[index] = i.repeat((int(Fuse),) + (1,) * (i.ndim - 1))   
         # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0).requires_grad_(True)]
         # mask = build_global_group_mask(student_params,fuse_mask_list)
-
-
-
-
         # student_params, mask = fuse_params_with_mask(starting_params, Fuse, [1,0])
         # student_params = [torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params  for _ in range(int(Fuse))], 0).requires_grad_(True)]
         # student_params = [torch.cat([item.data.to(args.device).reshape(-1) for p in starting_params  for item in (p, p[0]+"1")], 0).requires_grad_(True)]
-
         # starting_params = torch.cat([p.data.to(args.device).reshape(-1) for p in starting_params], 0)
-
-
         # with torch.no_grad():
         #     if Fuse != bwd_Fuse:
         #         starting_params_bwd = starting_params[mask]
@@ -585,7 +555,6 @@ def main(args):
         #         starting_params_bwd = starting_params
         #         target_params_bwd = target_params
         #         init_params_bwd = student_params[0]
-
         #     # 版本 A：保留原函数语义
         #     param_dist, base_num_params = compute_param_dist_fuse_mean(
         #         starting_params_bwd,
@@ -593,7 +562,6 @@ def main(args):
         #         shape_list,
         #         bwd_Fuse,
         #     )
-
         #     # 可选：bwd_Fuse 版本的初始权重也可以提前 recover
         #     (
         #         conv1_w_bwd, conv1_b_bwd, norm1_w_bwd, norm1_b_bwd,
@@ -601,15 +569,11 @@ def main(args):
         #         conv3_w_bwd, conv3_b_bwd, norm3_w_bwd, norm3_b_bwd,
         #         lin_w_bwd, _
         #     ) = recover_params(init_params_bwd, shape_list, bwd_Fuse)
-
         syn_images = image_syn
-
         y_hat = label_syn.to(args.device)
-
         param_loss_list = []
         param_dist_list = []
         indices_chunks = []
-
         if it >= warmup:
             if args.use_barrier:
                 torch.cuda.synchronize()
@@ -617,24 +581,17 @@ def main(args):
         conv1_w, conv1_b, norm1_w, norm1_b, conv2_w, conv2_b, norm2_w, norm2_b, conv3_w, conv3_b, norm3_w, norm3_b, lin_w, _  =recover_params(student_params[0],shape_list, Fuse)
 
         for step in range(args.syn_steps):
-
             if not indices_chunks:
                 indices = torch.arange(len(syn_images))
                 indices_chunks = list(torch.split(indices, args.batch_syn))
-
             these_indices = indices_chunks.pop()
-
-
             x = syn_images[these_indices]
             this_y = y_hat[these_indices]
-
             # if args.texture:
             #     x = torch.cat([torch.stack([torch.roll(im, (torch.randint(im_size[0]*args.canvas_size, (1,)), torch.randint(im_size[1]*args.canvas_size, (1,))), (1,2))[:,:im_size[0],:im_size[1]] for im in x]) for _ in range(args.canvas_samples)])
             #     this_y = torch.cat([this_y for _ in range(args.canvas_samples)])
-
             # if args.dsa and (not args.no_aug):
             #     x = DiffAugment(x, args.dsa_strategy, param=args.dsa_param)
-
             if args.distributed:
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
@@ -702,22 +659,17 @@ def main(args):
                 ( conv1_w, norm1_w, conv2_w, norm2_w, conv3_w, norm3_w, lin_w,) = view_falf_fst_dim(
                     weights=( conv1_w, norm1_w, conv2_w, norm2_w, conv3_w, norm3_w, lin_w,), Fuse=Fuse, bwd_Fuse=bwd_Fuse )
 
-
             else:
                 final_params_bwd = student_params[-1]
                 init_params_bwd = student_params[0]
                 target_params_bwd = target_params
-            
-
         if it >= warmup:
-            if args.use_barrier:
+            if args.use_barrier and args.split_fwd_barrier: # 在fwd 和bwd 之间的barrier 只有在特别情况下才开。
                 torch.cuda.synchronize()
             syn_end = time.time()
-
         with torch.no_grad():
             param_loss = torch.tensor(0.0).to(args.device)
             param_dist = torch.tensor(0.0).to(args.device)
-
             param_loss += torch.nn.functional.mse_loss(student_params[-1], target_params, reduction="sum") # 好像是因为reduction的原因。。。。
             # param_dist += torch.nn.functional.mse_loss(starting_params, target_params, reduction="sum")
             # 不可以直接用param dist ！ 对每个层，分别对每个 fuse 计算 MSE
@@ -734,7 +686,6 @@ def main(args):
             # param_dist = torch.stack(fuse_losses).mean()
             # print("v_fuse",args.v_fuse)
             param_dist_time_start = time.time()
-
             # param_dist_raw_mean, base_num_params = compute_param_dist_fuse_mean(
             #     starting_params,
             #     target_params,
@@ -745,11 +696,9 @@ def main(args):
                 init_params_bwd - target_params_bwd
             ).square().sum() / bwd_Fuse
             param_dist_time_end = time.time()
-
             param_dist = param_dist + param_dist_raw_mean
             # diff0 = starting_params - target_params
             # param_dist = diff0.square().sum() / bwd_Fuse
-
             param_loss_list.append(param_loss)
             param_dist_list.append(param_dist)
             # param_loss /= num_params
@@ -758,14 +707,13 @@ def main(args):
             grand_loss = param_loss # 是为了抵消num_params变化带来的影响。但是flex fuse 之后num_params没有变化（还是Fuse）
             optimizer_img.zero_grad()
             optimizer_lr.zero_grad()
-
             ddx_conv = torch.zeros_like(x_conv1).cuda()
             ddw = 2*(student_params[-1]- target_params)/param_dist
             ddw *= (-syn_lr)
             # if args.use_barrier:
             #     torch.cuda.synchronize()
             #     temp_start = time.time()
-            del grad, target_params, starting_params
+            del grad, target_params
             # for _ in student_params:
             #     del _
             ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b  =recover_params(ddw, shape_list,bwd_Fuse )
@@ -822,55 +770,57 @@ def main(args):
             print("--Celoss--",ce_loss.item())
             print("--GradLoss--",grand_loss.item())
             print("----GRAD-----", dx_conv1_d1.sum().item()) 
-
         optimizer_img.step()
         optimizer_lr.step()
         if it >= warmup:
             if args.use_barrier:
                 torch.cuda.synchronize()
             iter_end = time.time()
-            prep_time += (syn_start- start) # 从iter开始一直到内层循环
-            syn_time += (syn_end-syn_start) # 内层循环的时间
-            bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
-            param_dist_time += (param_dist_time_end-param_dist_time_start) # 计算param_dist的时间
-
+            if args.use_barrier and args.split_fwd_barrier:
+                prep_time += (syn_start- pre_end) # 从iter开始一直到内层循环。包含了data loading以及system 操作。
+                syn_time += (syn_end-syn_start) # 内层循环的时间
+                bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
+                param_dist_time += (param_dist_time_end-param_dist_time_start) # 计算param_dist的时间
+            else:
+                system_time += (syn_start- pre_end) # 从iter开始一直到内层循环。包含了data loading以及system 操作。
+                kernel_time += (iter_end-syn_start) # 内层循环的时间，只包含了kernel以及一些系统操作。
             # test_time +=(temp_end-temp_start)
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})
-
         # for _ in student_params:
         #     del _
-
         # if it%10 == 0:
     #     #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
     #     print("alloc", torch.cuda.memory_allocated() / 1024**2,
     #   "reserved", torch.cuda.memory_reserved() / 1024**2)
 
 
+    torch.cuda.synchronize()
     iter_end = time.time()
-    print("------------FIN TIME-------------")
-    print("time sumation: ", iter_end - pre_end)
-    if( not args.use_barrier):
-        print("prepare time (", args.syn_steps ,"): ", prep_time)
-        print("syn_time     (", args.syn_steps ,"): ", syn_time)
-        print("backward_time(", args.syn_steps ,"): ", bwd_time)
-        # print("param_dist_time(", args.syn_steps ,"): ", param_dist_time)
-
+    print("------------TESTING FINISHED-------------")
+    if (not args.use_barrier):
+        print("total time: ", iter_end - total_start)
+        print("kernel time( without barrier): ", kernel_time)
+    elif (args.split_fwd_barrier):
+        print("prepare time (", args.Iteration ,"): ", prep_time)
+        print("syn_time     (", args.Iteration ,"): ", syn_time)
+        print("backward_time(", args.Iteration ,"): ", bwd_time)
+    else:
+        print("system time  (", args.Iteration ,"): ", system_time)
+        print("Kernel time  (", args.Iteration ,"): ", kernel_time)
     print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
     print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
-
     # wandb.finish()
+
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
-
     parser.add_argument(   '--fuse_mask_list',   type=int,   nargs='+',       required=True,        help='fuse mask list, e.g. 1 1 0')
-
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--use-barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
-
+    parser.add_argument('--split-fwd-barrier', action=argparse.BooleanOptionalAction, default=False, help='split timing of fwd & bwd')
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
@@ -914,8 +864,8 @@ if __name__ == '__main__':
     parser.add_argument('--dsa_strategy', type=str, default='color_crop_cutout_flip_scale_rotate',
                         help='differentiable Siamese augmentation strategy')
 
-    parser.add_argument('--data_path', type=str, default='data', help='dataset path')
-    parser.add_argument('--buffer_path', type=str, default='./buffers', help='buffer path')
+    parser.add_argument('--data_path', type=str, default='/scratch/yguo25/files/mtt-distillation/dataset', help='dataset path')
+    parser.add_argument('--buffer_path', type=str, default='/scratch/yguo25/files/mtt-distillation/buffer', help='buffer path')
 
     parser.add_argument('--expert_epochs', type=int, default=3, help='how many expert epochs the target params are')
     parser.add_argument('--syn_steps', type=int, default=20, help='how many steps to take on synthetic data')
@@ -923,7 +873,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--zca', action='store_true', help="do ZCA whitening")
 
-    parser.add_argument('--load_all', action='store_true', help="only use if you can fit all expert trajectories into RAM")
+    parser.add_argument('--load_all', action='store_true', help="preload shuffled, packed expert groups into CPU RAM before the loop")
 
     parser.add_argument('--no_aug', type=bool, default=False, help='this turns off diff aug during distillation')
 
@@ -939,4 +889,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args)
+    main(args)# 7.18 sys overhgead还是比较多。按照gpt意见修改一下

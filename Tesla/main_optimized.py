@@ -157,7 +157,7 @@ def main(args):
     if(args.AccTest):
         # image_syn = torch.load("./test_script/script/in.pt")    
         args.ipc = 10
-        image_syn = torch.load("./test_script/script/in_ip10.pt")
+        # image_syn = torch.load("test_script/script/in_ip10.pt") # TODO: 因为路径问题，暂时注释掉了。
 
     ''' training '''
     image_syn = image_syn.detach().to(args.device).requires_grad_(True)
@@ -414,6 +414,10 @@ def main(args):
         indices_chunks = []
         gradient_sum = torch.zeros(student_params[-1].shape).to(args.device)
         indices_chunks_copy = []
+        if it >= warmup:
+            if args.use_barrier and args.device == 'cuda':
+                torch.cuda.synchronize()
+            syn_start = time.time()
         for _ in range(args.syn_steps):
 
             if not indices_chunks:
@@ -442,6 +446,11 @@ def main(args):
             gradient_sum += detached_grad
 
             del grad
+
+        if it >= warmup:
+            if args.use_barrier and args.device == 'cuda':
+                torch.cuda.synchronize()
+            syn_end = time.time()
 
         # --------Compute the gradients regarding input image and learning rate---------
         # compute gradients invoving 2 gradients
@@ -472,6 +481,13 @@ def main(args):
 
         optimizer_img.step()
         optimizer_lr.step()
+        if it >= warmup:
+            if args.use_barrier and args.device == 'cuda':
+                torch.cuda.synchronize()
+            iter_end = time.time()
+            prep_time += syn_start - start
+            syn_time += syn_end - syn_start
+            bwd_time += iter_end - syn_end
 
 
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
@@ -486,6 +502,7 @@ def main(args):
     iter_end = time.time()
     print("------------FIN TIME-------------")
     print(iter_end - pre_end)
+
     print("prepare time (", args.syn_steps ,"): ", prep_time)
     print("syn_time     (", args.syn_steps ,"): ", syn_time)
     print("backward_time(", args.syn_steps ,"): ", bwd_time)
@@ -499,7 +516,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
 
-
+    parser.add_argument(   '--fuse_mask_list',   type=int,   nargs='+',       required=True,        help='fuse mask list, e.g. 1 1 0')
 
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
@@ -520,12 +537,12 @@ if __name__ == '__main__':
     parser.add_argument('--eval_mode', type=str, default='S',
                         help='eval_mode, check utils.py for more info')
 
-    parser.add_argument('--num_eval', type=int, default=3, help='how many networks to evaluate on')
+    parser.add_argument('--num_eval', type=int, default=5, help='how many networks to evaluate on')
 
     parser.add_argument('--eval_it', type=int, default=100, help='how often to evaluate')
 
     parser.add_argument('--epoch_eval_train', type=int, default=1000, help='epochs to train a model with synthetic data')
-    parser.add_argument('--Iteration', type=int, default=10000, help='how many distillation steps to perform')
+    parser.add_argument('--Iteration', type=int, default=5000, help='how many distillation steps to perform')
 
     parser.add_argument('--lr_img', type=float, default=1000, help='learning rate for updating synthetic images')
     parser.add_argument('--lr_lr', type=float, default=1e-05, help='learning rate for updating... learning rate')

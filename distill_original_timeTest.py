@@ -11,31 +11,37 @@ import wandb
 import copy
 import random
 from reparam_module import ReparamModule
-
+from utils_flex import set_random_seed
 import time
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-def set_random_seed(seed=42):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
+# def set_random_seed(seed=42):
+#     random.seed(seed)
+#     np.random.seed(seed)
+#     torch.manual_seed(seed)
+#     torch.cuda.manual_seed(seed)
+#     torch.cuda.manual_seed_all(seed)
+#     torch.backends.cudnn.deterministic = True
+#     torch.backends.cudnn.benchmark = False  # 关闭自动优化，确保计算确定性
+#     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"  # 保证 CUDA 计算稳定（仅对 PyTorch 1.8+ 有效）
 # set_random_seed(42)
 def main(args):
     if (args.AccTest):
         set_random_seed(42)
         args.Iteration = 0
     prep_time = 0
+    test_time = 0
+    kernel_time = 0
+    system_time = 0
     syn_time = 0
     bwd_time = 0
+    param_dist_time = 0
+
+    Fuse = int(args.Fuse)
     torch.cuda.reset_peak_memory_stats()
     torch.cuda.empty_cache()
 
-    pre_start = time.time()
+    # pre_start = time.time()
 
     if args.zca and args.texture:
         raise AssertionError("Cannot use zca and texture together")
@@ -242,14 +248,23 @@ def main(args):
         warmup = 0
     else:
         warmup = 3
-    args.Iteration += warmup
+    # warmup = 0
 
+
+    torch.cuda.synchronize()
+
+    args.Iteration += warmup
     pre_end = time.time()
+
 
     for it in range(0, args.Iteration+1):
         if it >= warmup:
-            start = time.time()
-
+            if (args.use_barrier):
+                torch.cuda.synchronize()
+            if it == warmup:
+                torch.cuda.synchronize()  # exclude pending warmup kernels
+                total_start = time.time()
+            pre_end = time.time()
         save_this_it = False
 
         # writer.add_scalar('Progress', it, it)
@@ -470,7 +485,7 @@ def main(args):
             #     # print("DETACH")
             #     student_params[-3] = student_params[-3].detach()
         if it >= warmup:
-            if args.use_barrier:
+            if args.use_barrier and args.split_fwd_barrier: # 在fwd 和bwd 之间的barrier 只有在特别情况下才开。
                 torch.cuda.synchronize()
             syn_end = time.time()
 
@@ -522,10 +537,15 @@ def main(args):
             if args.use_barrier:
                 torch.cuda.synchronize()
             iter_end = time.time()
-            prep_time += (syn_start- start) # 从iter开始一直到内层循环
-            syn_time += (syn_end-syn_start) # 内层循环的时间
-            bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
-
+            if args.use_barrier and args.split_fwd_barrier:
+                prep_time += (syn_start- pre_end) # 从iter开始一直到内层循环。包含了data loading以及system 操作。
+                syn_time += (syn_end-syn_start) # 内层循环的时间
+                bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
+                # param_dist_time += (param_dist_time_end-param_dist_time_start) # 计算param_dist的时间
+            else:
+                system_time += (syn_start- pre_end) # 从iter开始一直到内层循环。包含了data loading以及system 操作。
+                kernel_time += (iter_end-syn_start) # 内层循环的时间，只包含了kernel以及一些系统操作。
+            # test_time +=(temp_end-temp_start)
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})
 
@@ -535,16 +555,21 @@ def main(args):
         # if it%10 == 0:
         #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
 
+    torch.cuda.synchronize()
     iter_end = time.time()
-    print("------------FIN TIME-------------")
-    print(iter_end - pre_end)
-    print("prepare time (", args.syn_steps ,"): ", prep_time)
-    print("syn_time     (", args.syn_steps ,"): ", syn_time)
-    print("backward_time(", args.syn_steps ,"): ", bwd_time)
-
-    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB")
-    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB")
-
+    print("------------TESTING FINISHED-------------")
+    if (not args.use_barrier):
+        print("total time: ", iter_end - total_start)
+        print("kernel time( without barrier): ", kernel_time)
+    elif (args.split_fwd_barrier):
+        print("prepare time (", args.Iteration ,"): ", prep_time)
+        print("syn_time     (", args.Iteration ,"): ", syn_time)
+        print("backward_time(", args.Iteration ,"): ", bwd_time)
+    else:
+        print("system time  (", args.Iteration ,"): ", system_time)
+        print("Kernel time  (", args.Iteration ,"): ", kernel_time)
+    print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
+    print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
     # wandb.finish()
 
 
@@ -556,7 +581,7 @@ if __name__ == '__main__':
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--use-barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
-
+    parser.add_argument('--split-fwd-barrier', action=argparse.BooleanOptionalAction, default=False, help='split timing of fwd & bwd')
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')

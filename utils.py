@@ -250,8 +250,13 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True,v_fuse=
         net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes,Fuse=fusion,v_fuse=v_fuse)
     elif model.startswith("ViTFlexFuse"):
         fusion = int(model[11:])
-        # net = ResNet18_FlexFuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion)
-        net = ViT_FlexFuse(num_classes=num_classes,Fuse=fusion,v_fuse=v_fuse)
+        net = ViT_FlexFuse(
+            img_size=im_size[0],
+            in_channels=channel,
+            num_classes=num_classes,
+            Fuse=fusion,
+            v_fuse=v_fuse
+        )
     elif model == 'VGG':
         fusion = int(model[5:])
         student_net = VGG11_Flexfuse(channel, num_classes, Fuse=fusion, im_size=im_size, v_fuse=args.v_fuse).to(args.device)  

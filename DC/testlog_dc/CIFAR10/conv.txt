@@ -1013,3 +1013,2466 @@ real images channel 2, mean = 0.0002, std = 1.3014
 initialize synthetic data from random noise
 [2026-10-20 21:32:15] training begins
 [2026-10-20 21:32:22] iter = 0000, loss = 344.8098
+[2026-10-20 21:33:27] iter = 0010, loss = 337.9239
+[2026-10-20 21:34:34] iter = 0020, loss = 328.1716
+[2026-10-20 21:35:41] iter = 0030, loss = 341.0464
+[2026-10-20 21:36:48] iter = 0040, loss = 331.9512
+[2026-10-20 21:37:54] iter = 0050, loss = 335.2473
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 1, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7cec2c55bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 21:38:01] training begins
+[2026-10-20 21:38:08] iter = 0000, loss = 350.0389
+[2026-10-20 21:39:14] iter = 0010, loss = 337.2223
+[2026-10-20 21:40:18] iter = 0020, loss = 326.8076
+[2026-10-20 21:41:25] iter = 0030, loss = 335.6890
+[2026-10-20 21:42:31] iter = 0040, loss = 336.5103
+[2026-10-20 21:43:39] iter = 0050, loss = 327.5147
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 1, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7cec2c55bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 21:43:46] training begins
+[2026-10-20 21:43:53] iter = 0000, loss = 350.0747
+[2026-10-20 21:44:58] iter = 0010, loss = 333.7518
+[2026-10-20 21:46:03] iter = 0020, loss = 332.4204
+[2026-10-20 21:47:08] iter = 0030, loss = 329.7417
+[2026-10-20 21:48:13] iter = 0040, loss = 330.1528
+[2026-10-20 21:49:18] iter = 0050, loss = 325.5721
+------------FIN TIME-------------
+time sumation:  410.8121180534363
+fwd_time:       143.90813446044922
+backward_time:  251.36167120933533
+峰值cache使用: 980.0 MB
+峰值tensor使用: 795.9560546875 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-20 21:49:18 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=3 | BATCH_REAL=1 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=1 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=3 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 1, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bc17648ddf0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 21:49:30] training begins
+[2026-10-20 21:49:38] iter = 0000, loss = 346.3698
+[2026-10-20 21:50:43] iter = 0010, loss = 340.2687
+[2026-10-20 21:51:48] iter = 0020, loss = 331.8780
+[2026-10-20 21:52:53] iter = 0030, loss = 326.1543
+[2026-10-20 21:53:58] iter = 0040, loss = 330.3588
+[2026-10-20 21:55:03] iter = 0050, loss = 327.7330
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 1, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bc17648ddf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 21:55:11] training begins
+[2026-10-20 21:55:18] iter = 0000, loss = 351.2789
+[2026-10-20 21:56:24] iter = 0010, loss = 337.2400
+[2026-10-20 21:57:31] iter = 0020, loss = 326.2022
+[2026-10-20 21:58:35] iter = 0030, loss = 339.3277
+[2026-10-20 21:59:41] iter = 0040, loss = 328.7942
+[2026-10-20 22:00:48] iter = 0050, loss = 337.2018
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 1, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bc17648ddf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:00:55] training begins
+[2026-10-20 22:01:02] iter = 0000, loss = 349.5724
+[2026-10-20 22:02:10] iter = 0010, loss = 334.4650
+[2026-10-20 22:03:17] iter = 0020, loss = 335.0806
+[2026-10-20 22:04:24] iter = 0030, loss = 334.8982
+[2026-10-20 22:05:29] iter = 0040, loss = 331.3933
+[2026-10-20 22:06:34] iter = 0050, loss = 334.1443
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 1, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bc17648ddf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:06:41] training begins
+[2026-10-20 22:06:48] iter = 0000, loss = 349.0906
+[2026-10-20 22:07:55] iter = 0010, loss = 338.7383
+[2026-10-20 22:09:03] iter = 0020, loss = 324.0305
+[2026-10-20 22:10:10] iter = 0030, loss = 336.9132
+[2026-10-20 22:11:18] iter = 0040, loss = 327.0607
+[2026-10-20 22:12:25] iter = 0050, loss = 322.9503
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 1, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bc17648ddf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:12:32] training begins
+[2026-10-20 22:12:39] iter = 0000, loss = 351.2496
+[2026-10-20 22:13:44] iter = 0010, loss = 334.7322
+[2026-10-20 22:14:49] iter = 0020, loss = 338.7366
+[2026-10-20 22:15:54] iter = 0030, loss = 335.3888
+[2026-10-20 22:16:59] iter = 0040, loss = 327.2351
+[2026-10-20 22:18:04] iter = 0050, loss = 325.5627
+------------FIN TIME-------------
+time sumation:  415.6896321773529
+fwd_time:       146.42974996566772
+backward_time:  253.66250658035278
+峰值cache使用: 980.0 MB
+峰值tensor使用: 795.9560546875 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-20 22:18:04 | DATASET=CIFAR10 | MODEL=ConvNet | CASE=original | BATCH_REAL=10 | REPEAT=1/2
+CMD: python main_optimized.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x71fabfa755b0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:18:16] training begins
+[2026-10-20 22:18:19] iter = 0000, loss = 29.2588
+[2026-10-20 22:18:49] iter = 0010, loss = 21.8439
+[2026-10-20 22:19:18] iter = 0020, loss = 21.6597
+[2026-10-20 22:19:48] iter = 0030, loss = 21.0936
+[2026-10-20 22:20:16] iter = 0040, loss = 17.3957
+[2026-10-20 22:20:45] iter = 0050, loss = 18.3697
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x71fabfa755b0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:20:53] training begins
+[2026-10-20 22:20:56] iter = 0000, loss = 27.2117
+[2026-10-20 22:21:25] iter = 0010, loss = 20.2364
+[2026-10-20 22:21:54] iter = 0020, loss = 20.4475
+[2026-10-20 22:22:23] iter = 0030, loss = 19.1920
+[2026-10-20 22:22:51] iter = 0040, loss = 18.6462
+[2026-10-20 22:23:20] iter = 0050, loss = 19.3707
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x71fabfa755b0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:23:27] training begins
+[2026-10-20 22:23:30] iter = 0000, loss = 28.9217
+[2026-10-20 22:23:59] iter = 0010, loss = 20.5130
+[2026-10-20 22:24:28] iter = 0020, loss = 19.9401
+[2026-10-20 22:24:57] iter = 0030, loss = 21.1217
+[2026-10-20 22:25:25] iter = 0040, loss = 17.9717
+[2026-10-20 22:25:54] iter = 0050, loss = 19.0571
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x71fabfa755b0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:26:02] training begins
+[2026-10-20 22:26:04] iter = 0000, loss = 27.9456
+[2026-10-20 22:26:33] iter = 0010, loss = 20.6294
+[2026-10-20 22:27:02] iter = 0020, loss = 19.6155
+[2026-10-20 22:27:31] iter = 0030, loss = 18.3766
+[2026-10-20 22:28:00] iter = 0040, loss = 19.3904
+[2026-10-20 22:28:29] iter = 0050, loss = 19.3089
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x71fabfa755b0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:28:36] training begins
+[2026-10-20 22:28:39] iter = 0000, loss = 28.9122
+[2026-10-20 22:29:08] iter = 0010, loss = 22.9946
+[2026-10-20 22:29:37] iter = 0020, loss = 23.2776
+[2026-10-20 22:30:06] iter = 0030, loss = 18.6337
+[2026-10-20 22:30:35] iter = 0040, loss = 18.6477
+[2026-10-20 22:31:04] iter = 0050, loss = 19.5462
+------------FIN TIME-------------
+time sumation:  168.62428092956543
+fwd_time:       76.67025685310364
+backward_time:  77.67658305168152
+峰值cache使用: 974.0 MB
+峰值tensor使用: 659.037109375 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-20 22:31:05 | DATASET=CIFAR10 | MODEL=ConvNet | CASE=original | BATCH_REAL=10 | REPEAT=2/2
+CMD: python main_optimized.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x78be7708e5b0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:31:17] training begins
+[2026-10-20 22:31:20] iter = 0000, loss = 26.4845
+[2026-10-20 22:31:49] iter = 0010, loss = 20.4241
+[2026-10-20 22:32:18] iter = 0020, loss = 20.8396
+[2026-10-20 22:32:48] iter = 0030, loss = 20.1351
+[2026-10-20 22:33:17] iter = 0040, loss = 20.0661
+[2026-10-20 22:33:47] iter = 0050, loss = 19.2910
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x78be7708e5b0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:33:54] training begins
+[2026-10-20 22:33:57] iter = 0000, loss = 28.5711
+[2026-10-20 22:34:27] iter = 0010, loss = 21.2835
+[2026-10-20 22:34:56] iter = 0020, loss = 19.8176
+[2026-10-20 22:35:25] iter = 0030, loss = 17.6129
+[2026-10-20 22:35:55] iter = 0040, loss = 20.3042
+[2026-10-20 22:36:24] iter = 0050, loss = 18.4629
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x78be7708e5b0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:36:31] training begins
+[2026-10-20 22:36:34] iter = 0000, loss = 27.6023
+[2026-10-20 22:37:03] iter = 0010, loss = 20.2048
+[2026-10-20 22:37:32] iter = 0020, loss = 20.1406
+[2026-10-20 22:38:01] iter = 0030, loss = 18.6698
+[2026-10-20 22:38:30] iter = 0040, loss = 20.9619
+[2026-10-20 22:39:13] iter = 0050, loss = 18.5283
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x78be7708e5b0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:39:21] training begins
+[2026-10-20 22:39:26] iter = 0000, loss = 27.8431
+[2026-10-20 22:40:20] iter = 0010, loss = 20.9443
+[2026-10-20 22:40:50] iter = 0020, loss = 18.6302
+[2026-10-20 22:41:20] iter = 0030, loss = 19.4307
+[2026-10-20 22:41:50] iter = 0040, loss = 18.9302
+[2026-10-20 22:42:20] iter = 0050, loss = 19.2771
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x78be7708e5b0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:42:27] training begins
+[2026-10-20 22:42:30] iter = 0000, loss = 29.2379
+[2026-10-20 22:42:59] iter = 0010, loss = 21.0860
+[2026-10-20 22:43:28] iter = 0020, loss = 20.4485
+[2026-10-20 22:43:57] iter = 0030, loss = 20.1467
+[2026-10-20 22:44:26] iter = 0040, loss = 19.1941
+[2026-10-20 22:44:55] iter = 0050, loss = 19.4855
+------------FIN TIME-------------
+time sumation:  197.00731921195984
+fwd_time:       95.97755193710327
+backward_time:  83.31093573570251
+峰值cache使用: 974.0 MB
+峰值tensor使用: 659.037109375 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-20 22:44:56 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=1 | BATCH_REAL=10 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=1 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x75d845afadf0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:45:08] training begins
+[2026-10-20 22:45:11] iter = 0000, loss = 266.3828
+[2026-10-20 22:45:41] iter = 0010, loss = 267.0296
+[2026-10-20 22:46:10] iter = 0020, loss = 271.1752
+[2026-10-20 22:46:40] iter = 0030, loss = 265.0522
+[2026-10-20 22:47:09] iter = 0040, loss = 255.5736
+[2026-10-20 22:47:39] iter = 0050, loss = 268.9680
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x75d845afadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:47:47] training begins
+[2026-10-20 22:47:50] iter = 0000, loss = 259.4499
+[2026-10-20 22:48:20] iter = 0010, loss = 258.3744
+[2026-10-20 22:48:49] iter = 0020, loss = 260.2573
+[2026-10-20 22:49:18] iter = 0030, loss = 270.2745
+[2026-10-20 22:49:48] iter = 0040, loss = 262.9345
+[2026-10-20 22:50:17] iter = 0050, loss = 267.5733
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x75d845afadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:50:24] training begins
+[2026-10-20 22:50:27] iter = 0000, loss = 259.1542
+[2026-10-20 22:50:57] iter = 0010, loss = 254.6320
+[2026-10-20 22:51:26] iter = 0020, loss = 256.4727
+[2026-10-20 22:52:22] iter = 0030, loss = 246.4685
+[2026-10-20 22:53:09] iter = 0040, loss = 275.8482
+[2026-10-20 22:53:39] iter = 0050, loss = 266.0964
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x75d845afadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:53:46] training begins
+[2026-10-20 22:53:49] iter = 0000, loss = 279.1585
+[2026-10-20 22:54:19] iter = 0010, loss = 255.2285
+[2026-10-20 22:54:49] iter = 0020, loss = 296.0054
+[2026-10-20 22:55:18] iter = 0030, loss = 260.1296
+[2026-10-20 22:55:47] iter = 0040, loss = 284.8876
+[2026-10-20 22:56:16] iter = 0050, loss = 271.0020
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x75d845afadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:56:24] training begins
+[2026-10-20 22:56:27] iter = 0000, loss = 267.6627
+[2026-10-20 22:56:57] iter = 0010, loss = 270.1492
+[2026-10-20 22:57:27] iter = 0020, loss = 260.4949
+[2026-10-20 22:57:58] iter = 0030, loss = 257.8471
+[2026-10-20 22:58:28] iter = 0040, loss = 256.7144
+[2026-10-20 22:58:59] iter = 0050, loss = 257.9052
+------------FIN TIME-------------
+time sumation:  200.13618636131287
+fwd_time:       91.69794368743896
+backward_time:  90.82525086402893
+峰值cache使用: 934.0 MB
+峰值tensor使用: 668.48486328125 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-20 22:58:59 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=1 | BATCH_REAL=10 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=1 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7ae117bcadf0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 22:59:11] training begins
+[2026-10-20 22:59:15] iter = 0000, loss = 271.0199
+[2026-10-20 22:59:44] iter = 0010, loss = 265.6863
+[2026-10-20 23:00:14] iter = 0020, loss = 273.1969
+[2026-10-20 23:00:44] iter = 0030, loss = 264.9518
+[2026-10-20 23:01:14] iter = 0040, loss = 249.0236
+[2026-10-20 23:01:43] iter = 0050, loss = 260.9953
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7ae117bcadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:01:51] training begins
+[2026-10-20 23:01:54] iter = 0000, loss = 258.2639
+[2026-10-20 23:02:24] iter = 0010, loss = 258.6978
+[2026-10-20 23:02:53] iter = 0020, loss = 245.3956
+[2026-10-20 23:03:24] iter = 0030, loss = 276.0802
+[2026-10-20 23:03:54] iter = 0040, loss = 253.5348
+[2026-10-20 23:04:24] iter = 0050, loss = 268.8921
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7ae117bcadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:04:31] training begins
+[2026-10-20 23:04:34] iter = 0000, loss = 268.7947
+[2026-10-20 23:05:05] iter = 0010, loss = 256.7675
+[2026-10-20 23:05:35] iter = 0020, loss = 248.7346
+[2026-10-20 23:06:04] iter = 0030, loss = 269.1755
+[2026-10-20 23:06:35] iter = 0040, loss = 259.9733
+[2026-10-20 23:07:06] iter = 0050, loss = 253.9656
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7ae117bcadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:07:13] training begins
+[2026-10-20 23:07:16] iter = 0000, loss = 252.6168
+[2026-10-20 23:07:45] iter = 0010, loss = 260.2012
+[2026-10-20 23:08:14] iter = 0020, loss = 282.6004
+[2026-10-20 23:08:45] iter = 0030, loss = 276.4317
+[2026-10-20 23:09:15] iter = 0040, loss = 254.3687
+[2026-10-20 23:09:54] iter = 0050, loss = 252.2235
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7ae117bcadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:10:01] training begins
+[2026-10-20 23:10:04] iter = 0000, loss = 269.9865
+[2026-10-20 23:10:33] iter = 0010, loss = 277.2520
+[2026-10-20 23:11:02] iter = 0020, loss = 246.8122
+[2026-10-20 23:11:31] iter = 0030, loss = 258.8993
+[2026-10-20 23:12:01] iter = 0040, loss = 271.3729
+[2026-10-20 23:12:31] iter = 0050, loss = 292.6084
+------------FIN TIME-------------
+time sumation:  186.76383471488953
+fwd_time:       80.03179383277893
+backward_time:  90.17917656898499
+峰值cache使用: 934.0 MB
+峰值tensor使用: 668.48486328125 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-20 23:12:32 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=2 | BATCH_REAL=10 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=2 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7003a510cdf0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:12:42] training begins
+[2026-10-20 23:12:48] iter = 0000, loss = 289.2150
+[2026-10-20 23:13:53] iter = 0010, loss = 251.2694
+[2026-10-20 23:14:58] iter = 0020, loss = 242.5385
+[2026-10-20 23:16:01] iter = 0030, loss = 240.9149
+[2026-10-20 23:16:37] iter = 0040, loss = 240.9791
+[2026-10-20 23:17:13] iter = 0050, loss = 238.9932
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7003a510cdf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:17:21] training begins
+[2026-10-20 23:17:24] iter = 0000, loss = 285.3599
+[2026-10-20 23:18:00] iter = 0010, loss = 248.1050
+[2026-10-20 23:18:36] iter = 0020, loss = 242.8110
+[2026-10-20 23:19:12] iter = 0030, loss = 240.6444
+[2026-10-20 23:19:48] iter = 0040, loss = 246.0219
+[2026-10-20 23:20:53] iter = 0050, loss = 239.7696
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7003a510cdf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:21:00] training begins
+[2026-10-20 23:21:08] iter = 0000, loss = 284.9220
+[2026-10-20 23:22:13] iter = 0010, loss = 248.3104
+[2026-10-20 23:23:17] iter = 0020, loss = 245.6375
+[2026-10-20 23:23:54] iter = 0030, loss = 247.7799
+[2026-10-20 23:24:32] iter = 0040, loss = 236.3686
+[2026-10-20 23:25:11] iter = 0050, loss = 235.3067
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7003a510cdf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:25:18] training begins
+[2026-10-20 23:25:22] iter = 0000, loss = 286.1760
+[2026-10-20 23:26:00] iter = 0010, loss = 250.1854
+[2026-10-20 23:26:37] iter = 0020, loss = 247.1602
+[2026-10-20 23:27:15] iter = 0030, loss = 243.9683
+[2026-10-20 23:27:51] iter = 0040, loss = 235.1772
+[2026-10-20 23:28:28] iter = 0050, loss = 238.2920
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7003a510cdf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:28:35] training begins
+[2026-10-20 23:28:39] iter = 0000, loss = 285.9928
+[2026-10-20 23:29:17] iter = 0010, loss = 246.8214
+[2026-10-20 23:29:56] iter = 0020, loss = 248.2667
+[2026-10-20 23:30:33] iter = 0030, loss = 239.3681
+[2026-10-20 23:31:11] iter = 0040, loss = 247.1006
+[2026-10-20 23:31:47] iter = 0050, loss = 232.4075
+------------FIN TIME-------------
+time sumation:  383.9209830760956
+fwd_time:       173.57455348968506
+backward_time:  189.16128635406494
+峰值cache使用: 986.0 MB
+峰值tensor使用: 735.4755859375 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-20 23:31:47 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=2 | BATCH_REAL=10 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=2 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7354b3cfadf0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:31:59] training begins
+[2026-10-20 23:32:04] iter = 0000, loss = 289.6143
+[2026-10-20 23:32:42] iter = 0010, loss = 252.7893
+[2026-10-20 23:33:18] iter = 0020, loss = 244.5506
+[2026-10-20 23:33:57] iter = 0030, loss = 242.6549
+[2026-10-20 23:34:35] iter = 0040, loss = 241.1624
+[2026-10-20 23:35:13] iter = 0050, loss = 240.1509
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7354b3cfadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:35:20] training begins
+[2026-10-20 23:35:24] iter = 0000, loss = 285.2552
+[2026-10-20 23:36:00] iter = 0010, loss = 253.3685
+[2026-10-20 23:36:36] iter = 0020, loss = 250.1182
+[2026-10-20 23:37:12] iter = 0030, loss = 241.3388
+[2026-10-20 23:37:48] iter = 0040, loss = 236.3059
+[2026-10-20 23:38:23] iter = 0050, loss = 240.0531
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7354b3cfadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:38:31] training begins
+[2026-10-20 23:38:34] iter = 0000, loss = 291.1770
+[2026-10-20 23:39:12] iter = 0010, loss = 251.1623
+[2026-10-20 23:39:50] iter = 0020, loss = 246.5372
+[2026-10-20 23:40:27] iter = 0030, loss = 241.0940
+[2026-10-20 23:41:03] iter = 0040, loss = 241.5803
+[2026-10-20 23:41:39] iter = 0050, loss = 238.8548
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7354b3cfadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:41:46] training begins
+[2026-10-20 23:41:49] iter = 0000, loss = 290.0026
+[2026-10-20 23:42:25] iter = 0010, loss = 253.5382
+[2026-10-20 23:43:01] iter = 0020, loss = 247.3685
+[2026-10-20 23:43:38] iter = 0030, loss = 247.0448
+[2026-10-20 23:44:16] iter = 0040, loss = 237.8869
+[2026-10-20 23:44:52] iter = 0050, loss = 233.4681
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7354b3cfadf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:44:59] training begins
+[2026-10-20 23:45:02] iter = 0000, loss = 283.5525
+[2026-10-20 23:45:38] iter = 0010, loss = 247.4814
+[2026-10-20 23:46:14] iter = 0020, loss = 238.5909
+[2026-10-20 23:46:50] iter = 0030, loss = 242.0493
+[2026-10-20 23:47:27] iter = 0040, loss = 241.7162
+[2026-10-20 23:48:04] iter = 0050, loss = 237.7482
+------------FIN TIME-------------
+time sumation:  301.18941283226013
+fwd_time:       111.5432379245758
+backward_time:  174.63114738464355
+峰值cache使用: 986.0 MB
+峰值tensor使用: 735.4755859375 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-20 23:48:05 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=3 | BATCH_REAL=10 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=3 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7058c3b9cfa0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:48:17] training begins
+[2026-10-20 23:48:24] iter = 0000, loss = 286.1671
+[2026-10-20 23:49:31] iter = 0010, loss = 256.9223
+[2026-10-20 23:50:37] iter = 0020, loss = 253.1358
+[2026-10-20 23:51:44] iter = 0030, loss = 243.3753
+[2026-10-20 23:52:50] iter = 0040, loss = 247.8683
+[2026-10-20 23:53:55] iter = 0050, loss = 244.2384
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7058c3b9cfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:54:03] training begins
+[2026-10-20 23:54:09] iter = 0000, loss = 285.2194
+[2026-10-20 23:55:17] iter = 0010, loss = 251.2853
+[2026-10-20 23:56:24] iter = 0020, loss = 255.7463
+[2026-10-20 23:57:29] iter = 0030, loss = 247.1675
+[2026-10-20 23:58:35] iter = 0040, loss = 242.7620
+[2026-10-20 23:59:40] iter = 0050, loss = 247.0820
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7058c3b9cfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-20 23:59:47] training begins
+[2026-10-20 23:59:54] iter = 0000, loss = 290.2772
+[2026-10-21 00:01:00] iter = 0010, loss = 249.6881
+[2026-10-21 00:02:07] iter = 0020, loss = 249.3197
+[2026-10-21 00:03:16] iter = 0030, loss = 252.8620
+[2026-10-21 00:04:24] iter = 0040, loss = 249.4813
+[2026-10-21 00:05:31] iter = 0050, loss = 243.2400
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7058c3b9cfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:05:39] training begins
+[2026-10-21 00:05:46] iter = 0000, loss = 289.3695
+[2026-10-21 00:06:54] iter = 0010, loss = 250.4497
+[2026-10-21 00:08:02] iter = 0020, loss = 248.5814
+[2026-10-21 00:09:08] iter = 0030, loss = 244.9862
+[2026-10-21 00:10:14] iter = 0040, loss = 244.5696
+[2026-10-21 00:11:20] iter = 0050, loss = 243.6715
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7058c3b9cfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:11:27] training begins
+[2026-10-21 00:11:34] iter = 0000, loss = 287.3426
+[2026-10-21 00:12:39] iter = 0010, loss = 249.0422
+[2026-10-21 00:13:45] iter = 0020, loss = 251.5974
+[2026-10-21 00:14:51] iter = 0030, loss = 243.6047
+[2026-10-21 00:15:56] iter = 0040, loss = 250.5075
+[2026-10-21 00:17:02] iter = 0050, loss = 250.0494
+------------FIN TIME-------------
+time sumation:  426.50101613998413
+fwd_time:       159.40183544158936
+backward_time:  251.5904519557953
+峰值cache使用: 980.0 MB
+峰值tensor使用: 796.47412109375 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-21 00:17:12 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=3 | BATCH_REAL=10 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=10 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=3 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x72665284dfd0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:17:25] training begins
+[2026-10-21 00:17:32] iter = 0000, loss = 285.1368
+[2026-10-21 00:18:40] iter = 0010, loss = 247.4737
+[2026-10-21 00:19:49] iter = 0020, loss = 248.0660
+[2026-10-21 00:20:56] iter = 0030, loss = 248.4586
+[2026-10-21 00:22:01] iter = 0040, loss = 243.3198
+[2026-10-21 00:23:07] iter = 0050, loss = 247.6644
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x72665284dfd0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:23:14] training begins
+[2026-10-21 00:23:21] iter = 0000, loss = 289.4707
+[2026-10-21 00:24:30] iter = 0010, loss = 245.9611
+[2026-10-21 00:25:35] iter = 0020, loss = 245.0788
+[2026-10-21 00:26:41] iter = 0030, loss = 254.2555
+[2026-10-21 00:27:46] iter = 0040, loss = 250.4438
+[2026-10-21 00:28:52] iter = 0050, loss = 241.1512
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x72665284dfd0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:28:59] training begins
+[2026-10-21 00:29:05] iter = 0000, loss = 289.8940
+[2026-10-21 00:30:13] iter = 0010, loss = 253.9446
+[2026-10-21 00:31:22] iter = 0020, loss = 249.1673
+[2026-10-21 00:32:29] iter = 0030, loss = 247.2101
+[2026-10-21 00:33:35] iter = 0040, loss = 240.1420
+[2026-10-21 00:34:41] iter = 0050, loss = 242.5383
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x72665284dfd0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:34:48] training begins
+[2026-10-21 00:34:55] iter = 0000, loss = 288.9550
+[2026-10-21 00:36:01] iter = 0010, loss = 250.5484
+[2026-10-21 00:37:07] iter = 0020, loss = 250.0024
+[2026-10-21 00:38:12] iter = 0030, loss = 247.6720
+[2026-10-21 00:39:19] iter = 0040, loss = 243.9578
+[2026-10-21 00:40:25] iter = 0050, loss = 241.8690
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 10, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x72665284dfd0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:40:32] training begins
+[2026-10-21 00:40:39] iter = 0000, loss = 287.4404
+[2026-10-21 00:41:47] iter = 0010, loss = 253.0251
+[2026-10-21 00:42:56] iter = 0020, loss = 238.9068
+[2026-10-21 00:44:01] iter = 0030, loss = 245.4702
+[2026-10-21 00:45:09] iter = 0040, loss = 241.9397
+[2026-10-21 00:46:18] iter = 0050, loss = 247.2782
+------------FIN TIME-------------
+time sumation:  435.15288758277893
+fwd_time:       163.86907362937927
+backward_time:  255.299809217453
+峰值cache使用: 980.0 MB
+峰值tensor使用: 796.47412109375 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-21 00:46:19 | DATASET=CIFAR10 | MODEL=ConvNet | CASE=original | BATCH_REAL=50 | REPEAT=1/2
+CMD: python main_optimized.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x70c9e9676580>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:46:33] training begins
+[2026-10-21 00:46:37] iter = 0000, loss = 25.7993
+[2026-10-21 00:47:07] iter = 0010, loss = 14.7431
+[2026-10-21 00:47:37] iter = 0020, loss = 12.9470
+[2026-10-21 00:48:07] iter = 0030, loss = 12.8971
+[2026-10-21 00:48:37] iter = 0040, loss = 12.1144
+[2026-10-21 00:49:07] iter = 0050, loss = 13.4401
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x70c9e9676580>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:49:14] training begins
+[2026-10-21 00:49:17] iter = 0000, loss = 24.7214
+[2026-10-21 00:49:47] iter = 0010, loss = 14.6977
+[2026-10-21 00:50:18] iter = 0020, loss = 14.7457
+[2026-10-21 00:50:48] iter = 0030, loss = 13.4419
+[2026-10-21 00:51:18] iter = 0040, loss = 12.1829
+[2026-10-21 00:51:49] iter = 0050, loss = 11.8540
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x70c9e9676580>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:51:56] training begins
+[2026-10-21 00:51:59] iter = 0000, loss = 24.4050
+[2026-10-21 00:52:29] iter = 0010, loss = 15.5714
+[2026-10-21 00:52:59] iter = 0020, loss = 13.3524
+[2026-10-21 00:53:29] iter = 0030, loss = 13.0697
+[2026-10-21 00:53:59] iter = 0040, loss = 12.5571
+[2026-10-21 00:54:30] iter = 0050, loss = 11.9868
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x70c9e9676580>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:54:37] training begins
+[2026-10-21 00:54:40] iter = 0000, loss = 23.5688
+[2026-10-21 00:55:10] iter = 0010, loss = 15.1930
+[2026-10-21 00:55:41] iter = 0020, loss = 14.0897
+[2026-10-21 00:56:12] iter = 0030, loss = 12.6410
+[2026-10-21 00:56:43] iter = 0040, loss = 13.2234
+[2026-10-21 00:57:13] iter = 0050, loss = 12.3647
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x70c9e9676580>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 00:57:20] training begins
+[2026-10-21 00:57:23] iter = 0000, loss = 24.8295
+[2026-10-21 00:57:53] iter = 0010, loss = 14.4901
+[2026-10-21 00:58:23] iter = 0020, loss = 14.0922
+[2026-10-21 00:58:53] iter = 0030, loss = 13.2754
+[2026-10-21 00:59:24] iter = 0040, loss = 13.0902
+[2026-10-21 00:59:55] iter = 0050, loss = 12.1323
+------------FIN TIME-------------
+time sumation:  199.20228052139282
+fwd_time:       105.19751358032227
+backward_time:  79.25812149047852
+峰值cache使用: 1006.0 MB
+峰值tensor使用: 719.349609375 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-21 00:59:55 | DATASET=CIFAR10 | MODEL=ConvNet | CASE=original | BATCH_REAL=50 | REPEAT=2/2
+CMD: python main_optimized.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x744e1789a550>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:00:07] training begins
+[2026-10-21 01:00:10] iter = 0000, loss = 25.9122
+[2026-10-21 01:00:41] iter = 0010, loss = 13.6584
+[2026-10-21 01:01:11] iter = 0020, loss = 14.0170
+[2026-10-21 01:01:41] iter = 0030, loss = 13.3807
+[2026-10-21 01:02:11] iter = 0040, loss = 12.8259
+[2026-10-21 01:02:41] iter = 0050, loss = 12.7895
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x744e1789a550>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:02:48] training begins
+[2026-10-21 01:02:51] iter = 0000, loss = 23.6119
+[2026-10-21 01:03:21] iter = 0010, loss = 14.9204
+[2026-10-21 01:03:51] iter = 0020, loss = 13.7657
+[2026-10-21 01:04:21] iter = 0030, loss = 13.8080
+[2026-10-21 01:04:52] iter = 0040, loss = 12.5341
+[2026-10-21 01:05:23] iter = 0050, loss = 11.4291
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x744e1789a550>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:05:30] training begins
+[2026-10-21 01:05:33] iter = 0000, loss = 24.9716
+[2026-10-21 01:06:03] iter = 0010, loss = 15.0176
+[2026-10-21 01:06:34] iter = 0020, loss = 13.0014
+[2026-10-21 01:07:04] iter = 0030, loss = 11.8203
+[2026-10-21 01:07:35] iter = 0040, loss = 12.7947
+[2026-10-21 01:08:05] iter = 0050, loss = 12.0435
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x744e1789a550>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:08:12] training begins
+[2026-10-21 01:08:15] iter = 0000, loss = 25.4195
+[2026-10-21 01:08:45] iter = 0010, loss = 15.1384
+[2026-10-21 01:09:16] iter = 0020, loss = 14.7662
+[2026-10-21 01:09:46] iter = 0030, loss = 13.1596
+[2026-10-21 01:10:16] iter = 0040, loss = 13.2488
+[2026-10-21 01:10:46] iter = 0050, loss = 12.3581
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': False, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x744e1789a550>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:10:53] training begins
+[2026-10-21 01:10:56] iter = 0000, loss = 26.2789
+[2026-10-21 01:11:26] iter = 0010, loss = 14.2979
+[2026-10-21 01:11:56] iter = 0020, loss = 13.6157
+[2026-10-21 01:12:26] iter = 0030, loss = 11.5962
+[2026-10-21 01:12:56] iter = 0040, loss = 13.9644
+[2026-10-21 01:13:26] iter = 0050, loss = 13.3843
+------------FIN TIME-------------
+time sumation:  198.16864848136902
+fwd_time:       104.90422058105469
+backward_time:  78.76359629631042
+峰值cache使用: 1006.0 MB
+峰值tensor使用: 719.349609375 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-21 01:13:27 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=1 | BATCH_REAL=50 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=1 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7a206bb9bfa0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:13:39] training begins
+[2026-10-21 01:13:42] iter = 0000, loss = 246.5428
+[2026-10-21 01:14:13] iter = 0010, loss = 234.3630
+[2026-10-21 01:14:43] iter = 0020, loss = 209.9443
+[2026-10-21 01:15:13] iter = 0030, loss = 199.1229
+[2026-10-21 01:15:44] iter = 0040, loss = 201.0563
+[2026-10-21 01:16:14] iter = 0050, loss = 236.9779
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7a206bb9bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:16:21] training begins
+[2026-10-21 01:16:24] iter = 0000, loss = 243.0236
+[2026-10-21 01:16:55] iter = 0010, loss = 234.5806
+[2026-10-21 01:17:25] iter = 0020, loss = 225.7936
+[2026-10-21 01:17:55] iter = 0030, loss = 228.5221
+[2026-10-21 01:18:25] iter = 0040, loss = 229.0396
+[2026-10-21 01:18:56] iter = 0050, loss = 216.4442
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7a206bb9bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:19:03] training begins
+[2026-10-21 01:19:06] iter = 0000, loss = 237.9026
+[2026-10-21 01:19:36] iter = 0010, loss = 232.4541
+[2026-10-21 01:20:07] iter = 0020, loss = 231.0954
+[2026-10-21 01:20:37] iter = 0030, loss = 228.0121
+[2026-10-21 01:21:07] iter = 0040, loss = 228.9929
+[2026-10-21 01:21:37] iter = 0050, loss = 230.8914
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7a206bb9bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:21:45] training begins
+[2026-10-21 01:21:48] iter = 0000, loss = 234.3391
+[2026-10-21 01:22:18] iter = 0010, loss = 226.8170
+[2026-10-21 01:22:48] iter = 0020, loss = 209.8018
+[2026-10-21 01:23:18] iter = 0030, loss = 239.3114
+[2026-10-21 01:23:48] iter = 0040, loss = 220.1386
+[2026-10-21 01:24:19] iter = 0050, loss = 221.1267
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7a206bb9bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:24:26] training begins
+[2026-10-21 01:24:29] iter = 0000, loss = 243.5223
+[2026-10-21 01:25:00] iter = 0010, loss = 222.4341
+[2026-10-21 01:25:31] iter = 0020, loss = 215.5106
+[2026-10-21 01:26:03] iter = 0030, loss = 222.7468
+[2026-10-21 01:26:34] iter = 0040, loss = 217.5286
+[2026-10-21 01:27:05] iter = 0050, loss = 220.8313
+------------FIN TIME-------------
+time sumation:  199.82775902748108
+fwd_time:       98.13630962371826
+backward_time:  87.18838500976562
+峰值cache使用: 1000.0 MB
+峰值tensor使用: 756.890625 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-21 01:27:06 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=1 | BATCH_REAL=50 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=1 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bff096cddf0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:27:17] training begins
+[2026-10-21 01:27:21] iter = 0000, loss = 239.9951
+[2026-10-21 01:27:52] iter = 0010, loss = 225.8261
+[2026-10-21 01:28:22] iter = 0020, loss = 191.0791
+[2026-10-21 01:28:53] iter = 0030, loss = 201.7518
+[2026-10-21 01:29:23] iter = 0040, loss = 210.6509
+[2026-10-21 01:29:54] iter = 0050, loss = 233.0572
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bff096cddf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:30:01] training begins
+[2026-10-21 01:30:04] iter = 0000, loss = 236.6469
+[2026-10-21 01:30:34] iter = 0010, loss = 229.1082
+[2026-10-21 01:31:04] iter = 0020, loss = 220.9747
+[2026-10-21 01:31:35] iter = 0030, loss = 201.0818
+[2026-10-21 01:32:05] iter = 0040, loss = 208.5494
+[2026-10-21 01:32:35] iter = 0050, loss = 217.3365
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bff096cddf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:32:42] training begins
+[2026-10-21 01:32:45] iter = 0000, loss = 234.5272
+[2026-10-21 01:33:15] iter = 0010, loss = 213.8074
+[2026-10-21 01:33:45] iter = 0020, loss = 205.7537
+[2026-10-21 01:34:16] iter = 0030, loss = 209.7820
+[2026-10-21 01:34:48] iter = 0040, loss = 201.7997
+[2026-10-21 01:35:18] iter = 0050, loss = 217.6896
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bff096cddf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:35:25] training begins
+[2026-10-21 01:35:28] iter = 0000, loss = 245.5383
+[2026-10-21 01:35:58] iter = 0010, loss = 223.3768
+[2026-10-21 01:36:28] iter = 0020, loss = 238.6807
+[2026-10-21 01:36:59] iter = 0030, loss = 217.8486
+[2026-10-21 01:37:29] iter = 0040, loss = 212.5240
+[2026-10-21 01:37:59] iter = 0050, loss = 239.2979
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 1, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7bff096cddf0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:38:06] training begins
+[2026-10-21 01:38:09] iter = 0000, loss = 232.1360
+[2026-10-21 01:38:40] iter = 0010, loss = 219.8536
+[2026-10-21 01:39:11] iter = 0020, loss = 189.8480
+[2026-10-21 01:39:43] iter = 0030, loss = 216.0280
+[2026-10-21 01:40:14] iter = 0040, loss = 213.7495
+[2026-10-21 01:40:44] iter = 0050, loss = 222.0161
+------------FIN TIME-------------
+time sumation:  201.01145482063293
+fwd_time:       98.44092750549316
+backward_time:  87.99004888534546
+峰值cache使用: 1000.0 MB
+峰值tensor使用: 756.890625 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-21 01:40:45 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=2 | BATCH_REAL=50 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=2 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7e10bd71bfa0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:40:57] training begins
+[2026-10-21 01:41:02] iter = 0000, loss = 243.1080
+[2026-10-21 01:41:41] iter = 0010, loss = 184.5599
+[2026-10-21 01:42:22] iter = 0020, loss = 176.1026
+[2026-10-21 01:43:03] iter = 0030, loss = 175.2901
+[2026-10-21 01:43:45] iter = 0040, loss = 172.5155
+[2026-10-21 01:44:25] iter = 0050, loss = 165.8323
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7e10bd71bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:44:32] training begins
+[2026-10-21 01:44:36] iter = 0000, loss = 243.1612
+[2026-10-21 01:45:18] iter = 0010, loss = 185.2437
+[2026-10-21 01:46:00] iter = 0020, loss = 176.8236
+[2026-10-21 01:46:42] iter = 0030, loss = 169.7797
+[2026-10-21 01:47:24] iter = 0040, loss = 164.6990
+[2026-10-21 01:48:05] iter = 0050, loss = 168.0120
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7e10bd71bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:48:12] training begins
+[2026-10-21 01:48:16] iter = 0000, loss = 242.9346
+[2026-10-21 01:48:58] iter = 0010, loss = 183.1997
+[2026-10-21 01:49:40] iter = 0020, loss = 173.2449
+[2026-10-21 01:50:22] iter = 0030, loss = 167.6237
+[2026-10-21 01:51:04] iter = 0040, loss = 166.1582
+[2026-10-21 01:51:45] iter = 0050, loss = 164.1605
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7e10bd71bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:51:53] training begins
+[2026-10-21 01:51:57] iter = 0000, loss = 245.7693
+[2026-10-21 01:52:36] iter = 0010, loss = 178.4258
+[2026-10-21 01:53:16] iter = 0020, loss = 177.7757
+[2026-10-21 01:53:56] iter = 0030, loss = 165.4968
+[2026-10-21 01:54:36] iter = 0040, loss = 169.3720
+[2026-10-21 01:55:16] iter = 0050, loss = 166.6524
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7e10bd71bfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:55:23] training begins
+[2026-10-21 01:55:27] iter = 0000, loss = 246.4403
+[2026-10-21 01:56:09] iter = 0010, loss = 175.5360
+[2026-10-21 01:56:51] iter = 0020, loss = 177.2258
+[2026-10-21 01:57:34] iter = 0030, loss = 170.1641
+[2026-10-21 01:58:16] iter = 0040, loss = 171.3175
+[2026-10-21 01:58:58] iter = 0050, loss = 167.8592
+------------FIN TIME-------------
+time sumation:  415.2523980140686
+fwd_time:       215.16838383674622
+backward_time:  184.4326639175415
+峰值cache使用: 986.0 MB
+峰值tensor使用: 902.29345703125 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-21 01:58:58 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=2 | BATCH_REAL=50 | REPEAT=2/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=2 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7f7d0879bf70>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 01:59:10] training begins
+[2026-10-21 01:59:15] iter = 0000, loss = 243.8405
+[2026-10-21 01:59:55] iter = 0010, loss = 184.5385
+[2026-10-21 02:00:34] iter = 0020, loss = 175.4287
+[2026-10-21 02:01:14] iter = 0030, loss = 173.7492
+[2026-10-21 02:01:54] iter = 0040, loss = 165.0828
+[2026-10-21 02:02:35] iter = 0050, loss = 167.3454
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7f7d0879bf70>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 02:02:42] training begins
+[2026-10-21 02:02:46] iter = 0000, loss = 240.5663
+[2026-10-21 02:03:28] iter = 0010, loss = 182.7051
+[2026-10-21 02:04:10] iter = 0020, loss = 174.3988
+[2026-10-21 02:04:52] iter = 0030, loss = 171.3628
+[2026-10-21 02:05:33] iter = 0040, loss = 165.4503
+[2026-10-21 02:06:15] iter = 0050, loss = 166.7479
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7f7d0879bf70>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 02:06:22] training begins
+[2026-10-21 02:06:26] iter = 0000, loss = 245.5248
+[2026-10-21 02:07:08] iter = 0010, loss = 185.3727
+[2026-10-21 02:07:48] iter = 0020, loss = 177.2524
+[2026-10-21 02:08:28] iter = 0030, loss = 169.7692
+[2026-10-21 02:09:08] iter = 0040, loss = 169.7314
+[2026-10-21 02:09:48] iter = 0050, loss = 163.4721
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7f7d0879bf70>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 02:09:55] training begins
+[2026-10-21 02:09:59] iter = 0000, loss = 243.9535
+[2026-10-21 02:10:39] iter = 0010, loss = 184.3769
+[2026-10-21 02:11:19] iter = 0020, loss = 180.0464
+[2026-10-21 02:12:01] iter = 0030, loss = 171.0959
+[2026-10-21 02:12:41] iter = 0040, loss = 169.9652
+[2026-10-21 02:13:21] iter = 0050, loss = 169.9874
+
+================== Exp 4 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 2, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7f7d0879bf70>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 02:13:28] training begins
+[2026-10-21 02:13:32] iter = 0000, loss = 245.8786
+[2026-10-21 02:14:15] iter = 0010, loss = 182.0255
+[2026-10-21 02:14:57] iter = 0020, loss = 171.6133
+[2026-10-21 02:15:37] iter = 0030, loss = 177.2695
+[2026-10-21 02:16:17] iter = 0040, loss = 168.7734
+[2026-10-21 02:16:57] iter = 0050, loss = 166.5694
+------------FIN TIME-------------
+time sumation:  403.0507321357727
+fwd_time:       212.30825924873352
+backward_time:  175.65720653533936
+峰值cache使用: 986.0 MB
+峰值tensor使用: 902.29345703125 MB
+Evaluation skipped (skip_eval=True).
+------------------------------
+EXIT_CODE: 0
+
+==============================
+2026-10-21 02:17:08 | DATASET=CIFAR10 | MODEL=ConvNet | FUSE=3 | BATCH_REAL=50 | REPEAT=1/2
+CMD: python main_fused.py --method=DC --dataset=CIFAR10 --model=ConvNet --ipc=10 --lr_img=0.1 --lr_net=0.01 --batch_real=50 --batch_train=256 --init=noise --data_path=/scratch/yguo25/files/mtt-distillation/dataset --save_path=testlog_dc/results --dis_metric=ours --Iteration=50 --Fuse=3 --v_fuse --use-barrier --skip_eval
+------------------------------
+eval_it_pool:  [0]
+Files already downloaded and verified
+Files already downloaded and verified
+
+================== Exp 0 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7dc63768cfa0>, 'dsa': False}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 02:17:20] training begins
+[2026-10-21 02:17:28] iter = 0000, loss = 243.2401
+[2026-10-21 02:18:42] iter = 0010, loss = 185.7841
+[2026-10-21 02:19:57] iter = 0020, loss = 183.5622
+[2026-10-21 02:21:12] iter = 0030, loss = 176.3387
+[2026-10-21 02:22:27] iter = 0040, loss = 174.0671
+[2026-10-21 02:23:41] iter = 0050, loss = 172.2063
+
+================== Exp 1 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7dc63768cfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 02:23:48] training begins
+[2026-10-21 02:23:55] iter = 0000, loss = 239.6719
+[2026-10-21 02:25:09] iter = 0010, loss = 185.0640
+[2026-10-21 02:26:22] iter = 0020, loss = 182.0702
+[2026-10-21 02:27:36] iter = 0030, loss = 179.3931
+[2026-10-21 02:28:48] iter = 0040, loss = 172.3355
+[2026-10-21 02:30:01] iter = 0050, loss = 167.2043
+
+================== Exp 2 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7dc63768cfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 02:30:08] training begins
+[2026-10-21 02:30:15] iter = 0000, loss = 244.2424
+[2026-10-21 02:31:27] iter = 0010, loss = 184.3657
+[2026-10-21 02:32:39] iter = 0020, loss = 179.1808
+[2026-10-21 02:33:52] iter = 0030, loss = 177.9225
+[2026-10-21 02:35:04] iter = 0040, loss = 178.4873
+[2026-10-21 02:36:17] iter = 0050, loss = 172.4287
+
+================== Exp 3 ==================
+ 
+Hyper-parameters: 
+ {'method': 'DC', 'dataset': 'CIFAR10', 'model': 'ConvNet', 'ipc': 10, 'eval_mode': 'S', 'num_exp': 5, 'num_eval': 20, 'epoch_eval_train': 300, 'Iteration': 50, 'lr_img': 0.1, 'lr_net': 0.01, 'batch_real': 50, 'batch_train': 256, 'init': 'noise', 'dsa_strategy': 'None', 'data_path': '/scratch/yguo25/files/mtt-distillation/dataset', 'save_path': 'testlog_dc/results', 'dis_metric': 'ours', 'Fuse': 3, 'fuse_mask_list': None, 'v_fuse': True, 'use_barrier': True, 'skip_eval': True, 'AccTest': False, 'outer_loop': 10, 'inner_loop': 50, 'device': 'cuda', 'dsa_param': <utils_dc.ParamDiffAug object at 0x7dc63768cfa0>, 'dsa': False, 'dc_aug_param': None}
+Evaluation model pool:  ['ConvNet']
+class c = 0: 5000 real images
+class c = 1: 5000 real images
+class c = 2: 5000 real images
+class c = 3: 5000 real images
+class c = 4: 5000 real images
+class c = 5: 5000 real images
+class c = 6: 5000 real images
+class c = 7: 5000 real images
+class c = 8: 5000 real images
+class c = 9: 5000 real images
+real images channel 0, mean = -0.0000, std = 1.2211
+real images channel 1, mean = -0.0002, std = 1.2211
+real images channel 2, mean = 0.0002, std = 1.3014
+initialize synthetic data from random noise
+[2026-10-21 09:52:31] training begins
+[2026-10-21 09:52:39] iter = 0000, loss = 244.8960
+[2026-10-21 09:53:54] iter = 0010, loss = 185.3895
+[2026-10-21 09:55:08] iter = 0020, loss = 181.7814
+[2026-10-21 09:56:23] iter = 0030, loss = 174.7371
+[2026-10-21 09:57:37] iter = 0040, loss = 174.6701

@@ -2,12 +2,13 @@
 set -e
 
 # Original DC
-# WANDB_SILENT=true python main_optimized.py \
-WANDB_SILENT=true python main_fused.py \
+# WANDB_SILENT=true python main_original.py \
+# WANDB_SILENT=true python main_fused.py \
+WANDB_SILENT=true python main_optimalFuse.py \
     --num_exp=1 \
     --method=DC \
     --dataset=CIFAR10 \
-    --model=VGG11 \
+    --model=ConvNet \
     --ipc=10 \
     --Iteration=50 \
     --lr_img=0.1 \
@@ -16,10 +17,11 @@ WANDB_SILENT=true python main_fused.py \
     --batch_train=256 \
     --init=real \
     --data_path=/scratch/yguo25/files/mtt-distillation/dataset \
-    --Fuse=2\
-    --no-v_fuse \
-    --no-use-barrier \
+    --Fuse=2 \
+    --v_fuse \
+    --use-barrier \
     # --AccTest=True \
+    # --no-use-barrier \
 
 
 # Fused DC, Fuse=2 checkpoints

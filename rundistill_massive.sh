@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Massive distill time-test sweep, v9.
-# v9: add VGG11 as a selectable model; use the SAME sweep configuration as ResNet18.
-# Existing ConvNet/ViT/ResNet18 test cases and command-line arguments are unchanged.
-# Only selected model logs are truncated or written.
+# Massive distill time-test sweep, v10.
+# Two timing sets per case: no load_all + barrier; load_all + no barrier.
+# Each set repeats twice. Original -> Flex masks (1 / 11 / 10, v_fuse on/off) -> FWD time test.
+# Default ConvNet only; other model blocks use the same case matrix when selected.
+# No checkpoint tests.
 #
 # Examples:
-#   bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg --dataset cifar10
-#   bash rundistill_massive_v9_select_model_date_logdir.sh --models vgg,resnet --dataset tiny
-#   bash rundistill_massive_v9_select_model_date_logdir.sh --model all --dataset all
+#   bash rundistill_massive_v10_conv_two_sets.sh --model vgg --dataset cifar10
+#   bash rundistill_massive_v10_conv_two_sets.sh --models vgg,resnet --dataset tiny
+#   bash rundistill_massive_v10_conv_two_sets.sh --model all --dataset all
 
 set -u
 set -o pipefail
@@ -15,23 +16,23 @@ set -o pipefail
 usage() {
   cat <<'HELP'
 Usage:
-  bash rundistill_massive_v9_select_model_date_logdir.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|all]
-  bash rundistill_massive_v9_select_model_date_logdir.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|all]
+  bash rundistill_massive_v10_conv_two_sets.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|all]
+  bash rundistill_massive_v10_conv_two_sets.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|all]
 
 Examples:
-  bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg --dataset cifar10
-  bash rundistill_massive_v9_select_model_date_logdir.sh --models vgg,resnet --dataset tiny
-  bash rundistill_massive_v9_select_model_date_logdir.sh --model all --dataset all
-  LOG_DIR=testlog_custom bash rundistill_massive_v9_select_model_date_logdir.sh --model vgg --dataset all
+  bash rundistill_massive_v10_conv_two_sets.sh --model vgg --dataset cifar10
+  bash rundistill_massive_v10_conv_two_sets.sh --models vgg,resnet --dataset tiny
+  bash rundistill_massive_v10_conv_two_sets.sh --model all --dataset all
+  LOG_DIR=testlog_custom bash rundistill_massive_v10_conv_two_sets.sh --model vgg --dataset all
 
 Default:
-  --model all
+  --model conv
   --dataset cifar10
   LOG_DIR=testlogYYYYMMDD
 HELP
 }
 
-MODEL_SELECTION="${MODEL_SELECTION:-all}"
+MODEL_SELECTION="${MODEL_SELECTION:-conv}"
 DATASET_SELECTION="${DATASET_SELECTION:-cifar10}"
 
 while [ "$#" -gt 0 ]; do
@@ -169,14 +170,16 @@ LR_LR=1e-05
 LR_TEACHER=0.01
 
 FUSE=1
-USE_BARRIER_REPEATS=2
-NO_BARRIER_REPEATS=2
-FWDTEST_REPEATS=1
+KERNEL_SET_REPEATS=2
+TOTAL_SET_REPEATS=2
+# The fwd test also uses both sets; no ckpt cases.
 
 ORIGINAL_FILE="distill_original_timeTest.py"
 ORIGINAL_FWD_FILE="distill_original_fwdtimetest.py"
+# IMPORTANT: both Original and Original FWDTEST must accept --load_all and --use-barrier
+# for the requested identical two-set matrix. Older FWDTEST versions may not.
 
-CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py"
+CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py"   # Change to ..._preload.py if that is your --load_all implementation.
 VIT_FLEX_FILE="distill_flexFuse_timeTest_ViT.py"
 RESNET_FLEX_FILE="distill_flexFuse_timeTest_resnet18.py"
 VGG_FLEX_FILE="distill_flexFuse_timeTest_vgg.py"
@@ -190,41 +193,33 @@ ORIGINAL_SYN_STEPS_LIST=(1 20)
 NORMAL_FLEX_SYN_STEPS=1
 
 write_header() {
-  local log_file="$1"
-  local model_label="$2"
-  local model_arg="$3"
-  local flex_file="$4"
-  local ipc_list_text="$5"
+  local log_file="$1" model_label="$2" model_arg="$3" flex_file="$4" ipc_list_text="$5"
   local extra_note="${6:-}"
+  : > "$log_file"
+  cat >> "$log_file" <<EOF
+============================================================
+TIME TEST SWEEP START
+START_TIME: $(date '+%Y-%m-%d %H:%M:%S')
+MODEL BLOCK: ${model_label}
+MODEL ARG: ${model_arg}
+FLEX FILE: ${flex_file}
+ORIGINAL FILE: ${ORIGINAL_FILE}
+ORIGINAL FWDTEST FILE: ${ORIGINAL_FWD_FILE}
+IPC_LIST: ${ipc_list_text}
+ORIGINAL_SYN_STEPS: ${ORIGINAL_SYN_STEPS_LIST[*]}
+NORMAL_FLEX_SYN_STEPS: ${NORMAL_FLEX_SYN_STEPS}
+DEFAULT_ITERATION: ${ITERATION}
+SET_KERNEL: --use-barrier, NO --load_all, repeats=${KERNEL_SET_REPEATS}
+SET_TOTAL:  --load_all, NO --use-barrier, repeats=${TOTAL_SET_REPEATS}
+FLEX_MASKS: 1 / 1 1 / 1 0; VFUSE: --v_fuse / --no-v_fuse
+ORDER: Original (syn_steps=1/20) -> Flex (syn_steps=1) -> Original FWDTEST (syn_steps=1/20)
+LOG_FILE: ${log_file}
+CSV_FILE: ${SUMMARY_CSV}
+NOTE: no ckpt cases; same timing sets for Original / Flex / FWDTEST.
+EXTRA: ${extra_note}
+============================================================
 
-  # Truncate only the log file for the selected model being run.
-  : > "${log_file}"
-
-  {
-    echo "============================================================"
-    echo "TIME TEST SWEEP START"
-    echo "START_TIME: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "MODEL BLOCK: ${model_label}"
-    echo "MODEL ARG:   ${model_arg}"
-    echo "FLEX FILE:   ${flex_file}"
-    echo "ORIGINAL FILE: ${ORIGINAL_FILE}"
-    echo "ORIGINAL FWDTEST FILE: ${ORIGINAL_FWD_FILE}"
-    echo "IPC_LIST:    ${ipc_list_text}"
-    echo "ORIGINAL_SYN_STEPS: ${ORIGINAL_SYN_STEPS_LIST[*]}"
-    echo "NORMAL_FLEX_SYN_STEPS: ${NORMAL_FLEX_SYN_STEPS}"
-    echo "DEFAULT_ITERATION: ${ITERATION}"
-    echo "USE_BARRIER_REPEATS: ${USE_BARRIER_REPEATS}"
-    echo "NO_BARRIER_REPEATS:  ${NO_BARRIER_REPEATS}"
-    echo "FWDTEST_REPEATS: ${FWDTEST_REPEATS}"
-    echo "LOG_FILE:    ${log_file}"
-    echo "NOTE: no ckpt flex tests; --AccTest=True is removed; normal cases run twice with --use-barrier and twice without it; all flex cases use --v_fuse."
-    echo "FWDTEST: ${ORIGINAL_FWD_FILE} runs once only and never receives --use-barrier."
-    if [ -n "${extra_note}" ]; then
-      echo "EXTRA: ${extra_note}"
-    fi
-    echo "============================================================"
-    echo ""
-  } >> "${log_file}"
+EOF
 }
 
 write_footer() {
@@ -235,7 +230,7 @@ write_footer() {
     echo "TIME TEST SWEEP END"
     echo "END_TIME: $(date '+%Y-%m-%d %H:%M:%S')"
     echo "============================================================"
-  } >> "${log_file}"
+  } >> "$log_file"
 }
 
 common_args() {
@@ -244,22 +239,22 @@ common_args() {
   local model="$3"
   local iteration="${4:-${ITERATION}}"
 
-  echo \\
-    --dataset="${DATASET}" \\
-    --pix_init="${PIX_INIT}" \\
-    --ipc="${ipc}" \\
-    --syn_steps="${syn_steps}" \\
-    --max_experts="${MAX_EXPERTS}" \\
-    --expert_epochs="${EXPERT_EPOCHS}" \\
-    --max_start_epoch="${MAX_START_EPOCH}" \\
-    --Iteration="${iteration}" \\
-    --detachNum="${DETACH_NUM}" \\
-    --lr_img="${LR_IMG}" \\
-    --lr_lr="${LR_LR}" \\
-    --lr_teacher="${LR_TEACHER}" \\
-    --buffer_path="${BUFFER_PATH}" \\
-    --data_path="${DATA_PATH}" \\
-    --model="${model}" \\
+  echo \
+    --dataset="${DATASET}" \
+    --pix_init="${PIX_INIT}" \
+    --ipc="${ipc}" \
+    --syn_steps="${syn_steps}" \
+    --max_experts="${MAX_EXPERTS}" \
+    --expert_epochs="${EXPERT_EPOCHS}" \
+    --max_start_epoch="${MAX_START_EPOCH}" \
+    --Iteration="${iteration}" \
+    --detachNum="${DETACH_NUM}" \
+    --lr_img="${LR_IMG}" \
+    --lr_lr="${LR_LR}" \
+    --lr_teacher="${LR_TEACHER}" \
+    --buffer_path="${BUFFER_PATH}" \
+    --data_path="${DATA_PATH}" \
+    --model="${model}" \
     --Fuse="${FUSE}"
 }
 
@@ -277,273 +272,262 @@ iteration_for_model_ipc() {
 }
 
 clean_output() {
-  sed -u \\
-    -e '/Warning:/d' \\
-    -e '/warnings.warn/d' \\
-    -e '/FutureWarning/d' \\
-    -e '/UserWarning/d' \\
-    -e '/torch.cuda.amp.custom_fwd/d' \\
-    -e '/Triggered internally at/d' \\
-    -e '/SECURITY.md#untrusted-models/d' \\
-    -e '/weights_only=False/d' \\
-    -e '/Please consider converting the list/d' \\
-    -e '/Please open an issue/d' \\
-    -e '/^[[:space:]]*[0-9]\\+%|/d' \\
-    -e '/^[[:space:]]*100%|/d' \\
-    -e '/^[[:space:]]*[0-9]\\+it \\[/d' \\
-    -e '/it\\/s]/d' \\
-    -e '/it\\/s/d'
+  sed -u \
+    -e '/Warning:/d' \
+    -e '/warnings.warn/d' \
+    -e '/FutureWarning/d' \
+    -e '/UserWarning/d' \
+    -e '/torch.cuda.amp.custom_fwd/d' \
+    -e '/Triggered internally at/d' \
+    -e '/SECURITY.md#untrusted-models/d' \
+    -e '/weights_only=False/d' \
+    -e '/Please consider converting the list/d' \
+    -e '/Please open an issue/d' \
+    -e '/^[[:space:]]*[0-9]\+%|/d' \
+    -e '/^[[:space:]]*100%|/d' \
+    -e '/^[[:space:]]*[0-9]\+it \[/d' \
+    -e '/it\/s]/d' \
+    -e '/it\/s/d'
 }
 
-run_cmd_once() {
-  local log_file="$1"
-  local tag="$2"
-  local barrier_mode="$3"
-  local repeat_id="$4"
-  local repeat_total="$5"
-  shift 5
+# The log is authoritative; metric extraction is BEST EFFORT, not an exit condition.
+# For barrier mode prefer "Kernel time"; alternatively add syn_time + backward_time.
+# For no-barrier mode prefer the Python-reported "total time". Never silently
+# substitute "time sumation" (in older versions it was not full-loop elapsed time).
+extract_metric() {
+  local kind="$1" file="$2"
+  awk -v kind="$kind" '
+    function number(v) { return v ~ /^[-+]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][-+]?[0-9]+)?$/ }
+    {
+      low=tolower($0); val=$NF
+      if (!number(val) && tolower(val)=="mb" && NF>1) val=$(NF-1)
+      if (!number(val)) next
+      if (kind=="kernel" && low ~ /^[[:space:]]*kernel[[:space:]_]*time/ && low !~ /without[[:space:]]+barrier/) kernel=val
+      if (low ~ /^[[:space:]]*syn_time/) syn=val
+      if (low ~ /^[[:space:]]*backward_time/) bwd=val
+      if (kind=="total" && low ~ /^[[:space:]]*total[[:space:]_]+time/) total=val
+      if (kind=="cache" && (low ~ /峰值cache使用/ || low ~ /peak.cache/)) cache=val
+      if (kind=="tensor" && (low ~ /峰值tensor使用/ || low ~ /peak.tensor/)) tensor=val
+    }
+    END {
+      if (kind=="kernel") {
+        if (kernel!="") print kernel
+        else if (syn!="" && bwd!="") printf "%.9f\n", syn+bwd
+      } else if (kind=="total" && total!="") print total
+      else if (kind=="cache" && cache!="") print cache
+      else if (kind=="tensor" && tensor!="") print tensor
+    }
+  ' "$file"
+}
 
-  local barrier_args=()
-  if [ "${barrier_mode}" = "use_barrier" ]; then
-    barrier_args=(--use-barrier)
+mean_of_two() {
+  if [[ -n "$1" && -n "$2" ]]; then
+    awk -v a="$1" -v b="$2" 'BEGIN {printf "%.9f", (a+b)/2}'
+  fi
+}
+
+# Globals filled by run_cmd_once (no subshell, so run_set can inspect them).
+RUN_EXIT=0
+RUN_PRIMARY=""
+RUN_WALL=""
+RUN_CACHE=""
+RUN_TENSOR=""
+
+run_cmd_once() {
+  local log_file="$1" tag="$2" mode="$3" repeat_id="$4" repeat_total="$5"
+  shift 5
+  local mode_args=()
+  local metric_kind
+  if [[ "$mode" == "kernel" ]]; then
+    mode_args=(--use-barrier)  # IMPORTANT: load_all is OFF
+    metric_kind="kernel"
+  else
+    mode_args=(--load_all)     # IMPORTANT: use-barrier is OFF
+    metric_kind="total"
   fi
 
-  echo "[RUN] ${tag} | BARRIER=${barrier_mode} | repeat ${repeat_id}/${repeat_total}"
-
+  local tmp_output
+  tmp_output="$(mktemp "${log_file}.run.XXXXXX")"
+  echo "[RUN] ${tag} | SET=${mode} | repeat ${repeat_id}/${repeat_total}"
   {
     echo "=============================="
-    echo "$(date '+%Y-%m-%d %H:%M:%S') | ${tag} | BARRIER=${barrier_mode} | REPEAT=${repeat_id}/${repeat_total}"
-    echo "CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 $* ${barrier_args[*]}"
-    echo "------------------------------"
-  } >> "${log_file}"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') | ${tag} | SET=${mode} | REPEAT=${repeat_id}/${repeat_total}"
+    echo "LOAD_ALL=$([[ "$mode" == "total" ]] && echo 1 || echo 0) BARRIER=$([[ "$mode" == "kernel" ]] && echo 1 || echo 0)"
+    printf 'CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 '
+    printf '%q ' "$@" "${mode_args[@]}"
+    printf '\n------------------------------\n'
+  } >> "$log_file"
 
-  WANDB_SILENT=true \\
-  PYTHONWARNINGS=ignore \\
-  TQDM_DISABLE=1 \\
-  PYTHONUNBUFFERED=1 \\
-  "$@" "${barrier_args[@]}" 2>&1 | clean_output >> "${log_file}"
-
-  local exit_code=${PIPESTATUS[0]}
+  local started ended
+  started="$(date +%s%N)"
+  WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 PYTHONUNBUFFERED=1 \
+    "$@" "${mode_args[@]}" 2>&1 | clean_output | tee -a "$log_file" > "$tmp_output"
+  local statuses=("${PIPESTATUS[@]}")
+  ended="$(date +%s%N)"
+  RUN_EXIT="${statuses[0]}"
+  RUN_WALL="$(awk -v a="$started" -v b="$ended" 'BEGIN {printf "%.6f", (b-a)/1000000000}')"
+  RUN_PRIMARY="$(extract_metric "$metric_kind" "$tmp_output")"
+  RUN_CACHE="$(extract_metric cache "$tmp_output")"
+  RUN_TENSOR="$(extract_metric tensor "$tmp_output")"
+  rm -f "$tmp_output"
 
   {
-    echo "------------------------------"
-    echo "EXIT_CODE: ${exit_code}"
-    if [ "${exit_code}" -ne 0 ]; then
-      echo "ERROR: command failed with EXIT_CODE=${exit_code}"
-    fi
+    echo "EXIT_CODE: ${RUN_EXIT}"
+    echo "PROCESS_WALL_SECONDS: ${RUN_WALL} (includes Python startup, data initialization and preload)"
+    echo "PYTHON_${metric_kind^^}_SECONDS: ${RUN_PRIMARY:-N/A}"
+    echo "PEAK_CACHE_MB: ${RUN_CACHE:-N/A}"
+    echo "PEAK_TENSOR_MB: ${RUN_TENSOR:-N/A}"
+    [[ "$RUN_EXIT" -eq 0 ]] || echo "ERROR: command failed with EXIT_CODE=${RUN_EXIT}"
     echo ""
-  } >> "${log_file}"
-
-  if [ "${exit_code}" -ne 0 ]; then
-    echo "[ERROR] command failed with EXIT_CODE=${exit_code}: ${tag} | BARRIER=${barrier_mode} | repeat ${repeat_id}/${repeat_total}"
+  } >> "$log_file"
+  if [[ "$RUN_EXIT" -ne 0 ]]; then
+    echo "[ERROR] exit=${RUN_EXIT}: ${tag} | SET=${mode} | repeat ${repeat_id}/${repeat_total}"
   fi
+  return 0  # Never mistake a change in printed fields for a failed experiment.
+}
 
-  return 0
+# One timing SET, exactly two repeats, summarize both in the TXT and CSV.
+run_set() {
+  local log_file="$1" tag="$2" mode="$3" model="$4" ipc="$5" steps="$6" iteration="$7" case_name="$8"
+  shift 8
+  local r successful=0 metric_1="" metric_2="" wall_1="" wall_2="" cache_1="" cache_2="" tensor_1="" tensor_2=""
+  local repeats metric_name
+  if [[ "$mode" == "kernel" ]]; then
+    repeats="$KERNEL_SET_REPEATS"
+    metric_name="synchronized_kernel_time_s"
+  else
+    repeats="$TOTAL_SET_REPEATS"
+    metric_name="python_total_time_s"
+  fi
+  for ((r=1; r<=repeats; r++)); do
+    run_cmd_once "$log_file" "$tag" "$mode" "$r" "$repeats" "$@"
+    if [[ "$RUN_EXIT" -eq 0 ]]; then
+      ((successful+=1))
+      if [[ "$r" -eq 1 ]]; then
+        metric_1="$RUN_PRIMARY"; wall_1="$RUN_WALL"; cache_1="$RUN_CACHE"; tensor_1="$RUN_TENSOR"
+      elif [[ "$r" -eq 2 ]]; then
+        metric_2="$RUN_PRIMARY"; wall_2="$RUN_WALL"; cache_2="$RUN_CACHE"; tensor_2="$RUN_TENSOR"
+      fi
+    fi
+  done
+  local mean_metric="" mean_wall="" mean_cache="" mean_tensor=""
+  # No partial mean: both repetitions must succeed and expose the field.
+  if [[ "$successful" -eq 2 && "$repeats" -eq 2 ]]; then
+    mean_metric="$(mean_of_two "$metric_1" "$metric_2")"
+    mean_wall="$(mean_of_two "$wall_1" "$wall_2")"
+    mean_cache="$(mean_of_two "$cache_1" "$cache_2")"
+    mean_tensor="$(mean_of_two "$tensor_1" "$tensor_2")"
+  fi
+  {
+    echo "[MEAN] ${tag} | SET=${mode} | SUCCEEDED=${successful}/${repeats} | ${metric_name}=${mean_metric:-N/A} | process_wall_s=${mean_wall:-N/A} | peak_cache_mb=${mean_cache:-N/A} | peak_tensor_mb=${mean_tensor:-N/A}"
+    echo ""
+  } >> "$log_file"
+  echo "[MEAN] ${tag} | ${mode}: Python=${mean_metric:-N/A} s | process_wall=${mean_wall:-N/A} s (${successful}/${repeats} successful runs)"
+  # All fields are simple tags with no commas; no synthetic numbers for missing metrics.
+  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+    "$DATASET" "$model" "$ipc" "$steps" "$iteration" "$case_name" "$mode" "$repeats" "$successful" \
+    "$metric_name" "$metric_1" "$metric_2" "$mean_metric" "$mean_wall" "$mean_cache" "$mean_tensor" "$wall_1" "$wall_2" \
+    >> "$SUMMARY_CSV"
 }
 
 run_cmd() {
-  local log_file="$1"
-  local tag="$2"
-  shift 2
-  local r
-
-  for r in $(seq 1 "${USE_BARRIER_REPEATS}"); do
-    run_cmd_once "${log_file}" "${tag}" "use_barrier" "${r}" "${USE_BARRIER_REPEATS}" "$@"
-  done
-
-  for r in $(seq 1 "${NO_BARRIER_REPEATS}"); do
-    run_cmd_once "${log_file}" "${tag}" "no_barrier" "${r}" "${NO_BARRIER_REPEATS}" "$@"
-  done
-}
-
-run_fwdtest_once() {
-  local log_file="$1"
-  local tag="$2"
-  shift 2
-
-  local barrier_mode="no_barrier"
-  local repeat_id="1"
-  local repeat_total="1"
-
-  echo "[RUN] ${tag} | FWDTEST | no --use-barrier | repeat ${repeat_id}/${repeat_total}"
-
-  {
-    echo "=============================="
-    echo "$(date '+%Y-%m-%d %H:%M:%S') | ${tag} | BARRIER=${barrier_mode} | REPEAT=${repeat_id}/${repeat_total}"
-    echo "CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 $*"
-    echo "------------------------------"
-  } >> "${log_file}"
-
-  WANDB_SILENT=true \\
-  PYTHONWARNINGS=ignore \\
-  TQDM_DISABLE=1 \\
-  PYTHONUNBUFFERED=1 \\
-  "$@" 2>&1 | clean_output >> "${log_file}"
-
-  local exit_code=${PIPESTATUS[0]}
-
-  {
-    echo "------------------------------"
-    echo "EXIT_CODE: ${exit_code}"
-    if [ "${exit_code}" -ne 0 ]; then
-      echo "ERROR: command failed with EXIT_CODE=${exit_code}"
-    fi
-    echo ""
-  } >> "${log_file}"
-
-  if [ "${exit_code}" -ne 0 ]; then
-    echo "[ERROR] command failed with EXIT_CODE=${exit_code}: ${tag} | FWDTEST"
-  fi
-
-  return 0
+  local log_file="$1" tag="$2" model="$3" ipc="$4" steps="$5" iteration="$6" case_name="$7"
+  shift 7
+  run_set "$log_file" "$tag" kernel "$model" "$ipc" "$steps" "$iteration" "$case_name" "$@"
+  run_set "$log_file" "$tag" total "$model" "$ipc" "$steps" "$iteration" "$case_name" "$@"
 }
 
 run_original() {
-  local log_file="$1"
-  local model_label="$2"
-  local model_arg="$3"
-  local ipc="$4"
-  local syn_steps="$5"
+  local log_file="$1" model_label="$2" model_arg="$3" ipc="$4" syn_steps="$5"
   local iteration="${6:-${ITERATION}}"
-
-  # shellcheck disable=SC2207
-  local args=( $(common_args "${ipc}" "${syn_steps}" "${model_arg}" "${iteration}") )
-
-  run_cmd \\
-    "${log_file}" \\
-    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original" \\
-    python "${ORIGINAL_FILE}" "${args[@]}"
+  local args=( $(common_args "$ipc" "$syn_steps" "$model_arg" "$iteration") )
+  local tag="MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original"
+  run_cmd "$log_file" "$tag" "$model_label" "$ipc" "$syn_steps" "$iteration" original \
+    python "$ORIGINAL_FILE" "${args[@]}"
 }
 
 run_original_fwdtest() {
-  local log_file="$1"
-  local model_label="$2"
-  local model_arg="$3"
-  local ipc="$4"
-  local syn_steps="$5"
+  local log_file="$1" model_label="$2" model_arg="$3" ipc="$4" syn_steps="$5"
   local iteration="${6:-${ITERATION}}"
-
-  # shellcheck disable=SC2207
-  local args=( $(common_args "${ipc}" "${syn_steps}" "${model_arg}" "${iteration}") )
-
-  run_fwdtest_once \\
-    "${log_file}" \\
-    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original_fwdtest" \\
-    python "${ORIGINAL_FWD_FILE}" "${args[@]}"
+  local args=( $(common_args "$ipc" "$syn_steps" "$model_arg" "$iteration") )
+  local tag="MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=original_fwdtest"
+  run_cmd "$log_file" "$tag" "$model_label" "$ipc" "$syn_steps" "$iteration" original_fwdtest \
+    python "$ORIGINAL_FWD_FILE" "${args[@]}"
 }
 
 run_flex_case() {
-  local log_file="$1"
-  local model_label="$2"
-  local model_arg="$3"
-  local flex_file="$4"
-  local ipc="$5"
-  local syn_steps="$6"
-  local mask_string="$7"
-  local vfuse_arg="$8"
-  local case_prefix="${9:-flex}"
-  local iteration="${10:-${ITERATION}}"
-
-  read -r -a mask_args <<< "${mask_string}"
-  local mask_tag="${mask_string// /}"
-  local vfuse_tag
-
-  if [ "${vfuse_arg}" = "--v_fuse" ]; then
-    vfuse_tag="vfuse"
-  else
-    vfuse_tag="no_vfuse"
-  fi
-
-  # shellcheck disable=SC2207
-  local args=( $(common_args "${ipc}" "${syn_steps}" "${model_arg}" "${iteration}") )
-
-  run_cmd \\
-    "${log_file}" \\
-    "MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=${case_prefix}_mask_${mask_tag}_${vfuse_tag}" \\
-    python "${flex_file}" \\
-      --fuse_mask_list "${mask_args[@]}" \\
-      "${vfuse_arg}" \\
-      "${args[@]}"
+  local log_file="$1" model_label="$2" model_arg="$3" flex_file="$4" ipc="$5" syn_steps="$6"
+  local mask_string="$7" vfuse_arg="$8" case_prefix="${9:-flex}" iteration="${10:-${ITERATION}}"
+  local mask_args=()
+  read -r -a mask_args <<< "$mask_string"
+  local mask_tag="${mask_string// /}" vfuse_tag="no_vfuse"
+  [[ "$vfuse_arg" == "--v_fuse" ]] && vfuse_tag="vfuse"
+  local case_name="${case_prefix}_mask_${mask_tag}_${vfuse_tag}"
+  local tag="MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=${case_name}"
+  local args=( $(common_args "$ipc" "$syn_steps" "$model_arg" "$iteration") )
+  run_cmd "$log_file" "$tag" "$model_label" "$ipc" "$syn_steps" "$iteration" "$case_name" \
+    python "$flex_file" --fuse_mask_list "${mask_args[@]}" "$vfuse_arg" "${args[@]}"
 }
 
 run_model_block() {
-  local log_file="$1"
-  local model_label="$2"
-  local model_arg="$3"
-  local flex_file="$4"
+  local log_file="$1" model_label="$2" model_arg="$3" flex_file="$4"
   shift 4
   local ipc_list=( "$@" )
-
-  local ipc
-  local model_iteration
-
+  local ipc iteration syn_steps mask vfuse
   for ipc in "${ipc_list[@]}"; do
-    model_iteration="$(iteration_for_model_ipc "${model_label}" "${ipc}")"
-
-    run_original "${log_file}" "${model_label}" "${model_arg}" "${ipc}" "1" "${model_iteration}"
-    run_original_fwdtest "${log_file}" "${model_label}" "${model_arg}" "${ipc}" "1" "${model_iteration}"
-
-    # Distill flex: v_fuse is always ON; run exactly the same four masks.
-    run_flex_case "${log_file}" "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1"       "--v_fuse" "flex" "${model_iteration}"
-    run_flex_case "${log_file}" "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1"     "--v_fuse" "flex" "${model_iteration}"
-    run_flex_case "${log_file}" "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 0"     "--v_fuse" "flex" "${model_iteration}"
-    run_flex_case "${log_file}" "${model_label}" "${model_arg}" "${flex_file}" "${ipc}" "${NORMAL_FLEX_SYN_STEPS}" "1 1 0 0" "--v_fuse" "flex" "${model_iteration}"
-
-    run_original "${log_file}" "${model_label}" "${model_arg}" "${ipc}" "20" "${model_iteration}"
-    run_original_fwdtest "${log_file}" "${model_label}" "${model_arg}" "${ipc}" "20" "${model_iteration}"
+    iteration="$(iteration_for_model_ipc "$model_label" "$ipc")"
+    # 1. Original for both original syn_steps (unchanged: 1, 20)
+    for syn_steps in "${ORIGINAL_SYN_STEPS_LIST[@]}"; do
+      run_original "$log_file" "$model_label" "$model_arg" "$ipc" "$syn_steps" "$iteration"
+    done
+    # 2. Flex: exactly 1, 11, 10, each with v_fuse ON and OFF
+    for mask in "1" "1 1" "1 0"; do
+      for vfuse in "--v_fuse" "--no-v_fuse"; do
+        run_flex_case "$log_file" "$model_label" "$model_arg" "$flex_file" "$ipc" \
+          "$NORMAL_FLEX_SYN_STEPS" "$mask" "$vfuse" flex "$iteration"
+      done
+    done
+    # 3. Original forward-only test, also with two timing sets and two repeats.
+    for syn_steps in "${ORIGINAL_SYN_STEPS_LIST[@]}"; do
+      run_original_fwdtest "$log_file" "$model_label" "$model_arg" "$ipc" "$syn_steps" "$iteration"
+    done
   done
 }
 
 run_convnet_tests() {
-  write_header \\
-    "${CONV_LOG}" \\
-    "ConvNet" \\
-    "ConvNet" \\
-    "${CONV_FLEX_FILE}" \\
-    "${CONV_IPC_LIST[*]}" \\
-    "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no ckpt flex; ConvNet keeps --Iteration=${ITERATION} for all IPCs."
-
-  run_model_block "${CONV_LOG}" "ConvNet" "ConvNet" "${CONV_FLEX_FILE}" "${CONV_IPC_LIST[@]}"
-  write_footer "${CONV_LOG}"
+  SUMMARY_CSV="${CONV_LOG%.txt}_summary.csv"
+  printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
+  write_header "$CONV_LOG" "ConvNet" "ConvNet" "$CONV_FLEX_FILE" "${CONV_IPC_LIST[*]}" \
+    "ConvNet --Iteration=${ITERATION} for every IPC; first Original, then Flex, then FWD."
+  run_model_block "$CONV_LOG" "ConvNet" "ConvNet" "$CONV_FLEX_FILE" "${CONV_IPC_LIST[@]}"
+  write_footer "$CONV_LOG"
 }
 
 run_vit_tests() {
-  write_header \\
-    "${VIT_LOG}" \\
-    "ViT" \\
-    "ViT" \\
-    "${VIT_FLEX_FILE}" \\
-    "${VIT_IPC_LIST[*]}" \\
-    "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ViT; ViT uses --Iteration=50 when --ipc>=50."
-
-  run_model_block "${VIT_LOG}" "ViT" "ViT" "${VIT_FLEX_FILE}" "${VIT_IPC_LIST[@]}"
-  write_footer "${VIT_LOG}"
+  SUMMARY_CSV="${VIT_LOG%.txt}_summary.csv"
+  printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
+  write_header "$VIT_LOG" "ViT" "ViT" "$VIT_FLEX_FILE" "${VIT_IPC_LIST[*]}" \
+    "ViT --Iteration=50 for IPC >= 50 (unchanged)."
+  run_model_block "$VIT_LOG" "ViT" "ViT" "$VIT_FLEX_FILE" "${VIT_IPC_LIST[@]}"
+  write_footer "$VIT_LOG"
 }
 
 run_resnet18_tests() {
-  write_header \\
-    "${RESNET_LOG}" \\
-    "ResNet18" \\
-    "ResNet18" \\
-    "${RESNET_FLEX_FILE}" \\
-    "${RESNET_IPC_LIST[*]}" \\
-    "normal flex only uses syn_steps=1; all flex uses --v_fuse; masks are 1 / 1 1 / 1 0 / 1 1 0 0; no flex syn_steps=20 for ResNet18; ResNet18 uses --Iteration=50 when --ipc>=10."
-
-  run_model_block "${RESNET_LOG}" "ResNet18" "ResNet18" "${RESNET_FLEX_FILE}" "${RESNET_IPC_LIST[@]}"
-  write_footer "${RESNET_LOG}"
+  SUMMARY_CSV="${RESNET_LOG%.txt}_summary.csv"
+  printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
+  write_header "$RESNET_LOG" "ResNet18" "ResNet18" "$RESNET_FLEX_FILE" "${RESNET_IPC_LIST[*]}" \
+    "ResNet18 --Iteration=50 for IPC >= 10 (unchanged)."
+  run_model_block "$RESNET_LOG" "ResNet18" "ResNet18" "$RESNET_FLEX_FILE" "${RESNET_IPC_LIST[@]}"
+  write_footer "$RESNET_LOG"
 }
 
 run_vgg11_tests() {
-  write_header \\
-    "${VGG_LOG}" \\
-    "VGG11" \\
-    "VGG11" \\
-    "${VGG_FLEX_FILE}" \\
-    "${VGG_IPC_LIST[*]}" \\
-    "same settings as ResNet18: flex syn_steps=1, --v_fuse, masks 1 / 1 1 / 1 0 / 1 1 0 0; original syn_steps=1/20; --Iteration=50 when --ipc>=10."
-
-  run_model_block "${VGG_LOG}" "VGG11" "VGG11" "${VGG_FLEX_FILE}" "${VGG_IPC_LIST[@]}"
-  write_footer "${VGG_LOG}"
+  SUMMARY_CSV="${VGG_LOG%.txt}_summary.csv"
+  printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
+  write_header "$VGG_LOG" "VGG11" "VGG11" "$VGG_FLEX_FILE" "${VGG_IPC_LIST[*]}" \
+    "VGG11 --Iteration=50 for IPC >= 10 (unchanged)."
+  run_model_block "$VGG_LOG" "VGG11" "VGG11" "$VGG_FLEX_FILE" "${VGG_IPC_LIST[@]}"
+  write_footer "$VGG_LOG"
 }
 
 run_dataset_tests() {
@@ -551,6 +535,7 @@ run_dataset_tests() {
   local dataset_log_dir="${LOG_DIR}/${DATASET}"
   mkdir -p "${dataset_log_dir}"
   CONV_LOG="${dataset_log_dir}/conv.txt"
+  # Each model has an independent summary CSV; set before each model block.
   VIT_LOG="${dataset_log_dir}/vit.txt"
   RESNET_LOG="${dataset_log_dir}/resnet18.txt"
   VGG_LOG="${dataset_log_dir}/vgg11.txt"

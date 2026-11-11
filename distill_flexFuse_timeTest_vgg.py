@@ -521,7 +521,7 @@ def main(args):
             del target_params_bwd
             dx_conv = student_net.call_with_param(
                 forward_params,
-                student_net.module.run_double_bwd,
+                student_net.module.run_double_bwd_full,
                 tape=tape,
                 d_activates_list=d_activates_list,
                 d_bwd_state=d_bwd_state,

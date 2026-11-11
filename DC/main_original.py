@@ -45,6 +45,7 @@ def main():
     parser.add_argument('--fuse_mask_list', type=int, nargs='+', default=None, help='all-one fuse mask, e.g. 1 1 1')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--use-barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
+    parser.add_argument('--split-fwd-barrier', action=argparse.BooleanOptionalAction, default=False, help='split timing of first-order work and image backward')
     parser.add_argument('--skip_eval', action='store_true', help='skip expensive synthetic dataset evaluation')
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
 
@@ -64,6 +65,9 @@ def main():
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     args.dsa_param = ParamDiffAug()
     args.dsa = True if args.method == 'DSA' else False
+    warmup = 0 if args.AccTest else 3
+    final_iteration = args.Iteration + warmup
+    kernel_time = 0.0
     total_time = 0.0
     fwd_time = 0.0
     bwd_time = 0.0
@@ -131,10 +135,11 @@ def main():
         criterion = nn.CrossEntropyLoss().to(args.device)
         print('%s training begins'%get_time())
 
-        for it in range(args.Iteration+1):
+        for it in range(final_iteration+1):
+            measured = it >= warmup
 
             ''' Evaluate synthetic data '''
-            if (not args.skip_eval) and it in eval_it_pool:
+            if (not args.skip_eval) and (it - warmup) in eval_it_pool and measured:
                 for model_eval in model_eval_pool:
                     print('-------------------------\nEvaluation\nmodel_train = %s, model_eval = %s, iteration = %d'%(args.model, model_eval, it))
                     if args.dsa:
@@ -159,7 +164,7 @@ def main():
                         accs.append(acc_test)
                     print('Evaluate %d random %s, mean = %.4f std = %.4f\n-------------------------'%(len(accs), model_eval, np.mean(accs), np.std(accs)))
 
-                    if it == args.Iteration: # record the final results
+                    if it == final_iteration: # record the final results
                         accs_all_exps[model_eval] += accs
 
                 ''' visualize and save '''
@@ -172,6 +177,11 @@ def main():
                 save_image(image_syn_vis, save_name, nrow=args.ipc) # Trying normalize = True/False may get better visual effects.
 
 
+            if it == warmup:
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                    torch.cuda.reset_peak_memory_stats()
+                total_start = time.time()
             ''' Train synthetic data '''
             net = get_network(args.model, channel, num_classes, im_size).to(args.device) # get a random model
             net.train()
@@ -207,10 +217,10 @@ def main():
                 loss = torch.tensor(0.0).to(args.device)
                 optimizer_img.zero_grad()
 
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                    torch.cuda.reset_peak_memory_stats()
-                total_start = time.time()
+                if measured and args.use_barrier:
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    kernel_start = time.time()
                 for c in range(num_classes):
                     img_real = get_images(c, args.batch_real)
                     lab_real = torch.ones((img_real.shape[0],), device=args.device, dtype=torch.long) * c
@@ -222,8 +232,10 @@ def main():
                         img_real = DiffAugment(img_real, args.dsa_strategy, seed=seed, param=args.dsa_param)
                         img_syn = DiffAugment(img_syn, args.dsa_strategy, seed=seed, param=args.dsa_param)
 
-                    if args.use_barrier and torch.cuda.is_available(): torch.cuda.synchronize()
-                    fwd_start = time.time()
+                    if measured and args.use_barrier and args.split_fwd_barrier:
+                        if torch.cuda.is_available():
+                            torch.cuda.synchronize()
+                        fwd_start = time.time()
                     output_real = net(img_real)
                     loss_real = criterion(output_real, lab_real)
                     gw_real = torch.autograd.grad(loss_real, net_parameters)
@@ -234,20 +246,22 @@ def main():
                     gw_syn = torch.autograd.grad(loss_syn, net_parameters, create_graph=True)
 
                     loss = match_loss(gw_syn, gw_real, args)
-                    if args.use_barrier and torch.cuda.is_available(): torch.cuda.synchronize()
-                    fwd_end = time.time()
-                    fwd_time += fwd_end - fwd_start
-                    bwd_start = fwd_end
+                    if measured and args.use_barrier and args.split_fwd_barrier:
+                        if torch.cuda.is_available():
+                            torch.cuda.synchronize()
+                        fwd_end = time.time()
+                        fwd_time += fwd_end - fwd_start
+                        bwd_start = fwd_end
                     loss.backward()
-                    if args.use_barrier and torch.cuda.is_available(): torch.cuda.synchronize()
-                    bwd_end = time.time()
-                    bwd_time += bwd_end - bwd_start
-                if torch.cuda.is_available(): torch.cuda.synchronize()
-                total_end = time.time()
-                total_time += total_end - total_start
-                if torch.cuda.is_available():
-                    peak_reserved = max(peak_reserved, torch.cuda.max_memory_reserved())
-                    peak_allocated = max(peak_allocated, torch.cuda.max_memory_allocated())
+                    if measured and args.use_barrier and args.split_fwd_barrier:
+                        if torch.cuda.is_available():
+                            torch.cuda.synchronize()
+                        bwd_end = time.time()
+                        bwd_time += bwd_end - bwd_start
+                if measured and args.use_barrier:
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    kernel_time += time.time() - kernel_start
                 if args.AccTest:
                     print("----GRAD L2-----", image_syn.grad.norm().item())
                 optimizer_img.step()
@@ -267,18 +281,28 @@ def main():
 
             loss_avg /= (num_classes*args.outer_loop)
 
+            if it == final_iteration:
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                    peak_reserved = max(peak_reserved, torch.cuda.max_memory_reserved())
+                    peak_allocated = max(peak_allocated, torch.cuda.max_memory_allocated())
+                total_time += time.time() - total_start
             if it%10 == 0:
                 print('%s iter = %04d, loss = %.4f' % (get_time(), it, loss_avg))
 
-            if it == args.Iteration: # only record the final results
+            if it == final_iteration: # only record the final results
                 data_save.append([copy.deepcopy(image_syn.detach().cpu()), copy.deepcopy(label_syn.detach().cpu())])
                 torch.save({'data': data_save, 'accs_all_exps': accs_all_exps, }, os.path.join(args.save_path, 'res_%s_%s_%s_%dipc.pt'%(args.method, args.dataset, args.model, args.ipc)))
 
 
-    print('------------FIN TIME-------------')
-    print('time sumation: ', total_time)
-    print('fwd_time:      ', fwd_time)
-    print('backward_time: ', bwd_time)
+    print('------------TESTING FINISHED-------------')
+    if args.use_barrier:
+        print('Kernel time: ', kernel_time)
+        if args.split_fwd_barrier:
+            print('fwd_time: ', fwd_time)
+            print('backward_time: ', bwd_time)
+    else:
+        print('total time: ', total_time)
     print('峰值cache使用:', peak_reserved / 1024**2, 'MB')
     print('峰值tensor使用:', peak_allocated / 1024**2, 'MB')
     # print('\n==================== Final Results ====================\n')

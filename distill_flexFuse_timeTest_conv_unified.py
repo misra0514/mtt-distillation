@@ -1,5 +1,7 @@
-# 8.4 V2 版本。把原来散装的接口统一了。就是性能不是极限性能。
-# 从conv 复制来的。把原来的distill conv backup 改掉了。改为用更标准的形式调用。 峰值内存开销会大一些
+# 8.4 unified  版本。把原来散装的接口统一了。就是性能不是极限性能。
+# 11.8: Note 因为conv 已经更新，所以这里有些地方已经不是uptodate了。
+# 从conv 复制来的。把原来的distill conv backup 改掉了。改为用更标准的形式调用。 峰值内存开销会大一些。 
+# 这个版本仅仅是更佳统一风格。目前不做测试用。
 # TODO: NOTE 这个版本。或者前面的flex fuse 在 --fuse_mask_list 1  --> 11 的时候，grad都有问题。没有像Batched 一样成倍。
 # 同时，这个版本没有做过优化，可能会有一些sys上冗余的计算。
 import os
@@ -83,6 +85,8 @@ def main(args):
         args.Iteration = 0
     prep_time = 0
     test_time = 0
+    kernel_time = 0
+    system_time = 0
     syn_time = 0
     bwd_time = 0
     param_dist_time = 0
@@ -251,9 +255,13 @@ def main(args):
     # these_indices = indices_chunks.pop()
     # x = image_syn[these_indices]
     # bind(0.2 ,0, x)
+
+
     # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
     student_net = Conv_Flexfuse(channel=channel, num_classes=num_classes, im_size=im_size, Fuse=Fuse, v_fuse=args.v_fuse).to(args.device)
+
     student_net = ReparamModule(student_net)
+
     if args.distributed:
         student_net = torch.nn.DataParallel(student_net)
     if (args.AccTest):
@@ -261,11 +269,21 @@ def main(args):
     else:
         warmup = 3
     # warmup = 0
+
+
+
+
     args.Iteration += warmup
     pre_end = time.time()
+
+
     for it in range(0, args.Iteration+1):
         if it >= warmup:
-            start = time.time()
+            if (args.use_barrier):
+                torch.cuda.synchronize()
+            if it == warmup:
+                total_start = time.time()
+            pre_end = time.time()
         save_this_it = False
         # writer.add_scalar('Progress', it, it)
         # wandb.log({"Progress": it}, step=it)
@@ -365,7 +383,7 @@ def main(args):
             expert_trajectory = buffer[np.random.randint(0, len(buffer))]
         else:
             expert_trajectory = buffer[expert_idx]
-            expert_idx += 1
+            expert_idx += 1  # note 这里为了模拟真实的情况也需要额外load
             if expert_idx == len(buffer): # expert_idx可能类似一个counter，全部读完之后再load
                 expert_idx = 0
                 file_idx += 1
@@ -389,6 +407,7 @@ def main(args):
                 # target_params[index] = torch.cat([i, i], dim=0)   
                 target_params[index] = i.repeat((int(bwd_Fuse),) + (1,) * (i.ndim - 1))  
         target_params = torch.cat([p.data.to(args.device).reshape(-1) for p in target_params], 0)
+
         # TODO: 2 stu param 作为forward 的flat_param传入，要么在这里修改，要么重载forward
         # BUFFER:             1* 11* 14 * model Params
         # BUFFER 在每个Iter之中，有可能会重新load 新的参数进来。
@@ -398,6 +417,7 @@ def main(args):
         shape_list = [p.shape for p in starting_params]
         mask_params = []
         Fuse = len(fuse_mask_list)    # 关键：Fuse = 分组数
+
         for index, p in enumerate(starting_params):
             if p.ndim != 0:
                 # ===== 1）repeat（第 0 维复制 Fuse 次）=====
@@ -415,6 +435,7 @@ def main(args):
                 view_shape = (Fuse * B0,) + (1,) * (p_rep.ndim - 1)
                 mask_param = row_mask.view(view_shape).expand_as(p_rep)
                 mask_params.append(mask_param)
+
         # ===== flatten =====
         student_params = [
             torch.cat([pp.data.to(args.device).reshape(-1) for pp in starting_params], 0)
@@ -422,6 +443,8 @@ def main(args):
         ]
         mask = torch.cat([mm.reshape(-1) for mm in mask_params], 0)   # already bool
         del mask_params
+
+
         # mask_params = []
         # for index, p in enumerate(starting_params):
         #     if p.ndim != 0:
@@ -509,6 +532,7 @@ def main(args):
             # 因为group conv的原因，最开始应该在Channel 维度做cat
             x = x.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
             this_y = this_y.repeat(int(Fuse))
+
             with torch.no_grad():
                 x_out, tape = student_net(x, flat_param=forward_params)
                 ce_loss = criterion(x_out, this_y) * Fuse
@@ -538,7 +562,7 @@ def main(args):
                 init_params_bwd = student_params[0]
                 target_params_bwd = target_params
         if it >= warmup:
-            if args.use_barrier:
+            if args.use_barrier and args.split_fwd_barrier: # 在fwd 和bwd 之间的barrier 只有在特别情况下才开。
                 torch.cuda.synchronize()
             syn_end = time.time()
         with torch.no_grad():
@@ -596,7 +620,7 @@ def main(args):
             else:
                 bwd_weight_tensors = None
             dx_conv1_d1 = student_net.call_with_param(
-                forward_params, student_net.module.run_double_bwd,
+                forward_params, student_net.module.run_double_bwd_full,
                 tape=tape, d_activates_list=d_activates_list,
                 d_bwd_state=d_bwd_state, dd_tensors_all=dd_tensors_all,
                 weight_tensors_all=bwd_weight_tensors, Fuse=bwd_Fuse)
@@ -612,10 +636,14 @@ def main(args):
             if args.use_barrier:
                 torch.cuda.synchronize()
             iter_end = time.time()
-            prep_time += (syn_start- start) # 从iter开始一直到内层循环
-            syn_time += (syn_end-syn_start) # 内层循环的时间
-            bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
-            param_dist_time += (param_dist_time_end-param_dist_time_start) # 计算param_dist的时间
+            if args.split_fwd_barrier:
+                prep_time += (syn_start- pre_end) # 从iter开始一直到内层循环。包含了data loading以及system 操作。
+                syn_time += (syn_end-syn_start) # 内层循环的时间
+                bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
+                param_dist_time += (param_dist_time_end-param_dist_time_start) # 计算param_dist的时间
+            else:
+                system_time += (syn_start- pre_end) # 从iter开始一直到内层循环。包含了data loading以及system 操作。
+                kernel_time += (iter_end-syn_start) # 内层循环的时间，只包含了kernel以及一些系统操作。
             # test_time +=(temp_end-temp_start)
         # wandb.log({"Grand_Loss": grand_loss.detach().cpu(),
         #            "Start_Epoch": start_epoch})
@@ -625,23 +653,32 @@ def main(args):
     #     #     print('%s iter = %04d, loss = %.4f' % (get_time(), it, grand_loss.item()))
     #     print("alloc", torch.cuda.memory_allocated() / 1024**2,
     #   "reserved", torch.cuda.memory_reserved() / 1024**2)
+    torch.cuda.synchronize()
     iter_end = time.time()
-    print("------------FIN TIME-------------")
-    print("time sumation: ", iter_end - pre_end)
-    if( not args.use_barrier):
-        print("prepare time (", args.syn_steps ,"): ", prep_time)
-        print("syn_time     (", args.syn_steps ,"): ", syn_time)
-        print("backward_time(", args.syn_steps ,"): ", bwd_time)
-        # print("param_dist_time(", args.syn_steps ,"): ", param_dist_time)
+    print("------------TESTING FINISHED-------------")
+    if (not args.use_barrier):
+        print("total time: ", iter_end - total_start)
+        print("kernel time( without barrier): ", kernel_time)
+    elif (args.split_fwd_barrier):
+        print("prepare time (", args.Iteration ,"): ", prep_time)
+        print("syn_time     (", args.Iteration ,"): ", syn_time)
+        print("backward_time(", args.Iteration ,"): ", bwd_time)
+    else:
+        print("system time  (", args.Iteration ,"): ", system_time)
+        print("Kernel time  (", args.Iteration ,"): ", kernel_time)
     print("峰值cache使用:", torch.cuda.max_memory_reserved() / 1024**2, "MB") # 你的 Tensor 实际占用了多少显存（真实使用量）
     print("峰值tensor使用:", torch.cuda.max_memory_allocated() / 1024**2, "MB") # PyTorch CUDA 内存缓存池占用的显存（包含已分配+缓存未释放的）
     # wandb.finish()
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
     parser.add_argument(   '--fuse_mask_list',   type=int,   nargs='+',       required=True,        help='fuse mask list, e.g. 1 1 0')
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--use-barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
+    parser.add_argument('--split-fwd-barrier', action=argparse.BooleanOptionalAction, default=False, help='split timing of fwd & bwd')
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
     parser.add_argument('--detachNum', type=int, default=0, help='discard grad before this syn')
     parser.add_argument('--dataset', type=str, default='CIFAR10', help='dataset')
@@ -683,4 +720,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_experts', type=int, default=None, help='number of experts to read per file (leave as None unless doing ablations)')
     parser.add_argument('--force_save', action='store_true', help='this will save images for 50ipc')
     args = parser.parse_args()
+    if args.split_fwd_barrier and not args.use_barrier:
+        print("无法)使用 --split-fwd-barrier 而不使用 --use-barrier。请同时启用 --use-barrier。")
+        exit(1)
     main(args)

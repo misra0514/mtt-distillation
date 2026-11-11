@@ -1,3 +1,5 @@
+# 11.1 conv 模型已经更新成了更高的fuse 版本。现在rundouble bwd 这个字段只做bwd。不确定所有模型都更新了
+
 # 4.27
 # 现在的model 应该都可以把Fuse 写好了。唯一的区别就是 flex fuse 有没有做以及有没有封装到model 里面。所以现在准备重新整理一下这些网络。这里希望可以包含Conv3 、 Resnet18（resnet18test file 复制）
 # 这里是完整的大模型, 来源主要有两个： stateless & stateless_basic block 。两个分别是一个封装后的模块，一个是原始的函数接口。
@@ -184,7 +186,6 @@ class Conv_Flexfuse_backup(nn.Module):
             x_out = self.linear(x_lin)    # N x 10
             x_out = x_out.view(-1,self.num_classes)
         return  x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out
-
 
 class Conv_Flexfuse(nn.Module):
     # 
@@ -513,6 +514,7 @@ class Conv_Flexfuse(nn.Module):
         if x is not None:
             dd_head_tensors["ddx_conv"] = torch.zeros_like(x)
         return dd_head_tensors, dd_weights_list
+    @torch.no_grad()
     def run_double_bwd(
         self,
         tape,
@@ -526,12 +528,23 @@ class Conv_Flexfuse(nn.Module):
         d_bwd_state=None,
         weight_tensors_all=None,
     ):
-        """
-        返回 synthetic image/input 方向的最终梯度。
+        """Run the forward-order double backward and prepare the bwd2-1 inputs.
 
-        新的统一入口只需要传 d_bwd_state + dd_tensors_all；
-        旧的 dd_weights_list/d_head_tensors/dd_head_tensors 接口仍然保留。
+        Consumes the first-bwd activation state and packed dd gradients.
+        The forward tape and weights are still needed by bwd2-1. The
+        derivatives are computed explicitly, so this entry needs no autograd tape.
         """
+        return self._run_double_bwd_impl(
+            tape, d_activates_list, dd_weights_list, d_head_tensors,
+            dd_head_tensors, Fuse, weights, dd_tensors_all, d_bwd_state,
+            weight_tensors_all,
+        )
+
+    def _run_double_bwd_impl(
+        self, tape, d_activates_list, dd_weights_list, d_head_tensors,
+        dd_head_tensors, Fuse, weights, dd_tensors_all, d_bwd_state,
+        weight_tensors_all=None,
+    ):
         if d_bwd_state is not None:
             if d_head_tensors is not None:
                 raise ValueError("Pass only one of d_bwd_state and d_head_tensors")
@@ -637,7 +650,49 @@ class Conv_Flexfuse(nn.Module):
             ddlin_b,
             Fuse,
         )
+        del dx_out, ddx_lin, ddlin_w, ddlin_b, _
         dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, Fuse)
+        return {
+            "dx_out_d1": dx_out_d1,
+            "dx_lin_d2": dx_lin_d2,
+            "blocks": d2_cache,
+        }
+
+    def run_double_bwd_full(
+        self,
+        tape,
+        d_activates_list,
+        dd_weights_list=None,
+        d_head_tensors=None,
+        dd_head_tensors=None,
+        Fuse=1,
+        weights=None,
+        dd_tensors_all=None,
+        d_bwd_state=None,
+        weight_tensors_all=None,
+    ):
+        """
+        返回 synthetic image/input 方向的最终梯度。
+
+        新的统一入口只需要传 d_bwd_state + dd_tensors_all；
+        旧的 dd_weights_list/d_head_tensors/dd_head_tensors 接口仍然保留。
+        """
+        if weight_tensors_all is not None:
+            if weights is not None:
+                raise ValueError("Pass either weight_tensors_all or weights, not both")
+            weights = self.pack_recovered_weights(weight_tensors_all)
+        if weights is None:
+            weights = self.get_weight_pack()
+        bwd2_1_activations = self._run_double_bwd_impl(
+            tape, d_activates_list, dd_weights_list, d_head_tensors,
+            dd_head_tensors, Fuse, weights, dd_tensors_all, d_bwd_state,
+        )
+        blocks = tape["blocks"]
+        head = tape["head"]
+        x_lin = head["x_lin"]
+        dx_out_d1 = bwd2_1_activations.pop("dx_out_d1")
+        dx_lin_d2 = bwd2_1_activations.pop("dx_lin_d2")
+        d2_cache = bwd2_1_activations.pop("blocks")
         dx_lin_d1, _, _ = linerFused_bwd(
             x_lin,
             weights["head"]["linw"],
@@ -647,7 +702,7 @@ class Conv_Flexfuse(nn.Module):
         dx_lin_d1 = dx_lin_d1.reshape(x_lin.shape)
         dx_lin_d1 += dx_lin_d2.reshape(x_lin.shape)  # 与原始 Distill 的原地相加一致
         head.clear()
-        del x_lin, x_out, dx_out, ddx_out, ddx_lin, dx_out_d1, dx_lin_d2
+        del x_lin, dx_out_d1, dx_lin_d2
         # ------------------------------------------------------------
         # 3. backward-order bwd2_1:
         #    block3 -> block2 -> block1
@@ -672,6 +727,111 @@ class Conv_Flexfuse(nn.Module):
             d2_cache[idx] = None
             del b, w, c
         return g
+
+    @staticmethod
+    def _add_bwd2_1_correction(grad, correction, active_range):
+        start, end, Fuse = active_range
+        width = grad.shape[1] // Fuse
+        left = start * width
+        right = (Fuse - end) * width
+        if left:
+            grad.narrow(1, 0, left).add_(correction.narrow(1, 0, left))
+        if right:
+            grad.narrow(1, end * width, right).add_(correction.narrow(1, left, right))
+
+    @torch.no_grad()
+    def run_fused_bwd(self, tape, target, bwd2_1_activations, fuse_mask_list, weights=None):
+        """Run first-bwd and bwd2-1 in one grouped backward traversal.
+
+        The caller packs forward activations and weights in mask order: 1 uses
+        the current first-bwd job and 0 uses the earlier bwd2-1 job. Pack the
+        tape along channels (axis 1), except for logits (axis 0), and pack
+        each parameter along axis 0. Jobs must share batch size, per-lane
+        shapes, and v_fuse. Only the contiguous 1 lanes have targets.
+
+        Pass the state returned by run_double_bwd for the 0 lanes in
+        their mask order. This call consumes that state and compacts tape to
+        the 1 lanes for explicit double backward. Caller-held references to
+        the source tensors must be dropped separately. Returns the four
+        first-bwd results for the 1 lanes and the input gradient for the 0 lanes.
+        """
+        mask = list(fuse_mask_list)
+        if any(lane not in (0, 1) for lane in mask) or 0 not in mask or 1 not in mask:
+            raise ValueError("run_fused_bwd requires both first-bwd (1) and bwd2-1 (0) lanes")
+        active_range = self._active_fuse_range(mask)
+        start, end, Fuse = active_range
+        if weights is None:
+            weights = self.get_weight_pack()
+        blocks = tape["blocks"]
+        head = tape["head"]
+        split_cache = {}
+        d_activates_list = [None] * len(blocks)
+        d_weights_list = [None] * len(blocks)
+
+        x_lin = head["x_lin"]
+        head["x_out"] = self._split_tensor_by_fuse(
+            head["x_out"], active_range, split_cache, batch=True)
+        dx_out = crossEntropy_bwd(head["x_out"], target, end - start)
+        old_dx_out = bwd2_1_activations.pop("dx_out_d1")
+        rows_per_lane = dx_out.shape[0] // (end - start)
+        left = start * rows_per_lane
+        fused_dx_out = torch.cat((old_dx_out[:left], dx_out, old_dx_out[left:]), dim=0)
+        del old_dx_out
+        g, dlin_w, dlin_b = linerFused_bwd(
+            x_lin, weights["head"]["linw"], grad_output=fused_dx_out, Fuse=Fuse)
+        del fused_dx_out
+        g = g.reshape_as(x_lin)
+        old_dx_lin = bwd2_1_activations.pop("dx_lin_d2")
+        old_shape = list(x_lin.shape)
+        old_shape[1] = x_lin.shape[1] // Fuse * (Fuse - (end - start))
+        self._add_bwd2_1_correction(g, old_dx_lin.reshape(old_shape), active_range)
+        del old_dx_lin
+        head["x_lin"] = self._split_tensor_by_fuse(x_lin, active_range, split_cache)
+        del x_lin
+        dlin_w = self._split_tensor_by_fuse(dlin_w, active_range, batch=True)
+        dlin_b = self._split_tensor_by_fuse(dlin_b, active_range, batch=True)
+
+        old_blocks = bwd2_1_activations.pop("blocks")
+        for idx in reversed(range(len(blocks))):
+            block = blocks[idx]
+            w = weights["blocks"][idx]
+            old_block = old_blocks[idx]
+            dx_pool = avgPool_bwd(block["x_pool"], grad_output=g)
+            del g
+            dx_norm, dnorm_w, dnorm_b = insNormNRelu_bwd(
+                block["x_norm"], w["normw"], block["x_pool"],
+                grad_output=dx_pool, v_fuse=self.v_fuse)
+            self._add_bwd2_1_correction(dx_norm, old_block.pop("dx_norm_d2"), active_range)
+            for key in ("x_norm", "x_pool"):
+                block[key] = self._split_tensor_by_fuse(block[key], active_range, split_cache)
+            dx_pool = self._split_tensor_by_fuse(dx_pool, active_range, split_cache)
+
+            g, dconv_w, dconv_b = conv_bwd(
+                block["x_conv"], w["convw"], grad_output=dx_norm, groups=Fuse)
+            self._add_bwd2_1_correction(g, old_block.pop("dxconv_d2"), active_range)
+            old_blocks[idx] = None
+            del old_block
+            dx_norm = self._split_tensor_by_fuse(dx_norm, active_range, split_cache)
+            block["x_conv"] = self._split_tensor_by_fuse(
+                block["x_conv"], active_range, split_cache)
+            d_activates_list[idx] = {
+                "dx_norm": dx_norm,
+                "dx_pool": dx_pool,
+            }
+            d_weights_list[idx] = {
+                "dconvw": self._split_tensor_by_fuse(dconv_w, active_range, batch=True),
+                "dconvb": self._split_tensor_by_fuse(dconv_b, active_range, batch=True),
+                "dnormw": self._split_tensor_by_fuse(dnorm_w, active_range, batch=True),
+                "dnormb": self._split_tensor_by_fuse(dnorm_b, active_range, batch=True),
+            }
+            del dx_norm, dconv_w, dconv_b, dnorm_w, dnorm_b
+
+        # The old lanes are the complement of the contiguous first-bwd range.
+        width = g.shape[1] // Fuse
+        old_dx_input = torch.cat((g[:, :start * width], g[:, end * width:]), dim=1)
+        d_weights_list_all = self.collect_ordered_grads(d_weights_list, dlin_w, dlin_b)
+        return {"dx_out": dx_out}, d_activates_list, d_weights_list, d_weights_list_all, old_dx_input
+
 
 
 class BasicBlock_Flexfuse(nn.Module):
@@ -991,7 +1151,7 @@ class ResNet18_FlexFuse(nn.Module):
         d_weights_list_all = self.collect_ordered_grads( dconvw, dbnw, dbnb, d_weights_list, dfcw, dfcb)
         return  d_stem_tensors, d_activates_list, d_weights_list, d_weights_list_all
         
-    def run_double_bwd(
+    def run_double_bwd_full(
         self,
         tape,
         d_activates_list,
@@ -2823,7 +2983,7 @@ class ViT_FlexFuse(nn.Module):
         # d_activates["dd_dx_out"] = dd_dx_out
         return dd_dx_out, d_activates
 
-    def run_double_bwd(
+    def run_double_bwd_full(
         self,
         tape,
         d_activates_list,
@@ -3472,7 +3632,7 @@ class VGG11_Flexfuse(nn.Module):
                    'ddlinw': dd_tensors_all[32], 'ddlinb': dd_tensors_all[33]}
         return dd_head, dd_blocks
 
-    def run_double_bwd(self, tape, d_activates_list, dd_weights_list=None,
+    def run_double_bwd_full(self, tape, d_activates_list, dd_weights_list=None,
                        d_head_tensors=None, dd_head_tensors=None, Fuse=None, weights=None,
                        release_intermediates=True, dd_tensors_all=None,
                        d_bwd_state=None, weight_tensors_all=None):

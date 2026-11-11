@@ -1,4 +1,6 @@
-import os
+# 11.11 增加了time_stats['kernel'] 范围一直从outer loop
+# 从outer loop 到for c 之间有一段clone & cat。 这个按照MTT的习惯，不计入kernel time的统计范围。
+# import os
 import time
 import copy
 import argparse
@@ -10,6 +12,7 @@ import torch.nn as nn
 from pathlib import Path
 from torchvision.utils import save_image
 from pathlib import Path
+import os
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils_dc import get_loops, get_dataset, get_network as _get_original_network, get_eval_pool, evaluate_synset, get_daparam, match_loss, get_time, TensorDataset, epoch, DiffAugment, ParamDiffAug, ViT
 from reparam_module import ReparamModule
@@ -83,8 +86,10 @@ def manual_fused_class_gradient(fused, flat_params, base_shapes, real, syn, labe
         else:
             yr = labels_real.repeat(Fuse)
             ys = labels_syn.repeat(Fuse)
-        if args.use_barrier and torch.cuda.is_available(): torch.cuda.synchronize()
-        fwd_start = time.time()
+        if time_stats is not None and args.use_barrier and args.split_fwd_barrier and torch.cuda.is_available():
+            torch.cuda.synchronize()
+        if time_stats is not None:
+            fwd_start = time.time()
         if flat_params is None:
             if args.model == 'VGG11':
                 _, tape_real = fused(xr, return_tape=True)
@@ -124,17 +129,19 @@ def manual_fused_class_gradient(fused, flat_params, base_shapes, real, syn, labe
     with torch.enable_grad():
         gs_leaf = [g.detach().requires_grad_(True) for g in gw_syn]
         dist = checkpoint_mean_match_loss(gs_leaf, gw_real, base_shapes, args)
-        if args.use_barrier and torch.cuda.is_available(): torch.cuda.synchronize()
-        fwd_end = time.time()
-        time_stats['fwd'] += fwd_end - fwd_start
-        time_stats['bwd_start'] = fwd_end
+        if time_stats is not None:
+            if args.use_barrier and args.split_fwd_barrier and torch.cuda.is_available():
+                torch.cuda.synchronize()
+            fwd_end = time.time()
+            time_stats['fwd'] += fwd_end - fwd_start
+            time_stats['bwd_start'] = fwd_end
         seeds = torch.autograd.grad(dist, gs_leaf, allow_unused=True)
         dd_tensors = [torch.zeros_like(g) if dd is None else dd.detach() for dd, g in zip(seeds, gw_syn)]
     with torch.no_grad():
         if flat_params is None:
-            dx_fused = fused.run_double_bwd(tape=tape_syn, d_activates_list=dacts, d_bwd_state=d_bwd_state, dd_tensors_all=dd_tensors, Fuse=Fuse)
+            dx_fused = fused.run_double_bwd_full(tape=tape_syn, d_activates_list=dacts, d_bwd_state=d_bwd_state, dd_tensors_all=dd_tensors, Fuse=Fuse)
         else:
-            dx_fused = fused.call_with_param(flat_params, fused.module.run_double_bwd, tape=tape_syn, d_activates_list=dacts, d_bwd_state=d_bwd_state, dd_tensors_all=dd_tensors, Fuse=Fuse)
+            dx_fused = fused.call_with_param(flat_params, fused.module.run_double_bwd_full, tape=tape_syn, d_activates_list=dacts, d_bwd_state=d_bwd_state, dd_tensors_all=dd_tensors, Fuse=Fuse)
         if dx_fused.shape != xs.shape:
             raise RuntimeError(f'Double backward input gradient shape {tuple(dx_fused.shape)} != {tuple(xs.shape)}')
         dx = dx_fused.reshape(syn.shape[0], Fuse, *syn.shape[1:]).sum(dim=1)
@@ -175,6 +182,7 @@ def main():
     parser.add_argument('--fuse_mask_list', type=int, nargs='+', default=None, help='all-one fuse mask, e.g. 1 1 1')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--use-barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
+    parser.add_argument('--split-fwd-barrier', action=argparse.BooleanOptionalAction, default=False, help='split timing of first-order work and image backward')
     parser.add_argument('--skip_eval', action='store_true', help='skip expensive synthetic dataset evaluation')
     parser.add_argument('--AccTest', type=bool, default=False, help='num of models being stacked')
     args = parser.parse_args()
@@ -184,7 +192,7 @@ def main():
         args.Fuse = len(args.fuse_mask_list)
     if args.Fuse < 1:
         raise ValueError('--Fuse must be >= 1')
-    # 这个目前就先开着。等到真的训练的时候再说。
+    # TODO: 这个目前就先开着。等到真的训练的时候再说。
     args.skip_eval = True
     if args.AccTest:
         set_random_seed(42)
@@ -198,7 +206,9 @@ def main():
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
     args.dsa_param = ParamDiffAug()
     args.dsa = True if args.method == 'DSA' else False
-    time_stats = {'total': 0.0, 'fwd': 0.0, 'bwd': 0.0}
+    warmup = 0 if args.AccTest else 3
+    final_iteration = args.Iteration + warmup
+    time_stats = {'total': 0.0, 'kernel': 0.0, 'fwd': 0.0, 'bwd': 0.0}
     peak_reserved = 0
     peak_allocated = 0
     if not os.path.exists(args.data_path):
@@ -217,26 +227,34 @@ def main():
         print('\n================== Exp %d ==================\n '%exp)
         print('Hyper-parameters: \n', args.__dict__)
         print('Evaluation model pool: ', model_eval_pool)
+
         ''' organize the real dataset '''
         images_all = []
         labels_all = []
         indices_class = [[] for c in range(num_classes)]
+
         images_all = [torch.unsqueeze(dst_train[i][0], dim=0) for i in range(len(dst_train))]
         labels_all = [dst_train[i][1] for i in range(len(dst_train))]
         for i, lab in enumerate(labels_all):
             indices_class[lab].append(i)
         images_all = torch.cat(images_all, dim=0).to(args.device)
         labels_all = torch.tensor(labels_all, dtype=torch.long, device=args.device)
+
         for c in range(num_classes):
             print('class c = %d: %d real images'%(c, len(indices_class[c])))
+
         def get_images(c, n): # get random n images from class c
             idx_shuffle = np.random.permutation(indices_class[c])[:n]
             return images_all[idx_shuffle]
+
         for ch in range(channel):
             print('real images channel %d, mean = %.4f, std = %.4f'%(ch, torch.mean(images_all[:, ch]), torch.std(images_all[:, ch])))
+
+
         ''' initialize the synthetic data '''
         image_syn = torch.randn(size=(num_classes*args.ipc, channel, im_size[0], im_size[1]), dtype=torch.float, requires_grad=True, device=args.device)
         label_syn = torch.tensor([np.ones(args.ipc)*i for i in range(num_classes)], dtype=torch.long, requires_grad=False, device=args.device).view(-1) # [0,0,0, 1,1,1, ..., 9,9,9]
+
         if args.init == 'real':
             print('initialize synthetic data from random real images')
             for c in range(num_classes):
@@ -263,9 +281,10 @@ def main():
         if args.model == 'ConvNet' and (channel != 3 or tuple(im_size) != (32, 32)):
             raise ValueError('Conv_Flexfuse expects RGB 32x32')
         print('%s training begins'%get_time())
-        for it in range(args.Iteration+1):
+        for it in range(final_iteration+1):
+            measured = it >= warmup
             ''' Evaluate synthetic data '''
-            if (not args.skip_eval) and it in eval_it_pool:
+            if (not args.skip_eval) and (it - warmup) in eval_it_pool and measured:
                 for model_eval in model_eval_pool:
                     print('-------------------------\nEvaluation\nmodel_train = %s, model_eval = %s, iteration = %d'%(args.model, model_eval, it))
                     if args.dsa:
@@ -276,10 +295,12 @@ def main():
                     else:
                         args.dc_aug_param = get_daparam(args.dataset, args.model, model_eval, args.ipc) # This augmentation parameter set is only for DC method. It will be muted when args.dsa is True.
                         print('DC augmentation parameters: \n', args.dc_aug_param)
+
                     if args.dsa or args.dc_aug_param['strategy'] != 'none':
                         args.epoch_eval_train = 1000  # Training with data augmentation needs more epochs.
                     else:
                         args.epoch_eval_train = 300
+
                     accs = []
                     for it_eval in range(args.num_eval):
                         net_eval = get_network(model_eval, channel, num_classes, im_size).to(args.device) # get a random model
@@ -287,8 +308,10 @@ def main():
                         _, acc_train, acc_test = evaluate_synset(it_eval, net_eval, image_syn_eval, label_syn_eval, testloader, args)
                         accs.append(acc_test)
                     print('Evaluate %d random %s, mean = %.4f std = %.4f\n-------------------------'%(len(accs), model_eval, np.mean(accs), np.std(accs)))
-                    if it == args.Iteration: # record the final results
+
+                    if it == final_iteration: # record the final results
                         accs_all_exps[model_eval] += accs
+
                 ''' visualize and save '''
                 save_name = os.path.join(args.save_path, 'vis_%s_%s_%s_%dipc_exp%d_iter%d.png'%(args.method, args.dataset, args.model, args.ipc, exp, it))
                 image_syn_vis = copy.deepcopy(image_syn.detach().cpu())
@@ -297,6 +320,11 @@ def main():
                 image_syn_vis[image_syn_vis<0] = 0.0
                 image_syn_vis[image_syn_vis>1] = 1.0
                 save_image(image_syn_vis, save_name, nrow=args.ipc) # Trying normalize = True/False may get better visual effects.
+            if it == warmup:
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                    torch.cuda.reset_peak_memory_stats()
+                total_start = time.time()
             if args.Fuse == 1:
                 net = get_fused_network(args.model, channel, num_classes, im_size, Fuse=1, v_fuse=args.v_fuse).to(args.device)
                 net.train()
@@ -362,10 +390,10 @@ def main():
                 optimizer_img.zero_grad(set_to_none=True)
                 image_syn.grad = torch.zeros_like(image_syn)  # one shared image gradient buffer
                 loss_ol = 0.0
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                    torch.cuda.reset_peak_memory_stats()
-                total_start = time.time()
+                if measured and args.use_barrier:
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    kernel_start = time.time()
                 for c in range(num_classes):
                     img_real = get_images(c, args.batch_real)
                     lab_real = torch.full((img_real.shape[0],), c, device=args.device, dtype=torch.long)
@@ -381,7 +409,8 @@ def main():
                     # d_class：当前类别的 Gradient Matching Loss，主要用于记录 Loss，不直接参与更新。
                     dx_class, loss_class = manual_fused_class_gradient(
                         fused_for_gm, flat_fused, base_shapes,
-                        img_real, img_syn, lab_real, lab_syn, args, time_stats)
+                        img_real, img_syn, lab_real, lab_syn, args,
+                        time_stats if measured and args.use_barrier and args.split_fwd_barrier else None)
                     # DSA: dx_class is dD/d(augmented image), not dD/d(S).
                     # Preserve augmentation VJP via torch.autograd.grad.
                     if args.dsa:
@@ -391,16 +420,16 @@ def main():
                     else:
                         dx_orig = dx_class
                     image_syn.grad[c*args.ipc:(c+1)*args.ipc].add_(dx_orig)
-                    if args.use_barrier and torch.cuda.is_available(): torch.cuda.synchronize()
-                    image_bwd_end = time.time()
-                    time_stats['bwd'] += image_bwd_end - time_stats.pop('bwd_start')
+                    if measured and args.use_barrier and args.split_fwd_barrier:
+                        if torch.cuda.is_available():
+                            torch.cuda.synchronize()
+                        image_bwd_end = time.time()
+                        time_stats['bwd'] += image_bwd_end - time_stats.pop('bwd_start')
                     loss_ol += loss_class #只是记录loss用。已经将梯度累积完毕了
-                if torch.cuda.is_available(): torch.cuda.synchronize()
-                total_end = time.time()
-                time_stats['total'] += total_end - total_start
-                if torch.cuda.is_available():
-                    peak_reserved = max(peak_reserved, torch.cuda.max_memory_reserved())
-                    peak_allocated = max(peak_allocated, torch.cuda.max_memory_allocated())
+                if measured and args.use_barrier:
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    time_stats['kernel'] += time.time() - kernel_start
                 if args.AccTest:
                     print("----GRAD L2-----", image_syn.grad.norm().item())
                 optimizer_img.step()
@@ -411,15 +440,25 @@ def main():
                     del checkpoints
                 del flat_fused
             loss_avg /= (num_classes*args.outer_loop)
+            if it == final_iteration:
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                    peak_reserved = max(peak_reserved, torch.cuda.max_memory_reserved())
+                    peak_allocated = max(peak_allocated, torch.cuda.max_memory_allocated())
+                time_stats['total'] += time.time() - total_start
             if it%10 == 0:
                 print('%s iter = %04d, loss = %.4f' % (get_time(), it, loss_avg))
-            if it == args.Iteration: # only record the final results
+            if it == final_iteration: # only record the final results
                 data_save.append([copy.deepcopy(image_syn.detach().cpu()), copy.deepcopy(label_syn.detach().cpu())])
                 torch.save({'data': data_save, 'accs_all_exps': accs_all_exps, }, os.path.join(args.save_path, 'res_%s_%s_%s_%dipc.pt'%(args.method, args.dataset, args.model, args.ipc)))
-    print('------------FIN TIME-------------')
-    print('time sumation: ', time_stats['total'])
-    print('fwd_time:      ', time_stats['fwd'])
-    print('backward_time: ', time_stats['bwd'])
+    print('------------TESTING FINISHED-------------')
+    if args.use_barrier:
+        print('Kernel time: ', time_stats['kernel'])
+        if args.split_fwd_barrier:
+            print('fwd_time: ', time_stats['fwd'])
+            print('backward_time: ', time_stats['bwd'])
+    else:
+        print('total time: ', time_stats['total'])
     print('峰值cache使用:', peak_reserved / 1024**2, 'MB')
     print('峰值tensor使用:', peak_allocated / 1024**2, 'MB')
     # print('\n==================== Final Results ====================\n')
@@ -429,5 +468,10 @@ def main():
         for key in model_eval_pool:
             accs = accs_all_exps[key]
             print('Run %d experiments, train on %s, evaluate %d random %s, mean  = %.2f%%  std = %.2f%%'%(args.num_exp, args.model, len(accs), key, np.mean(accs)*100, np.std(accs)*100))
+
+
+
 if __name__ == '__main__':
     main()
+
+
