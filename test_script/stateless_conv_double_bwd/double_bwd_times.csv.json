@@ -1,0 +1,37 @@
+{
+  "torch": "2.5.1",
+  "triton": "3.1.0",
+  "cuda": "12.4",
+  "cudnn": 90100,
+  "gpu": "NVIDIA RTX A5000",
+  "capability": [
+    8,
+    6
+  ],
+  "args": {
+    "mode": "bench",
+    "groups": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ],
+    "batch": [
+      10
+    ],
+    "case": "all",
+    "shape": null,
+    "stride": 1,
+    "padding": 1,
+    "dilation": 1,
+    "dtype": "fp32",
+    "precision": "ieee",
+    "iters": 100,
+    "workspace_mb": 32,
+    "split_k": null,
+    "output": "double_bwd_times.csv"
+  },
+  "note": "ATen 2.5.1 ignores output_mask. TF32x3 vs strict ATen is not identical arithmetic."
+}

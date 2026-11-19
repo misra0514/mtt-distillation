@@ -116,38 +116,142 @@ def get_dataset(dataset, data_path, batch_size=1, subset="imagenette", args=None
         class_map = {x: x for x in range(num_classes)}
 
 
+    # elif dataset == 'ImageNet':
+    #     channel = 3
+    #     im_size = (128, 128)
+    #     num_classes = 10
+
+    #     config.img_net_classes = config.dict[subset]
+
+    #     mean = [0.485, 0.456, 0.406]
+    #     std = [0.229, 0.224, 0.225]
+    #     if args.zca:
+    #         transform = transforms.Compose([transforms.ToTensor(),
+    #                                     transforms.Resize(im_size),
+    #                                     transforms.CenterCrop(im_size)])
+    #     else:
+    #         transform = transforms.Compose([transforms.ToTensor(),
+    #                                         transforms.Normalize(mean=mean, std=std),
+    #                                         transforms.Resize(im_size),
+    #                                         transforms.CenterCrop(im_size)])
+
+    #     dst_train = datasets.ImageNet(data_path, split="train", transform=transform) # no augmentation
+    #     dst_train_dict = {c : torch.utils.data.Subset(dst_train, np.squeeze(np.argwhere(np.equal(dst_train.targets, config.img_net_classes[c])))) for c in range(len(config.img_net_classes))}
+    #     dst_train = torch.utils.data.Subset(dst_train, np.squeeze(np.argwhere(np.isin(dst_train.targets, config.img_net_classes))))
+    #     loader_train_dict = {c : torch.utils.data.DataLoader(dst_train_dict[c], batch_size=batch_size, shuffle=True, num_workers=16) for c in range(len(config.img_net_classes))}
+    #     dst_test = datasets.ImageNet(data_path, split="val", transform=transform)
+    #     dst_test = torch.utils.data.Subset(dst_test, np.squeeze(np.argwhere(np.isin(dst_test.targets, config.img_net_classes))))
+    #     for c in range(len(config.img_net_classes)):
+    #         dst_test.dataset.targets[dst_test.dataset.targets == config.img_net_classes[c]] = c
+    #         dst_train.dataset.targets[dst_train.dataset.targets == config.img_net_classes[c]] = c
+    #     print(dst_test.dataset)
+    #     class_map = {x: i for i, x in enumerate(config.img_net_classes)}
+    #     class_map_inv = {i: x for i, x in enumerate(config.img_net_classes)}
+    #     class_names = None
+
+
+
     elif dataset == 'ImageNet':
         channel = 3
         im_size = (128, 128)
         num_classes = 10
 
-        config.img_net_classes = config.dict[subset]
-
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
-        if args.zca:
-            transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Resize(im_size),
-                                        transforms.CenterCrop(im_size)])
-        else:
-            transform = transforms.Compose([transforms.ToTensor(),
-                                            transforms.Normalize(mean=mean, std=std),
-                                            transforms.Resize(im_size),
-                                            transforms.CenterCrop(im_size)])
 
-        dst_train = datasets.ImageNet(data_path, split="train", transform=transform) # no augmentation
-        dst_train_dict = {c : torch.utils.data.Subset(dst_train, np.squeeze(np.argwhere(np.equal(dst_train.targets, config.img_net_classes[c])))) for c in range(len(config.img_net_classes))}
-        dst_train = torch.utils.data.Subset(dst_train, np.squeeze(np.argwhere(np.isin(dst_train.targets, config.img_net_classes))))
-        loader_train_dict = {c : torch.utils.data.DataLoader(dst_train_dict[c], batch_size=batch_size, shuffle=True, num_workers=16) for c in range(len(config.img_net_classes))}
-        dst_test = datasets.ImageNet(data_path, split="val", transform=transform)
-        dst_test = torch.utils.data.Subset(dst_test, np.squeeze(np.argwhere(np.isin(dst_test.targets, config.img_net_classes))))
-        for c in range(len(config.img_net_classes)):
-            dst_test.dataset.targets[dst_test.dataset.targets == config.img_net_classes[c]] = c
-            dst_train.dataset.targets[dst_train.dataset.targets == config.img_net_classes[c]] = c
-        print(dst_test.dataset)
-        class_map = {x: i for i, x in enumerate(config.img_net_classes)}
-        class_map_inv = {i: x for i, x in enumerate(config.img_net_classes)}
-        class_names = None
+        if subset != "imagenette":
+            raise ValueError(
+                f"Unsupported extracted ImageNet subset: {subset}"
+            )
+
+        if args.zca:
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Resize(im_size),
+                transforms.CenterCrop(im_size)
+            ])
+        else:
+            transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=mean, std=std),
+                transforms.Resize(im_size),
+                transforms.CenterCrop(im_size)
+            ])
+
+        subset_root = os.path.join(data_path, subset)
+        train_root = os.path.join(subset_root, "train")
+        val_root = os.path.join(subset_root, "val")
+
+        dst_train = datasets.ImageFolder(
+            train_root, transform=transform
+        )
+        dst_test = datasets.ImageFolder(
+            val_root, transform=transform
+        )
+
+        if len(dst_train.classes) != 10:
+            raise ValueError(
+                f"Expected 10 train classes, got {len(dst_train.classes)}"
+            )
+
+        if dst_train.classes != dst_test.classes:
+            raise ValueError(
+                "Train and validation class orders do not match"
+            )
+
+        # ImageNette class IDs in official ImageNet order.
+        # For this subset, ImageFolder's sorted WNID order
+        # matches the MTT ImageNette class order.
+        expected_wnids = [
+            "n01440764",
+            "n02102040",
+            "n02979186",
+            "n03000684",
+            "n03028079",
+            "n03394916",
+            "n03417042",
+            "n03425413",
+            "n03445777",
+            "n03888257",
+        ]
+
+        if dst_train.classes != expected_wnids:
+            raise ValueError(
+                f"Unexpected ImageNette classes: {dst_train.classes}"
+            )
+
+        class_names = dst_train.classes
+        class_map = {c: c for c in range(num_classes)}
+        class_map_inv = {c: c for c in range(num_classes)}
+
+        loader_train_dict = {}
+
+        train_targets = np.asarray(dst_train.targets)
+
+        for c in range(num_classes):
+            indices = np.flatnonzero(train_targets == c).tolist()
+
+            if len(indices) == 0:
+                raise ValueError(
+                    f"No training images found for class {c}"
+                )
+
+            dst_train_class = torch.utils.data.Subset(
+                dst_train, indices
+            )
+
+            loader_train_dict[c] = torch.utils.data.DataLoader(
+                dst_train_class,
+                batch_size=batch_size,
+                shuffle=True,
+                num_workers=16
+            )
+
+        print(f"ImageNet subset: {subset}")
+        print(f"Train images: {len(dst_train)}")
+        print(f"Val images: {len(dst_test)}")
+
+        print(f"Classes: {dst_train.classes}")
 
 
     elif dataset.startswith('CIFAR100'):
@@ -368,8 +472,8 @@ def epoch(mode, dataloader, net, optimizer, criterion, args, aug, texture=False)
     loss_avg, acc_avg, num_exp = 0, 0, 0
     net = net.to(args.device)
 
-    if args.dataset == "ImageNet":
-        class_map = {x: i for i, x in enumerate(config.img_net_classes)}
+    # if args.dataset == "ImageNet":
+    #     class_map = {x: i for i, x in enumerate(config.img_net_classes)}
 
     if mode == 'train':
         net.train()
@@ -390,8 +494,8 @@ def epoch(mode, dataloader, net, optimizer, criterion, args, aug, texture=False)
             else:
                 img = augment(img, args.dc_aug_param, device=args.device)
 
-        if args.dataset == "ImageNet" and mode != "train":
-            lab = torch.tensor([class_map[x.item()] for x in lab]).to(args.device)
+        # if args.dataset == "ImageNet" and mode != "train":
+        #     lab = torch.tensor([class_map[x.item()] for x in lab]).to(args.device)
 
         n_b = lab.shape[0]
 

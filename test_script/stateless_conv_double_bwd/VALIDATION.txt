@@ -1,0 +1,23 @@
+Validation completed for this delivery
+
+1. Python syntax: conv_double_bwd.py and test_double_bwd.py passed py_compile.
+2. Environment: Python 3.12, PyTorch 2.5.1+cpu, Triton 3.1.0, NumPy 1.26.4.
+3. Actual Triton interpreter execution vs actual PyTorch 2.5.1 CPU
+   aten._convolution_double_backward: 38 cases passed.
+   All 5 candidate tile configurations, split-K=1/4, three shape families,
+   odd dimensions, stride/dilation, all optional-input combinations covered.
+   Worst absolute difference among the full-output shape/config cases:
+   1.1444091796875e-05 (FP32; random seed 123).
+4. Offline CUDA compilation to sm86: 76 compilations passed.
+   3 GEMM kernels x 5 configs x 5 dtype/precision combinations + reduction.
+   Combinations: FP32 ieee/tf32/tf32x3, FP16 ieee, BF16 ieee.
+   Maximum compiler-reported shared memory: 98304 bytes.
+5. output_mask=False compatibility verified against ATen CPU 2.5.1.
+
+NOT completed: execution of compiled kernels on a CUDA GPU; GPU numerical
+validation; runtime resource/register-pressure check; compute-sanitizer;
+latency/speedup/peak GPU memory benchmark. Offline compile and interpretation
+do not establish GPU runtime correctness or speed.
+
+The public correctness and bench modes perform these comparisons on the
+user's installed CUDA PyTorch/target GPU. No fabricated timing is included.

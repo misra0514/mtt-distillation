@@ -1,3 +1,5 @@
+# 11.19 需要统一更新下命名。新的fuse first 称作Grouped_kernel
+
 
 import torch 
 import torch.nn as nn
@@ -419,7 +421,7 @@ def linear_double_bwd(
 
 
 
-def conv_double_bwd(ggI_opt, ggW_r_opt, ggb_opt, gO_r, weight_r, input,
+def conv_double_bwd_bfirst(ggI_opt, ggW_r_opt, ggb_opt, gO_r, weight_r, input,
     stride_ = [1,1],
     padding_        = [1, 1],
     dilation_       = [1, 1],
@@ -476,6 +478,7 @@ def grouped_layernorm_backward(
 
 
 def grouped_linear_bwd(x, w, grad_output, Fuse =2 ):
+    # grouped linear使用的都是b-first。
     in_features = w.shape[1]
     out_features = w.shape[0] // Fuse
     W = w.view(Fuse, out_features, in_features)  # [F, O, I]
@@ -534,6 +537,7 @@ def grouped_linear_bwd(x, w, grad_output, Fuse =2 ):
         dw = dw.reshape(Fuse * out_features, in_features)
         db = db.reshape(Fuse * out_features)
     return dx, dw, db
+
 
 def gelu_bwd(x, grad_output):
     """
@@ -1038,9 +1042,6 @@ def sdpa_no_mask_no_dropout_double_bwd(
 
 
 
-
-
-
 def _to_float_p(p):
     # p 需要是 Python float，native_dropout 不适合直接传 Tensor
     if isinstance(p, torch.Tensor):
@@ -1172,3 +1173,58 @@ def geluDropout_double_bwd(
         )
 
     return x_d2, dd_dout
+
+
+
+
+
+##########################################
+##########################################
+# Datalayout change
+# F, B, C, HW
+# 修改后的新接口会覆盖原有接口
+# 新的接口命名为grouped_kernel?
+##########################################
+##########################################
+
+
+#########################
+# 一阶导数：
+#########################
+
+
+
+#########################
+# 二阶导数：
+#########################
+
+def grouped_conv_double_bwd():
+    pass
+
+
+def conv_double_bwd(ggI_opt, ggW_r_opt, ggb_opt, gO_r, weight_r, input,
+    stride_ = [1,1],
+    padding_        = [1, 1],
+    dilation_       = [1, 1],
+    transposed_     = False,
+    output_padding_ = [0, 0],
+    groups_         = 1,
+    output_mask     = [True, True, True],   # 返回 ggO, gI, gW
+    layout = 'bf',
+    ):
+    # ggI_opt输入梯度的梯度； ggW_r_opt： w的二阶梯度？； ggb_opt：b的二阶梯度？； gO_r一阶导数的输入gradoutput； input 是conv的input？
+    # 返回：输出tensor（grad_output)的二阶梯度。 gI：x的梯度累计； gw weight的梯度累计； bias 应该没有梯度。
+
+    if layout == 'bf':
+        ggO, gI, gW = conv_double_bwd_bfirst(ggI_opt,ggW_r_opt, ggb_opt, gO_r, weight_r, input,     stride_,         # [1, 1]
+        padding_,        # [1, 1]
+        dilation_,       # [1, 1]
+        transposed_,     # False
+        output_padding_, # [0, 0]
+        groups_,         # 1
+        output_mask      # [True, True, True]
+        )
+    elif layout == 'fb':
+        grouped_conv_double_bwd()
+
+    return ggO, gI, gW

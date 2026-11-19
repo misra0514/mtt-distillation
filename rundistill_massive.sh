@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Massive distill time-test sweep, v10.
+# Massive distill time-test sweep, v15 (ResNet18/VGG11 Iteration=50 at all IPC; syn_steps=1).
 # Two timing sets per case: no load_all + barrier; load_all + no barrier.
 # Each set repeats twice. Original -> Flex masks (1 / 11 / 10, v_fuse on/off) -> FWD time test.
-# Default ConvNet only; other model blocks use the same case matrix when selected.
+# Default ConvNet only; other model blocks use unified Flex implementation when selected.
+# All cases use syn_steps=1; never test syn_steps=20.
 # No checkpoint tests.
 #
 # Examples:
-#   bash rundistill_massive_v10_conv_two_sets.sh --model vgg --dataset cifar10
-#   bash rundistill_massive_v10_conv_two_sets.sh --models vgg,resnet --dataset tiny
-#   bash rundistill_massive_v10_conv_two_sets.sh --model all --dataset all
+#   bash rundistill_massive_v14_unified_ipc_sweep.sh --model vgg --dataset cifar10
+#   bash rundistill_massive_v14_unified_ipc_sweep.sh --models vgg,resnet --dataset tiny
+#   bash rundistill_massive_v14_unified_ipc_sweep.sh --model all --dataset all
 
 set -u
 set -o pipefail
@@ -16,14 +17,14 @@ set -o pipefail
 usage() {
   cat <<'HELP'
 Usage:
-  bash rundistill_massive_v10_conv_two_sets.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|all]
-  bash rundistill_massive_v10_conv_two_sets.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|all]
+  bash rundistill_massive_v14_unified_ipc_sweep.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|all]
+  bash rundistill_massive_v14_unified_ipc_sweep.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|all]
 
 Examples:
-  bash rundistill_massive_v10_conv_two_sets.sh --model vgg --dataset cifar10
-  bash rundistill_massive_v10_conv_two_sets.sh --models vgg,resnet --dataset tiny
-  bash rundistill_massive_v10_conv_two_sets.sh --model all --dataset all
-  LOG_DIR=testlog_custom bash rundistill_massive_v10_conv_two_sets.sh --model vgg --dataset all
+  bash rundistill_massive_v14_unified_ipc_sweep.sh --model vgg --dataset cifar10
+  bash rundistill_massive_v14_unified_ipc_sweep.sh --models vgg,resnet --dataset tiny
+  bash rundistill_massive_v14_unified_ipc_sweep.sh --model all --dataset all
+  LOG_DIR=testlog_custom bash rundistill_massive_v14_unified_ipc_sweep.sh --model vgg --dataset all
 
 Default:
   --model conv
@@ -142,8 +143,13 @@ normalize_dataset_selection() {
 
 SELECTED_MODELS="$(normalize_model_selection "${MODEL_SELECTION}")"
 SELECTED_DATASETS="$(normalize_dataset_selection "${DATASET_SELECTION}")"
+
 DATE_TAG="$(date '+%Y%m%d')"
-LOG_DIR="${LOG_DIR:-testlog${DATE_TAG}}"
+# LOG_DIR="${LOG_DIR:-testlog${DATE_TAG}}"
+# LOG_DIR="testlog$(date +%Y%m%d_%H%M%S)" \
+LOG_DIR="${LOG_DIR:-testlog$(date '+%Y%m%d_%H%M%S')}"
+
+
 mkdir -p "${LOG_DIR}"
 
 model_selected() {
@@ -179,18 +185,19 @@ ORIGINAL_FWD_FILE="distill_original_fwdtimetest.py"
 # IMPORTANT: both Original and Original FWDTEST must accept --load_all and --use-barrier
 # for the requested identical two-set matrix. Older FWDTEST versions may not.
 
-CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py"   # Change to ..._preload.py if that is your --load_all implementation.
-VIT_FLEX_FILE="distill_flexFuse_timeTest_ViT.py"
-RESNET_FLEX_FILE="distill_flexFuse_timeTest_resnet18.py"
-VGG_FLEX_FILE="distill_flexFuse_timeTest_vgg.py"
+# Keep the ConvNet Flex implementation unchanged.
+CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py"   # Change only if your actual ConvNet file has another name.
+# All three non-ConvNet models share one Flex implementation; --model selects architecture.
+UNIFIED_FLEX_FILE="distill_flexFuse_timeTest_unified.py"
 
+# All models run the same IPC sweep; ResNet18/VGG11 use Iteration=50 at all IPC.
 CONV_IPC_LIST=(1 10 50 100)
 VIT_IPC_LIST=(1 10 50 100)
 RESNET_IPC_LIST=(1 10 50 100)
 VGG_IPC_LIST=(1 10 50 100)
 
-ORIGINAL_SYN_STEPS_LIST=(1 20)
-NORMAL_FLEX_SYN_STEPS=1
+# Single syn_steps setting applies to Original, Flex, and FWDTEST alike.
+SYN_STEPS=1
 
 write_header() {
   local log_file="$1" model_label="$2" model_arg="$3" flex_file="$4" ipc_list_text="$5"
@@ -206,13 +213,12 @@ FLEX FILE: ${flex_file}
 ORIGINAL FILE: ${ORIGINAL_FILE}
 ORIGINAL FWDTEST FILE: ${ORIGINAL_FWD_FILE}
 IPC_LIST: ${ipc_list_text}
-ORIGINAL_SYN_STEPS: ${ORIGINAL_SYN_STEPS_LIST[*]}
-NORMAL_FLEX_SYN_STEPS: ${NORMAL_FLEX_SYN_STEPS}
+SYN_STEPS: ${SYN_STEPS} (all cases)
 DEFAULT_ITERATION: ${ITERATION}
 SET_KERNEL: --use-barrier, NO --load_all, repeats=${KERNEL_SET_REPEATS}
 SET_TOTAL:  --load_all, NO --use-barrier, repeats=${TOTAL_SET_REPEATS}
 FLEX_MASKS: 1 / 1 1 / 1 0; VFUSE: --v_fuse / --no-v_fuse
-ORDER: Original (syn_steps=1/20) -> Flex (syn_steps=1) -> Original FWDTEST (syn_steps=1/20)
+ORDER: Original (syn_steps=1) -> Flex (syn_steps=1) -> Original FWDTEST (syn_steps=1)
 LOG_FILE: ${log_file}
 CSV_FILE: ${SUMMARY_CSV}
 NOTE: no ckpt cases; same timing sets for Original / Flex / FWDTEST.
@@ -264,7 +270,7 @@ iteration_for_model_ipc() {
 
   if [ "${model_label}" = "ViT" ] && [ "${ipc}" -ge 50 ]; then
     echo "50"
-  elif { [ "${model_label}" = "ResNet18" ] || [ "${model_label}" = "VGG11" ]; } && [ "${ipc}" -ge 10 ]; then
+  elif [ "${model_label}" = "ResNet18" ] || [ "${model_label}" = "VGG11" ]; then
     echo "50"
   else
     echo "${ITERATION}"
@@ -476,21 +482,17 @@ run_model_block() {
   local ipc iteration syn_steps mask vfuse
   for ipc in "${ipc_list[@]}"; do
     iteration="$(iteration_for_model_ipc "$model_label" "$ipc")"
-    # 1. Original for both original syn_steps (unchanged: 1, 20)
-    for syn_steps in "${ORIGINAL_SYN_STEPS_LIST[@]}"; do
-      run_original "$log_file" "$model_label" "$model_arg" "$ipc" "$syn_steps" "$iteration"
-    done
+    # 1. Original: syn_steps=1 only.
+    run_original "$log_file" "$model_label" "$model_arg" "$ipc" "$SYN_STEPS" "$iteration"
     # 2. Flex: exactly 1, 11, 10, each with v_fuse ON and OFF
     for mask in "1" "1 1" "1 0"; do
       for vfuse in "--v_fuse" "--no-v_fuse"; do
         run_flex_case "$log_file" "$model_label" "$model_arg" "$flex_file" "$ipc" \
-          "$NORMAL_FLEX_SYN_STEPS" "$mask" "$vfuse" flex "$iteration"
+          "$SYN_STEPS" "$mask" "$vfuse" flex "$iteration"
       done
     done
-    # 3. Original forward-only test, also with two timing sets and two repeats.
-    for syn_steps in "${ORIGINAL_SYN_STEPS_LIST[@]}"; do
-      run_original_fwdtest "$log_file" "$model_label" "$model_arg" "$ipc" "$syn_steps" "$iteration"
-    done
+    # 3. Original forward-only test: syn_steps=1 only.
+    run_original_fwdtest "$log_file" "$model_label" "$model_arg" "$ipc" "$SYN_STEPS" "$iteration"
   done
 }
 
@@ -506,27 +508,27 @@ run_convnet_tests() {
 run_vit_tests() {
   SUMMARY_CSV="${VIT_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
-  write_header "$VIT_LOG" "ViT" "ViT" "$VIT_FLEX_FILE" "${VIT_IPC_LIST[*]}" \
-    "ViT --Iteration=50 for IPC >= 50 (unchanged)."
-  run_model_block "$VIT_LOG" "ViT" "ViT" "$VIT_FLEX_FILE" "${VIT_IPC_LIST[@]}"
+  write_header "$VIT_LOG" "ViT" "ViT" "$UNIFIED_FLEX_FILE" "${VIT_IPC_LIST[*]}" \
+    "Unified Flex via --model=ViT; --Iteration=50 for IPC >= 50 (unchanged)."
+  run_model_block "$VIT_LOG" "ViT" "ViT" "$UNIFIED_FLEX_FILE" "${VIT_IPC_LIST[@]}"
   write_footer "$VIT_LOG"
 }
 
 run_resnet18_tests() {
   SUMMARY_CSV="${RESNET_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
-  write_header "$RESNET_LOG" "ResNet18" "ResNet18" "$RESNET_FLEX_FILE" "${RESNET_IPC_LIST[*]}" \
-    "ResNet18 --Iteration=50 for IPC >= 10 (unchanged)."
-  run_model_block "$RESNET_LOG" "ResNet18" "ResNet18" "$RESNET_FLEX_FILE" "${RESNET_IPC_LIST[@]}"
+  write_header "$RESNET_LOG" "ResNet18" "ResNet18" "$UNIFIED_FLEX_FILE" "${RESNET_IPC_LIST[*]}" \
+    "Unified Flex via --model=ResNet18; --Iteration=50 for all IPC (1/10/50/100)."
+  run_model_block "$RESNET_LOG" "ResNet18" "ResNet18" "$UNIFIED_FLEX_FILE" "${RESNET_IPC_LIST[@]}"
   write_footer "$RESNET_LOG"
 }
 
 run_vgg11_tests() {
   SUMMARY_CSV="${VGG_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
-  write_header "$VGG_LOG" "VGG11" "VGG11" "$VGG_FLEX_FILE" "${VGG_IPC_LIST[*]}" \
-    "VGG11 --Iteration=50 for IPC >= 10 (unchanged)."
-  run_model_block "$VGG_LOG" "VGG11" "VGG11" "$VGG_FLEX_FILE" "${VGG_IPC_LIST[@]}"
+  write_header "$VGG_LOG" "VGG11" "VGG11" "$UNIFIED_FLEX_FILE" "${VGG_IPC_LIST[*]}" \
+    "Unified Flex via --model=VGG11; --Iteration=50 for all IPC (1/10/50/100)."
+  run_model_block "$VGG_LOG" "VGG11" "VGG11" "$UNIFIED_FLEX_FILE" "${VGG_IPC_LIST[@]}"
   write_footer "$VGG_LOG"
 }
 
