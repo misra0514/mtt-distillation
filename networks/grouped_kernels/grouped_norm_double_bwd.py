@@ -9,6 +9,11 @@ import torch
 import triton
 import triton.language as tl
 
+if __package__:
+    from . import _grouped_norm_large as _large
+else:
+    import _grouped_norm_large as _large
+
 
 @triton.jit
 def _double_rows(X, GAMMA, H, V, T, D, OUT, GX, GG, GGO, PART,
@@ -97,8 +102,8 @@ def _validate(x, weight, h, v, t, d, out, eps, groups):
     if x.ndim != 4 or x.shape != d.shape or x.shape != out.shape:
         raise ValueError('x/grad_output/output must be [G*B,C,H,W]')
     gb, c, hi, wi = x.shape
-    if min(gb, c, hi, wi) <= 0 or not 1 < hi*wi <= 4096:
-        raise ValueError('Positive dimensions and 2<=H*W<=4096 required')
+    if min(gb, c, hi, wi) <= 0 or hi*wi <= 1:
+        raise ValueError('Positive dimensions and H*W>=2 required')
     vectors = [a for a in (weight, v, t) if a is not None]
     inferred = vectors[0].numel()//c if vectors else 1
     g = inferred if groups is None else groups
@@ -128,6 +133,9 @@ def _allocate(x, g, b, c, has_g):
 
 
 def _launch_rows(x, weight, h, v, t, d, out, buffers, g, b, c, m, eps, rows, warps):
+    if m > 4096:
+        _large.double_backward(x, weight, h, v, t, d, out, buffers, b, c, m, eps)
+        return
     ggo, gx, gg, part = buffers
     # Absent arguments are compile-time eliminated; use x as a dummy pointer.
     ptr = lambda a: x if a is None else a
@@ -154,6 +162,7 @@ def grouped_instancenorm_double_bwd(ggI, ggw, ggb, grad_output, output, weight, 
     weight/ggw/ggb: [G*C]. output is post-ReLU; optional inputs may be None.
     G is inferred from affine vectors; groups is only needed if none exist and
     the caller wants an explicit outer G. gG is None if weight or ggI is None.
+    H*W>4096 uses bounded spatial tiles; <=4096 retains the tested kernel.
     Explicit configurations only; no workload selector or autotuning.
     """
     if not v_fuse: raise NotImplementedError('Only fused InstanceNorm+ReLU is implemented')

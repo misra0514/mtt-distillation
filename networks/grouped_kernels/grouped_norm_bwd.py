@@ -8,6 +8,11 @@ import torch
 import triton
 import triton.language as tl
 
+if __package__:
+    from . import _grouped_norm_large as _large
+else:
+    import _grouped_norm_large as _large
+
 
 @triton.jit
 def _row_backward(X, DY, OUT, GAMMA, DX, DG, DB, PG, PB,
@@ -103,8 +108,6 @@ def _validate(x, weight, output, grad_output, eps):
             raise ValueError('Inputs must be contiguous; this interface does not pack/copy them')
     if not math.isfinite(eps) or eps <= 0:
         raise ValueError('eps must be finite and positive')
-    if h * w > 4096:
-        raise ValueError('v3 targets Conv3 spatial sizes up to 64x64 (H*W<=4096)')
     return g, gb // g, c, h * w
 
 
@@ -118,6 +121,9 @@ def _allocate(x, weight, g, b, c):
 
 
 def _launch_rows(x, weight, output, grad_output, buffers, g, b, c, hw, eps, rows, num_warps=4):
+    if hw > 4096:
+        _large.backward(x, weight, output, grad_output, buffers, b, c, hw, eps)
+        return
     dx, dg, db, pg, pb = buffers
     _row_backward[(triton.cdiv(g * b * c, rows),)](
         x, grad_output, output, weight, dx, dg, db, pg, pb,
@@ -153,7 +159,8 @@ def grouped_instancenorm_bwd(x, weight, output, grad_output, v_fuse=True, eps=1e
 
     G is inferred from weight.numel()/C; the leading input index is g*B+b.
     output is the post-ReLU tensor. No statistics cache or layout conversion.
-    FP32 contiguous CUDA, H*W in [2,4096]; fused first backward only.
+    FP32 contiguous CUDA, H*W >= 2; fused first backward only.
+    H*W>4096 uses bounded spatial tiles; <=4096 keeps the tested v3 kernels.
     Default row computation (rows=1, num_warps=4) preserves v1.
     v3 changes the batch reduction; it requires on-device verification. Explicit small-spatial
     candidates pack 4/8 planes into one CTA with 1/2/4 warps; no selector.
