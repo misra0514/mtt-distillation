@@ -971,6 +971,7 @@ class Snd_Order_NormActive(torch.autograd.Function):
         return ggO,gx, gG, None
 
 
+# TODO:  不应该加在这里。但是陈年老旧代码不太想改了。。
 class Fst_Order_NormActive(torch.autograd.Function):
     '''forward: relu+pool+linear '''
     @staticmethod

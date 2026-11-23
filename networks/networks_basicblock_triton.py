@@ -533,10 +533,6 @@ def _instance_norm_double_backward_pure_kernel(
 
 
 
-# -------- 下面是一些旧的代码。目前没有引用。 -----------
-
-
-
 @triton.jit
 def instance_norm_double_backward_kernel_blocked(
     # (N,C,M) fp32, gO 已经按 ReLU mask 处理过

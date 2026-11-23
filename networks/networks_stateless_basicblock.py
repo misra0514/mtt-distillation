@@ -26,6 +26,12 @@ from networks.networks_basicblock_tritonwrapper import instanceNorm_double_backw
 from networks.networks_basicblock_tritonwrapper import instanceNorm_backward ,instanceNorm_double_backwards_fn,\
      instancenorm_relu_backward_triton,instanceNorm_double_backwards_plain, gelu_drop_double_grad_triton,gelu_drop_grad_triton
 
+from networks.grouped_kernels.grouped_conv_double_bwd import convolution_double_backward as grouped_conv_double_bwd
+from networks.grouped_kernels.grouped_conv_bwd import conv_bwd as grouped_conv_bwd
+from networks.grouped_kernels.grouped_norm_bwd import grouped_instancenorm_bwd  as grouped_instancenorm_bwd_triton
+from networks.grouped_kernels.grouped_norm_double_bwd import grouped_instancenorm_double_bwd as grouped_instancenorm_double_bwd_triton
+from networks.grouped_kernels.grouped_norm_fwd import grouped_instancenorm_fwd as grouped_instancenorm_fwd_triton
+
 
 #########################
 # 一阶导数：
@@ -88,7 +94,7 @@ def linear_bwd( x, weight, grad_output):
 
     return grad_x, grad_weight, grad_bias
 
-def conv_bwd( x, weight,grad_output, stride=1, padding=1, dilation=1, groups=1):
+def conv_bwd_bfrist( x, weight,grad_output, stride=1, padding=1, dilation=1, groups=1):
     input_shape = x.shape
     weight_size = weight.shape
     grad_x = torch.nn.grad.conv2d_input(input_shape, weight, grad_output, stride, padding, dilation, groups)
@@ -337,7 +343,6 @@ def avgPool_double_bwd(
     return grad_grad_output
 
 
-
 def insNormNRelu_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse=True):
     if v_fuse:
         gx, gw, ggO = instanceNorm_double_backwards_triton(x=x, gamma=weight, ggX=ggI, ggG=ggw, ggB=ggb, gO= grad_output,out= output,eps= 1e-5)
@@ -477,66 +482,118 @@ def grouped_layernorm_backward(
     return dx, dweight, dbias
 
 
-def grouped_linear_bwd(x, w, grad_output, Fuse =2 ):
-    # grouped linear使用的都是b-first。
-    in_features = w.shape[1]
-    out_features = w.shape[0] // Fuse
-    W = w.view(Fuse, out_features, in_features)  # [F, O, I]
-    if x.ndim == 3:
-        B, Fs, I = x.shape
-        dx = torch.einsum(
-            "bfo,foi->bfi",
-            grad_output,
-            W,
-        )
-        dw = torch.einsum(
-            "bfo,bfi->foi",
-            grad_output,
-            x,
-        )
-        db = grad_output.sum(dim=0)  # [F, O]
-        dx = dx.reshape_as(x)
-        dw = dw.reshape(Fuse * out_features, in_features)
-        db = db.reshape(Fuse * out_features)
-    elif x.ndim == 4:
-        B, Fs, N, I = x.shape
-        dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
+# def grouped_linear_bwd(x, w, grad_output, Fuse =2 ):
+#     # grouped linear使用的都是b-first。
+#     in_features = w.shape[1]
+#     out_features = w.shape[0] // Fuse
+#     W = w.view(Fuse, out_features, in_features)  # [F, O, I]
+#     if x.ndim == 3:
+#         B, Fs, I = x.shape
+#         dx = torch.einsum(
+#             "bfo,foi->bfi",
+#             grad_output,
+#             W,
+#         )
+#         dw = torch.einsum(
+#             "bfo,bfi->foi",
+#             grad_output,
+#             x,
+#         )
+#         db = grad_output.sum(dim=0)  # [F, O]
+#         dx = dx.reshape_as(x)
+#         dw = dw.reshape(Fuse * out_features, in_features)
+#         db = db.reshape(Fuse * out_features)
+#     elif x.ndim == 4:
+#         B, Fs, N, I = x.shape
+#         dx = torch.einsum( "bfno,foi->bfni", grad_output, W, )
 
-        # TODO: dW 上的规约（？）是性能退化的主要原因。改成for循环甚至都会快一些。
-        # dw = torch.einsum(   "bfno,bfni->foi", grad_output, x, )
+#         # TODO: dW 上的规约（？）是性能退化的主要原因。改成for循环甚至都会快一些。
+#         # dw = torch.einsum(   "bfno,bfni->foi", grad_output, x, )
 
-        if Fs == 1:
-            dw = torch.einsum(
-                "bfno,bfni->foi",
-                grad_output,
-                x,
-            )
+#         if Fs == 1:
+#             dw = torch.einsum(
+#                 "bfno,bfni->foi",
+#                 grad_output,
+#                 x,
+#             )
+#         else:
+#             dw_parts = []
+
+#             for f in range(Fs):
+#                 Gf = (
+#                     grad_output[:, f]
+#                     .contiguous()
+#                     .view(B * N, -1)
+#                 )
+
+#                 Xf = (
+#                     x[:, f]
+#                     .contiguous()
+#                     .view(B * N, I)
+#                 )
+
+#                 dw_parts.append(
+#                     torch.mm(Gf.transpose(0, 1), Xf)
+#                 )
+
+#             dw = torch.stack(dw_parts, dim=0)
+
+#         db = grad_output.sum(dim=(0, 2))  # [F, O]
+#         dw = dw.reshape(Fuse * out_features, in_features)
+#         db = db.reshape(Fuse * out_features)
+#     return dx, dw, db
+
+
+def grouped_linear_bwd(x, w, grad_output, Fuse=2, setup='vit'):
+    I = w.shape[1]
+    O = w.shape[0] // Fuse
+    W = w.view(Fuse, O, I)
+
+    if setup == 'conv':
+        # x: [G*B,I] 或 [G*B,C,H,W]
+        # grad_output: [G*B,O]
+        B = x.shape[0] // Fuse
+        X = x.reshape(Fuse, B, I)
+        D = grad_output.reshape(Fuse, B, O)
+
+        dx = torch.bmm(D, W).reshape_as(x)
+        dw = torch.bmm(D.transpose(1, 2), X)
+        db = D.sum(dim=1)
+
+    elif setup == 'vit':
+        if x.ndim == 3:
+            # x: [B,G,I]
+            dx = torch.einsum("bfo,foi->bfi", grad_output, W)
+            dw = torch.einsum("bfo,bfi->foi", grad_output, x)
+            db = grad_output.sum(dim=0)
+
+        elif x.ndim == 4:
+            # x: [B,G,N,I]
+            B, Fs, N, _ = x.shape
+            dx = torch.einsum("bfno,foi->bfni", grad_output, W)
+
+            if Fs == 1:
+                dw = torch.einsum("bfno,bfni->foi", grad_output, x)
+            else:
+                dw = torch.stack([
+                    torch.mm(
+                        grad_output[:, f].contiguous()
+                        .view(B * N, O).transpose(0, 1),
+                        x[:, f].contiguous().view(B * N, I),
+                    )
+                    for f in range(Fs)
+                ], dim=0)
+
+            db = grad_output.sum(dim=(0, 2))
+
         else:
-            dw_parts = []
+            raise ValueError('vit input must be 3D or 4D')
 
-            for f in range(Fs):
-                Gf = (
-                    grad_output[:, f]
-                    .contiguous()
-                    .view(B * N, -1)
-                )
+    else:
+        raise ValueError(f'Unsupported setup: {setup}')
 
-                Xf = (
-                    x[:, f]
-                    .contiguous()
-                    .view(B * N, I)
-                )
+    return dx, dw.reshape_as(w), db.reshape(-1)
 
-                dw_parts.append(
-                    torch.mm(Gf.transpose(0, 1), Xf)
-                )
-
-            dw = torch.stack(dw_parts, dim=0)
-
-        db = grad_output.sum(dim=(0, 2))  # [F, O]
-        dw = dw.reshape(Fuse * out_features, in_features)
-        db = db.reshape(Fuse * out_features)
-    return dx, dw, db
 
 
 def gelu_bwd(x, grad_output):
@@ -857,67 +914,142 @@ def grouped_layernorm_double_bwd_fn(
 
 
 
+# def grouped_linear_double_bwd(
+#     x,
+#     w,
+#     grad_output,
+#     gg_grad_input=None,   # same shape as dx from grouped_linear_bwd
+#     gg_grad_w=None,       # same shape as dw: [Fuse * O, I]
+#     gg_grad_b=None,       # same shape as db: [Fuse * O]
+#     Fuse=2,
+# ):
+#     in_features = w.shape[1]
+#     out_features = w.shape[0] // Fuse
+#     W = w.view(Fuse, out_features, in_features)  # [F, O, I]
+#     dgrad_output = torch.zeros_like(grad_output)
+#     dx = torch.zeros_like(x)
+#     dW = torch.zeros_like(W)
+
+#     if x.ndim == 3:
+#         B, Fs, I = x.shape
+#         assert Fs == Fuse
+#         assert I == in_features
+#         G = grad_output                    # [B, F, O]
+#         X = x                              # [B, F, I]
+#         assert G.shape == (B, Fuse, out_features)
+
+#         if gg_grad_input is not None:
+#             H = gg_grad_input
+#             assert H.shape == X.shape
+#             dgrad_output = dgrad_output + torch.einsum( "bfi,foi->bfo", H, W, )
+#             dW = dW + torch.einsum( "bfo,bfi->foi", G, H, )
+#         # if gg_grad_w is not None:
+#         V = gg_grad_w.view(Fuse, out_features, in_features)  # [F, O, I]
+#         dgrad_output = dgrad_output + torch.einsum( "foi,bfi->bfo", V, X, )
+#         dx = dx + torch.einsum( "bfo,foi->bfi", G, V, )
+#         if gg_grad_b is not None:
+#             ggb = gg_grad_b.view(Fuse, out_features)  # [F, O]
+#             dgrad_output = dgrad_output + ggb.view(1, Fuse, out_features)
+
+#     elif x.ndim == 4:
+#         #       grad_input = einsum("bfno,foi->bfni", G, W)
+#         #       dG += einsum("bfni,foi->bfno", H, W)
+#         #       dW += einsum("bfno,bfni->foi", G, H)
+#         B, Fs, N, I = x.shape
+#         G = grad_output                    # [B, F, N, O]
+#         X = x                              # [B, F, N, I]
+#         if gg_grad_input is not None:
+#             H = gg_grad_input
+#             assert H.shape == X.shape
+#             dgrad_output = dgrad_output + torch.einsum( "bfni,foi->bfno", H, W )
+#             dW = dW + torch.einsum( "bfno,bfni->foi", G, H, )
+#         if gg_grad_w is not None:
+#             V = gg_grad_w.view(Fuse, out_features, in_features)  # [F, O, I]
+
+#             dgrad_output = dgrad_output + torch.einsum( "foi,bfni->bfno", V, X )
+#             dx = dx + torch.einsum(  "bfno,foi->bfni",  G,  V, )
+#         if gg_grad_b is not None:
+#             ggb = gg_grad_b.view(Fuse, out_features)  # [F, O]
+#             dgrad_output = dgrad_output + ggb.view(1, Fuse, 1, out_features)
+#     else:
+#         raise ValueError(f"Unsupported x.ndim={x.ndim}, expected 3 or 4")
+#     dw = dW.reshape_as(w)
+#     return dgrad_output, dx, dw
+
+
 def grouped_linear_double_bwd(
     x,
     w,
     grad_output,
-    gg_grad_input=None,   # same shape as dx from grouped_linear_bwd
-    gg_grad_w=None,       # same shape as dw: [Fuse * O, I]
-    gg_grad_b=None,       # same shape as db: [Fuse * O]
+    gg_grad_input=None,
+    gg_grad_w=None,
+    gg_grad_b=None,
     Fuse=2,
+    setup='vit',
 ):
-    in_features = w.shape[1]
-    out_features = w.shape[0] // Fuse
-    W = w.view(Fuse, out_features, in_features)  # [F, O, I]
-    dgrad_output = torch.zeros_like(grad_output)
-    dx = torch.zeros_like(x)
+    I = w.shape[1]
+    O = w.shape[0] // Fuse
+    W = w.view(Fuse, O, I)
     dW = torch.zeros_like(W)
 
-    if x.ndim == 3:
-        B, Fs, I = x.shape
-        assert Fs == Fuse
-        assert I == in_features
-        G = grad_output                    # [B, F, O]
-        X = x                              # [B, F, I]
-        assert G.shape == (B, Fuse, out_features)
+    if setup == 'conv':
+        # x: [G*B,I] 或 [G*B,C,H,W]
+        B = x.shape[0] // Fuse
+        X = x.reshape(Fuse, B, I)
+        D = grad_output.reshape(Fuse, B, O)
+
+        dD = torch.zeros_like(D)
+        dX = torch.zeros_like(X)
 
         if gg_grad_input is not None:
-            H = gg_grad_input
-            assert H.shape == X.shape
-            dgrad_output = dgrad_output + torch.einsum( "bfi,foi->bfo", H, W, )
-            dW = dW + torch.einsum( "bfo,bfi->foi", G, H, )
-        # if gg_grad_w is not None:
-        V = gg_grad_w.view(Fuse, out_features, in_features)  # [F, O, I]
-        dgrad_output = dgrad_output + torch.einsum( "foi,bfi->bfo", V, X, )
-        dx = dx + torch.einsum( "bfo,foi->bfi", G, V, )
-        if gg_grad_b is not None:
-            ggb = gg_grad_b.view(Fuse, out_features)  # [F, O]
-            dgrad_output = dgrad_output + ggb.view(1, Fuse, out_features)
+            H = gg_grad_input.reshape_as(X)
+            dD = dD + torch.bmm(H, W.transpose(1, 2))
+            dW = dW + torch.bmm(D.transpose(1, 2), H)
 
-    elif x.ndim == 4:
-        #       grad_input = einsum("bfno,foi->bfni", G, W)
-        #       dG += einsum("bfni,foi->bfno", H, W)
-        #       dW += einsum("bfno,bfni->foi", G, H)
-        B, Fs, N, I = x.shape
-        G = grad_output                    # [B, F, N, O]
-        X = x                              # [B, F, N, I]
-        if gg_grad_input is not None:
-            H = gg_grad_input
-            assert H.shape == X.shape
-            dgrad_output = dgrad_output + torch.einsum( "bfni,foi->bfno", H, W )
-            dW = dW + torch.einsum( "bfno,bfni->foi", G, H, )
         if gg_grad_w is not None:
-            V = gg_grad_w.view(Fuse, out_features, in_features)  # [F, O, I]
+            V = gg_grad_w.reshape_as(W)
+            dD = dD + torch.bmm(X, V.transpose(1, 2))
+            dX = dX + torch.bmm(D, V)
 
-            dgrad_output = dgrad_output + torch.einsum( "foi,bfni->bfno", V, X )
-            dx = dx + torch.einsum(  "bfno,foi->bfni",  G,  V, )
         if gg_grad_b is not None:
-            ggb = gg_grad_b.view(Fuse, out_features)  # [F, O]
-            dgrad_output = dgrad_output + ggb.view(1, Fuse, 1, out_features)
+            dD = dD + gg_grad_b.reshape(Fuse, 1, O)
+
+    elif setup == 'vit':
+        if x.ndim == 3:
+            # [B,G,I] -> [B,G,1,I]
+            X = x.unsqueeze(2)
+            D = grad_output.unsqueeze(2)
+        elif x.ndim == 4:
+            # [B,G,N,I]
+            X = x
+            D = grad_output
+        else:
+            raise ValueError('vit input must be 3D or 4D')
+
+        dD = torch.zeros_like(D)
+        dX = torch.zeros_like(X)
+
+        if gg_grad_input is not None:
+            H = gg_grad_input.reshape_as(X)
+            dD = dD + torch.einsum("bfni,foi->bfno", H, W)
+            dW = dW + torch.einsum("bfno,bfni->foi", D, H)
+
+        if gg_grad_w is not None:
+            V = gg_grad_w.reshape_as(W)
+            dD = dD + torch.einsum("bfni,foi->bfno", X, V)
+            dX = dX + torch.einsum("bfno,foi->bfni", D, V)
+
+        if gg_grad_b is not None:
+            dD = dD + gg_grad_b.reshape(1, Fuse, 1, O)
+
     else:
-        raise ValueError(f"Unsupported x.ndim={x.ndim}, expected 3 or 4")
-    dw = dW.reshape_as(w)
-    return dgrad_output, dx, dw
+        raise ValueError(f'Unsupported setup: {setup}')
+
+    return (
+        dD.reshape_as(grad_output),
+        dX.reshape_as(x),
+        dW.reshape_as(w),
+    )
 
 
 
@@ -1188,19 +1320,94 @@ def geluDropout_double_bwd(
 ##########################################
 
 
+# TODO: 目前还没有无fuse 版本。
+def grouped_instancenorm_fwd(x, weight, bias, eps=1e-5, v_fuse = True):
+    if v_fuse:
+        return grouped_instancenorm_fwd_triton(x, weight, bias, eps=eps)
+    else:
+        return grouped_instancenorm_fwd_triton(x, weight, bias, eps=eps)
+
+
+
 #########################
 # 一阶导数：
 #########################
+
+def conv_bwd( x, weight,grad_output, stride=1, padding=1, dilation=1, groups=1, layout = 'b_f'):
+    if layout == 'b_f':
+        grad_x, grad_weight, grad_bias = conv_bwd_bfrist( x, weight,grad_output, stride=stride, padding=padding, dilation=dilation, groups=groups)
+    elif layout == 'f_f':
+        x_g = x.view(groups, -1, *x.shape[1:])
+        w_g = weight.view(groups, -1, *weight.shape[1:])
+        dy_g = grad_output.view(groups, -1, *grad_output.shape[1:])
+
+        grad_x, grad_weight, grad_bias = grouped_conv_bwd(
+            x_g, w_g, dy_g,
+            stride=stride, padding=padding,
+            dilation=dilation, groups=groups,
+        )
+
+        grad_x = grad_x.view_as(x)
+        grad_weight = grad_weight.view_as(weight)
+    grad_bias = grad_bias.view(-1)
+    return grad_x, grad_weight, grad_bias
+
+
+
+def grouped_instancenorm_bwd(
+    x, weight, output, grad_output, v_fuse=True
+):
+    # TODO： 目前还没有无fuse 版本。
+    hw = x.shape[-2] * x.shape[-1]
+
+    return grouped_instancenorm_bwd_triton(
+        x, weight, output, grad_output,
+        v_fuse=v_fuse,
+        eps=1e-5,
+        rows=4 if hw <= 64 else 1,
+        num_warps=4,
+    )
+
+    # 输入：[G*B,C,H,W]，weight：[G*C]
+    gb, c, h, w = x.shape
+    g = weight.numel() // c
+    b = gb // g
+    def to_old(t):
+        # [G*B,C,H,W] -> [B,G*C,H,W]
+        return (
+            t.reshape(g, b, c, h, w)
+            .transpose(0, 1)
+            .reshape(b, g * c, h, w)
+        )
+    grad_x, grad_weight, grad_bias = insNormNRelu_bwd(
+        to_old(x),
+        weight,
+        to_old(output),
+        to_old(grad_output),
+        v_fuse=v_fuse,
+    )
+    # [B,G*C,H,W] -> [G*B,C,H,W]
+    grad_x = (
+        grad_x.reshape(b, g, c, h, w)
+        .transpose(0, 1)
+        .reshape(gb, c, h, w)
+    )
+    grad_x, grad_weight, grad_bias = insNormNRelu_bwd(x, weight, output, grad_output, v_fuse=v_fuse)
+    return grad_x, grad_weight, grad_bias
+
+
+def instanceNorm_bwd(x, weight, output, grad_output, v_fuse = True, layout = 'b_f'):
+    if layout == 'b_f':
+        grad_x, grad_weight, grad_bias = insNormNRelu_bwd(x, weight, output, grad_output, v_fuse)
+    elif layout == 'f_f':
+        grad_x, grad_weight, grad_bias = grouped_instancenorm_bwd(x, weight, output, grad_output, v_fuse)
+    return grad_x, grad_weight, grad_bias
 
 
 
 #########################
 # 二阶导数：
 #########################
-
-def grouped_conv_double_bwd():
-    pass
-
 
 def conv_double_bwd(ggI_opt, ggW_r_opt, ggb_opt, gO_r, weight_r, input,
     stride_ = [1,1],
@@ -1210,12 +1417,13 @@ def conv_double_bwd(ggI_opt, ggW_r_opt, ggb_opt, gO_r, weight_r, input,
     output_padding_ = [0, 0],
     groups_         = 1,
     output_mask     = [True, True, True],   # 返回 ggO, gI, gW
-    layout = 'bf',
+    layout = 'b_f',
+    plan = None, # 
     ):
     # ggI_opt输入梯度的梯度； ggW_r_opt： w的二阶梯度？； ggb_opt：b的二阶梯度？； gO_r一阶导数的输入gradoutput； input 是conv的input？
     # 返回：输出tensor（grad_output)的二阶梯度。 gI：x的梯度累计； gw weight的梯度累计； bias 应该没有梯度。
 
-    if layout == 'bf':
+    if layout == 'b_f':
         ggO, gI, gW = conv_double_bwd_bfirst(ggI_opt,ggW_r_opt, ggb_opt, gO_r, weight_r, input,     stride_,         # [1, 1]
         padding_,        # [1, 1]
         dilation_,       # [1, 1]
@@ -1224,7 +1432,105 @@ def conv_double_bwd(ggI_opt, ggW_r_opt, ggb_opt, gO_r, weight_r, input,
         groups_,         # 1
         output_mask      # [True, True, True]
         )
-    elif layout == 'fb':
-        grouped_conv_double_bwd()
+    elif layout == 'f_f':
+        g = groups_  # 外层 Fuse
+
+        input_g = input.view(g, -1, *input.shape[1:])
+        weight_g = weight_r.view(g, -1, *weight_r.shape[1:])
+        go_g = gO_r.view(g, -1, *gO_r.shape[1:])
+
+        ggi_g = (
+            None if ggI_opt is None
+            else ggI_opt.view_as(input_g)
+        )
+        ggw_g = (
+            None if ggW_r_opt is None
+            else ggW_r_opt.view_as(weight_g)
+        )
+        ggb_g = (
+            None if ggb_opt is None
+            else ggb_opt.view(g, -1)
+        )
+
+        ggO, gI, gW = grouped_conv_double_bwd(
+            ggi_g, ggw_g, ggb_g,
+            go_g, weight_g, input_g,
+            stride_, padding_, dilation_,
+            transposed_, output_padding_,
+            1,  # 内层 channel groups；外层 G 已包含在 tensor.shape[0]
+            output_mask,
+        )
+
+        ggO = None if ggO is None else ggO.view_as(gO_r)
+        gI = None if gI is None else gI.view_as(input)
+        gW = None if gW is None else gW.view_as(weight_r)
+
+
+        # ggO, gI, gW = grouped_conv_double_bwd(ggI_opt,ggW_r_opt, ggb_opt, gO_r, weight_r, input,     stride_,         # [1, 1]
+        # padding_,        # [1, 1]
+        # dilation_,       # [1, 1]
+        # transposed_,     # False
+        # output_padding_, # [0, 0]
+        # groups_,         # 1
+        # output_mask,      # [True, True, True]
+        # algorithm="auto",
+        # workspace_limit_mb=128,
+        # )
 
     return ggO, gI, gW
+
+
+
+def grouped_instancenorm_double_bwd( ggI, ggw, ggb, grad_output, output, weight, x, v_fuse=True):
+    # 新布局：[G*B,C,H,W]
+    hw = x.shape[-2] * x.shape[-1]
+
+    return grouped_instancenorm_double_bwd_triton(
+        ggI, ggw, ggb,
+        grad_output, output, weight, x,
+        v_fuse=v_fuse,
+        eps=1e-5,
+        rows=4 if hw <= 64 else 1,
+        num_warps=4,
+    )
+    gb, c, h, w = x.shape
+    g = weight.numel() // c
+    b = gb // g
+    def to_old(t):
+        if t is None:
+            return None
+        # -> [B,G*C,H,W]
+        return (
+            t.reshape(g, b, c, h, w)
+            .transpose(0, 1)
+            .reshape(b, g * c, h, w)
+        )
+    def to_new(t):
+        # -> [G*B,C,H,W]
+        return (
+            t.reshape(b, g, c, h, w)
+            .transpose(0, 1)
+            .reshape(gb, c, h, w)
+        )
+    ggO, gx, gw = insNormNRelu_double_bwd(
+        to_old(ggI),
+        ggw,
+        ggb,
+        to_old(grad_output),
+        to_old(output),
+        weight,
+        to_old(x),
+        v_fuse=v_fuse,
+    )
+    return to_new(ggO), to_new(gx), gw
+
+
+
+def instanceNorm_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse=True, layout = 'b_f'):
+    # 更新完成，封装好的接口。这样conv可以直接调用这里。两种layout
+    if layout =='b_f':
+        ggO, gx, gw = insNormNRelu_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse)
+    elif layout == 'f_f':
+        ggO, gx, gw = grouped_instancenorm_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse)
+    return ggO, gx, gw
+

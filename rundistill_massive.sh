@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Massive distill time-test sweep, v15 (ResNet18/VGG11 Iteration=50 at all IPC; syn_steps=1).
-# Two timing sets per case: no load_all + barrier; load_all + no barrier.
-# Each set repeats twice. Original -> Flex masks (1 / 11 / 10, v_fuse on/off) -> FWD time test.
+# Massive distill time-test sweep, v17 (kernel-only; dataset-specific IPC; ImageNet added).
+# ONE timing set per case: no --load_all, with --use-barrier.
+# Kernel set repeats twice. Original -> Flex masks (1 / 11 / 10, v_fuse on/off) -> FWD time test.
 # Default ConvNet only; other model blocks use unified Flex implementation when selected.
 # All cases use syn_steps=1; never test syn_steps=20.
 # No checkpoint tests.
+# IPC by dataset: CIFAR10/ImageNet = 1,10,50,100; Tiny = 1,5,10.
 #
 # Examples:
-#   bash rundistill_massive_v14_unified_ipc_sweep.sh --model vgg --dataset cifar10
-#   bash rundistill_massive_v14_unified_ipc_sweep.sh --models vgg,resnet --dataset tiny
-#   bash rundistill_massive_v14_unified_ipc_sweep.sh --model all --dataset all
+#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model vgg --dataset cifar10
+#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --models vgg,resnet --dataset tiny
+#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset imagenet
+#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model all --dataset all
 
 set -u
 set -o pipefail
@@ -17,19 +19,20 @@ set -o pipefail
 usage() {
   cat <<'HELP'
 Usage:
-  bash rundistill_massive_v14_unified_ipc_sweep.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|all]
-  bash rundistill_massive_v14_unified_ipc_sweep.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|all]
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|imagenet|all]
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|imagenet|all]
 
 Examples:
-  bash rundistill_massive_v14_unified_ipc_sweep.sh --model vgg --dataset cifar10
-  bash rundistill_massive_v14_unified_ipc_sweep.sh --models vgg,resnet --dataset tiny
-  bash rundistill_massive_v14_unified_ipc_sweep.sh --model all --dataset all
-  LOG_DIR=testlog_custom bash rundistill_massive_v14_unified_ipc_sweep.sh --model vgg --dataset all
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model vgg --dataset cifar10
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --models vgg,resnet --dataset tiny
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset imagenet
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model all --dataset all
+  LOG_DIR=testlog_custom bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model vgg --dataset all
 
 Default:
   --model conv
   --dataset cifar10
-  LOG_DIR=testlogYYYYMMDD
+  LOG_DIR=testlogYYYYMMDD_HHMMSS (override with LOG_DIR=...)
 HELP
 }
 
@@ -53,7 +56,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dataset|-d)
       if [ "$#" -lt 2 ]; then
-        echo "[ERROR] $1 requires an argument: cifar10, tiny, or all" >&2
+        echo "[ERROR] $1 requires an argument: cifar10, tiny, imagenet, or all" >&2
         usage
         exit 1
       fi
@@ -130,8 +133,11 @@ normalize_dataset_selection() {
     tiny|tinyimagenet|tiny-imagenet)
       echo "Tiny"
       ;;
+    imagenet|imagenet1k|imagenet-1k)
+      echo "ImageNet"
+      ;;
     all)
-      echo "CIFAR10 Tiny"
+      echo "CIFAR10 Tiny ImageNet"
       ;;
     *)
       echo "[ERROR] unknown dataset selection: $1" >&2
@@ -144,11 +150,7 @@ normalize_dataset_selection() {
 SELECTED_MODELS="$(normalize_model_selection "${MODEL_SELECTION}")"
 SELECTED_DATASETS="$(normalize_dataset_selection "${DATASET_SELECTION}")"
 
-DATE_TAG="$(date '+%Y%m%d')"
-# LOG_DIR="${LOG_DIR:-testlog${DATE_TAG}}"
-# LOG_DIR="testlog$(date +%Y%m%d_%H%M%S)" \
 LOG_DIR="${LOG_DIR:-testlog$(date '+%Y%m%d_%H%M%S')}"
-
 
 mkdir -p "${LOG_DIR}"
 
@@ -177,20 +179,19 @@ LR_TEACHER=0.01
 
 FUSE=1
 KERNEL_SET_REPEATS=2
-TOTAL_SET_REPEATS=2
-# The fwd test also uses both sets; no ckpt cases.
+# All cases (including the FWD test) run only the kernel timing set; no ckpt cases.
 
 ORIGINAL_FILE="distill_original_timeTest.py"
 ORIGINAL_FWD_FILE="distill_original_fwdtimetest.py"
-# IMPORTANT: both Original and Original FWDTEST must accept --load_all and --use-barrier
-# for the requested identical two-set matrix. Older FWDTEST versions may not.
+# IMPORTANT: both Original and Original FWDTEST must accept --use-barrier.
 
 # Keep the ConvNet Flex implementation unchanged.
-CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py"   # Change only if your actual ConvNet file has another name.
+CONV_FLEX_FILE="distill_flexFuse_timeTest_conv_layout.py"   # Change only if your actual ConvNet file has another name.
 # All three non-ConvNet models share one Flex implementation; --model selects architecture.
 UNIFIED_FLEX_FILE="distill_flexFuse_timeTest_unified.py"
 
-# All models run the same IPC sweep; ResNet18/VGG11 use Iteration=50 at all IPC.
+# Default IPC sweep for CIFAR10 and ImageNet; all models share the dataset-specific sweep.
+# ResNet18/VGG11 use Iteration=50 at all IPC.
 CONV_IPC_LIST=(1 10 50 100)
 VIT_IPC_LIST=(1 10 50 100)
 RESNET_IPC_LIST=(1 10 50 100)
@@ -215,13 +216,12 @@ ORIGINAL FWDTEST FILE: ${ORIGINAL_FWD_FILE}
 IPC_LIST: ${ipc_list_text}
 SYN_STEPS: ${SYN_STEPS} (all cases)
 DEFAULT_ITERATION: ${ITERATION}
-SET_KERNEL: --use-barrier, NO --load_all, repeats=${KERNEL_SET_REPEATS}
-SET_TOTAL:  --load_all, NO --use-barrier, repeats=${TOTAL_SET_REPEATS}
+SET_KERNEL_ONLY: --use-barrier, NO --load_all, repeats=${KERNEL_SET_REPEATS}
 FLEX_MASKS: 1 / 1 1 / 1 0; VFUSE: --v_fuse / --no-v_fuse
 ORDER: Original (syn_steps=1) -> Flex (syn_steps=1) -> Original FWDTEST (syn_steps=1)
 LOG_FILE: ${log_file}
 CSV_FILE: ${SUMMARY_CSV}
-NOTE: no ckpt cases; same timing sets for Original / Flex / FWDTEST.
+NOTE: no ckpt or total-time cases; kernel-only timing for Original / Flex / FWDTEST.
 EXTRA: ${extra_note}
 ============================================================
 
@@ -297,9 +297,7 @@ clean_output() {
 }
 
 # The log is authoritative; metric extraction is BEST EFFORT, not an exit condition.
-# For barrier mode prefer "Kernel time"; alternatively add syn_time + backward_time.
-# For no-barrier mode prefer the Python-reported "total time". Never silently
-# substitute "time sumation" (in older versions it was not full-loop elapsed time).
+# Prefer synchronized "Kernel time"; alternatively add syn_time + backward_time.
 extract_metric() {
   local kind="$1" file="$2"
   awk -v kind="$kind" '
@@ -311,7 +309,6 @@ extract_metric() {
       if (kind=="kernel" && low ~ /^[[:space:]]*kernel[[:space:]_]*time/ && low !~ /without[[:space:]]+barrier/) kernel=val
       if (low ~ /^[[:space:]]*syn_time/) syn=val
       if (low ~ /^[[:space:]]*backward_time/) bwd=val
-      if (kind=="total" && low ~ /^[[:space:]]*total[[:space:]_]+time/) total=val
       if (kind=="cache" && (low ~ /峰值cache使用/ || low ~ /peak.cache/)) cache=val
       if (kind=="tensor" && (low ~ /峰值tensor使用/ || low ~ /peak.tensor/)) tensor=val
     }
@@ -319,7 +316,7 @@ extract_metric() {
       if (kind=="kernel") {
         if (kernel!="") print kernel
         else if (syn!="" && bwd!="") printf "%.9f\n", syn+bwd
-      } else if (kind=="total" && total!="") print total
+      }
       else if (kind=="cache" && cache!="") print cache
       else if (kind=="tensor" && tensor!="") print tensor
     }
@@ -342,15 +339,8 @@ RUN_TENSOR=""
 run_cmd_once() {
   local log_file="$1" tag="$2" mode="$3" repeat_id="$4" repeat_total="$5"
   shift 5
-  local mode_args=()
-  local metric_kind
-  if [[ "$mode" == "kernel" ]]; then
-    mode_args=(--use-barrier)  # IMPORTANT: load_all is OFF
-    metric_kind="kernel"
-  else
-    mode_args=(--load_all)     # IMPORTANT: use-barrier is OFF
-    metric_kind="total"
-  fi
+  local mode_args=(--use-barrier)  # ALWAYS; never pass --load_all
+  local metric_kind="kernel"
 
   local tmp_output
   tmp_output="$(mktemp "${log_file}.run.XXXXXX")"
@@ -358,7 +348,7 @@ run_cmd_once() {
   {
     echo "=============================="
     echo "$(date '+%Y-%m-%d %H:%M:%S') | ${tag} | SET=${mode} | REPEAT=${repeat_id}/${repeat_total}"
-    echo "LOAD_ALL=$([[ "$mode" == "total" ]] && echo 1 || echo 0) BARRIER=$([[ "$mode" == "kernel" ]] && echo 1 || echo 0)"
+    echo "LOAD_ALL=0 BARRIER=1"
     printf 'CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 '
     printf '%q ' "$@" "${mode_args[@]}"
     printf '\n------------------------------\n'
@@ -397,14 +387,7 @@ run_set() {
   local log_file="$1" tag="$2" mode="$3" model="$4" ipc="$5" steps="$6" iteration="$7" case_name="$8"
   shift 8
   local r successful=0 metric_1="" metric_2="" wall_1="" wall_2="" cache_1="" cache_2="" tensor_1="" tensor_2=""
-  local repeats metric_name
-  if [[ "$mode" == "kernel" ]]; then
-    repeats="$KERNEL_SET_REPEATS"
-    metric_name="synchronized_kernel_time_s"
-  else
-    repeats="$TOTAL_SET_REPEATS"
-    metric_name="python_total_time_s"
-  fi
+  local repeats="$KERNEL_SET_REPEATS" metric_name="synchronized_kernel_time_s"
   for ((r=1; r<=repeats; r++)); do
     run_cmd_once "$log_file" "$tag" "$mode" "$r" "$repeats" "$@"
     if [[ "$RUN_EXIT" -eq 0 ]]; then
@@ -440,7 +423,6 @@ run_cmd() {
   local log_file="$1" tag="$2" model="$3" ipc="$4" steps="$5" iteration="$6" case_name="$7"
   shift 7
   run_set "$log_file" "$tag" kernel "$model" "$ipc" "$steps" "$iteration" "$case_name" "$@"
-  run_set "$log_file" "$tag" total "$model" "$ipc" "$steps" "$iteration" "$case_name" "$@"
 }
 
 run_original() {
@@ -518,7 +500,7 @@ run_resnet18_tests() {
   SUMMARY_CSV="${RESNET_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
   write_header "$RESNET_LOG" "ResNet18" "ResNet18" "$UNIFIED_FLEX_FILE" "${RESNET_IPC_LIST[*]}" \
-    "Unified Flex via --model=ResNet18; --Iteration=50 for all IPC (1/10/50/100)."
+    "Unified Flex via --model=ResNet18; --Iteration=50 for all IPC (${RESNET_IPC_LIST[*]})."
   run_model_block "$RESNET_LOG" "ResNet18" "ResNet18" "$UNIFIED_FLEX_FILE" "${RESNET_IPC_LIST[@]}"
   write_footer "$RESNET_LOG"
 }
@@ -527,13 +509,24 @@ run_vgg11_tests() {
   SUMMARY_CSV="${VGG_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
   write_header "$VGG_LOG" "VGG11" "VGG11" "$UNIFIED_FLEX_FILE" "${VGG_IPC_LIST[*]}" \
-    "Unified Flex via --model=VGG11; --Iteration=50 for all IPC (1/10/50/100)."
+    "Unified Flex via --model=VGG11; --Iteration=50 for all IPC (${VGG_IPC_LIST[*]})."
   run_model_block "$VGG_LOG" "VGG11" "VGG11" "$UNIFIED_FLEX_FILE" "${VGG_IPC_LIST[@]}"
   write_footer "$VGG_LOG"
 }
 
 run_dataset_tests() {
   DATASET="$1"
+  # Important: reset for each dataset (including --dataset all).
+  # ImageNet retains the original IPC sweep; only Tiny has a reduced sweep.
+  local dataset_ipcs=(1 10 50 100)
+  if [[ "$DATASET" == "Tiny" || "$DATASET" == "ImageNet" ]]; then
+    dataset_ipcs=(1 5 10)
+  fi
+  CONV_IPC_LIST=("${dataset_ipcs[@]}")
+  VIT_IPC_LIST=("${dataset_ipcs[@]}")
+  RESNET_IPC_LIST=("${dataset_ipcs[@]}")
+  VGG_IPC_LIST=("${dataset_ipcs[@]}")
+
   local dataset_log_dir="${LOG_DIR}/${DATASET}"
   mkdir -p "${dataset_log_dir}"
   CONV_LOG="${dataset_log_dir}/conv.txt"
@@ -542,7 +535,7 @@ run_dataset_tests() {
   RESNET_LOG="${dataset_log_dir}/resnet18.txt"
   VGG_LOG="${dataset_log_dir}/vgg11.txt"
 
-  echo "[INFO] DATASET=${DATASET}"
+  echo "[INFO] DATASET=${DATASET} | IPC_LIST=${dataset_ipcs[*]}"
   if model_selected "ConvNet"; then
     run_convnet_tests
   else

@@ -32,10 +32,11 @@
 # WANDB_SILENT=true python distill_flexFuse_timeTest_unified.py  --fuse_mask_list 1 1\
 # WANDB_SILENT=true python distill_flexFuse_timeTest_conv.py  --fuse_mask_list 1 1\
 
+# WANDB_SILENT=true python distill_flexFuse_timeTest_conv_datalayout.py  --fuse_mask_list 1 0\
 # WANDB_SILENT=true python distill_flexFuse_timeTest_conv.py  --fuse_mask_list 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1\
-WANDB_SILENT=true python distill_flexFuse_timeTest_conv.py  --fuse_mask_list 1 1\
-    --dataset=ImageNet --pix_init=real --ipc=1 \
-    --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=50\
+WANDB_SILENT=true python distill_flexFuse_timeTest_conv.py  --fuse_mask_list 1 0 \
+    --dataset=ImageNet --pix_init=real --ipc=10 \
+    --syn_steps=1 --max_experts=1 --expert_epochs=1 --max_start_epoch=1 --Iteration=1\
     --detachNum=0  \
     --lr_img=1000 --lr_lr=1e-05 --lr_teacher=0.01 \
     --buffer_path=/scratch/yguo25/files/mtt-distillation/buffer  --data_path=/scratch/yguo25/files/mtt-distillation/dataset \

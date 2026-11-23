@@ -1,3 +1,15 @@
+# 11.20 更新了新的data layout
+# 11.7: 做了新的preload。在开启load all的时候会提前把flattern、reshape、repeat都做了。
+# 11.4: 修改了统计口径
+
+# 7.18 sys overhgead还是比较多。按照gpt意见修改一下
+
+# 7.23 为了更贴近实际code，把sys overhead放进了fwd time 里。这样子带了barrier测出来的更接近实际表现。
+
+# 2.24
+# 从v2复制来的stable版本！ 正式更名成conv！ 
+# TODO: NOTE 这个版本。或者前面的flex fuse 在 --fuse_mask_list 1  --> 11 的时候，grad都有问题。没有像Batched 一样成倍。
+# 同时，这个版本没有做过优化，可能会有一些sys上冗余的计算。
 # 11.4: 修改为在程序开始之前load all
 # 只是一个临时文件。load all 情况下把reshape、flattern、repeat都挪到preload下面了
 
@@ -18,11 +30,35 @@ import warnings
 from reparam_module import ReparamModule
 
 from networks.networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,ConvBlock_bwd1_2,conv3_double_bwd,conv3_bwd
-from networks.networks_stateless_basicblock import linear_bwd, conv_bwd, insNormNRelu_bwd, \
+from networks.networks_stateless_basicblock import instanceNorm_bwd, linear_bwd, conv_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
 
-from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_snd_dim,recover_params,set_random_seed
+from networks.networks_stateless_basicblock import grouped_linear_bwd, grouped_linear_double_bwd
+
+from utils_flex import build_global_group_mask, fuse_params_with_mask,recover_params,set_random_seed
+
+layout = 'f_f'
+
+
+def split_half_snd_dim(param_list, fuse_mask_list):
+    """Split group-major activations [G*B,...] along dimension 0.
+
+    Keep the original name; parameter splitting remains separate.
+    """
+    Fuse = len(fuse_mask_list)
+    start = fuse_mask_list.index(1)
+    count = fuse_mask_list.count(1)
+    end = start + count
+    if fuse_mask_list[start:end] != [1] * count:
+        raise ValueError("Active fuse lanes must be contiguous")
+    output = []
+    for p in param_list:
+        if p.ndim == 0 or p.shape[0] % Fuse:
+            raise ValueError("Expected activation with leading dimension G*B")
+        block = p.shape[0] // Fuse
+        output.append(p[start * block:end * block, ...].contiguous())
+    return output
 
 def view_falf_fst_dim(weights, Fuse, bwd_Fuse):
     """
@@ -315,7 +351,7 @@ def main(args):
 
 
     # student_net = get_network(args.model, channel, num_classes, im_size, dist=False).to(args.device)  # get a random model
-    student_net = get_network("Conv_Flexfuse_backup"+args.Fuse, channel, num_classes, im_size, dist=False, v_fuse=args.v_fuse).to(args.device)  
+    student_net = get_network("Conv_Flexfuse_datalayout"+args.Fuse, channel, num_classes, im_size, dist=False, v_fuse=args.v_fuse).to(args.device)  
 
     student_net = ReparamModule(student_net)
 
@@ -339,6 +375,7 @@ def main(args):
             if (args.use_barrier):
                 torch.cuda.synchronize()
             if it == warmup:
+                torch.cuda.synchronize()  # exclude pending warmup kernels
                 total_start = time.time()
             pre_end = time.time()
         save_this_it = False
@@ -584,8 +621,8 @@ def main(args):
                 forward_params = student_params[-1].unsqueeze(0).expand(torch.cuda.device_count(), -1)
             else:
                 forward_params = student_params[-1]
-            # 因为group conv的原因，最开始应该在Channel 维度做cat
-            x = x.repeat(1, int(Fuse), 1, 1).requires_grad_(True)
+            # Group-major batch: [B,C,H,W] -> [G*B,C,H,W].
+            x = x.repeat(int(Fuse), 1, 1, 1).requires_grad_(True)
             this_y = this_y.repeat(int(Fuse))
 
             with torch.no_grad():
@@ -599,19 +636,19 @@ def main(args):
                 # dx_norm1,dx_pool1,dx_norm2,dx_pool2,dx_norm3,dx_pool3,dx_out,grad = torch.autograd.grad(ce_loss, [x_norm1,x_pool1,x_norm2,x_pool2,x_norm3,x_pool3,x_out,student_params[-1]] ) # TODO: 可以一次做完的。
                 # dx_out= torch.autograd.grad(ce_loss, x_out)[0] # 改成分段计算了。麻烦的点在于weight。需要全部手动改。而且会收到reparam影响
                 dx_out = crossEntropy_bwd(x_out, this_y, Fuse)
-                dx_lin, dlin_w, dlin_b = linerFused_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse)
+                dx_lin, dlin_w, dlin_b = grouped_linear_bwd(x_lin, lin_w, grad_output=dx_out, Fuse=Fuse, setup='conv')
                 feat_h, feat_w = x_lin.shape[-2:]
                 dx_lin = dx_lin.reshape(
                     -1,
-                    student_net.module.net_width * Fuse,
+                    x_lin.shape[1],
                     feat_h,
                     feat_w
                 )
                 x_lin,x_out,dx_out = split_half_snd_dim([x_lin,x_out,dx_out],fuse_mask_list)
-                dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse, v_fuse=args.v_fuse)
+                dx_conv3, dx_norm3, dx_pool3,  dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b = ConvBlock_bwd1_2(x_conv3, x_norm3, x_pool3, conv3_w, norm3_w, dx_lin, Fuse=Fuse, v_fuse=args.v_fuse, layout=layout)
                 del dx_lin
                 x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3 = split_half_snd_dim([x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3],fuse_mask_list)
-                dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse, v_fuse=args.v_fuse)
+                dx_conv2, dx_norm2, dx_pool2, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b = ConvBlock_bwd1_2(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3, Fuse=Fuse, v_fuse=args.v_fuse, layout=layout)
                 x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 = split_half_snd_dim([x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2 ],fuse_mask_list)
                 del dx_conv3
                 # _, dx_norm1, dx_pool1, dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b = ConvBlock_bwd1_2(x_conv1, x_norm1, x_pool1, conv1_w, norm1_w, dx_conv2, Fuse=Fuse)
@@ -619,12 +656,12 @@ def main(args):
                 del dx_conv2
                 # dx_conv2 = split_half_snd_dim([dx_conv2], fuse_mask_list)[0]
                 # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
-                dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1,v_fuse=args.v_fuse)
+                dx_norm1, dnorm1_w, dnorm1_b = instanceNorm_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1, v_fuse=args.v_fuse, layout=layout)
                 x_norm1 = split_half_snd_dim([x_norm1],fuse_mask_list)[0]
                 x_pool1 = split_half_snd_dim([x_pool1 ],fuse_mask_list)[0]
                 dx_pool1 = split_half_snd_dim([dx_pool1],fuse_mask_list)[0]
                 # del dx_pool_d1
-                _, dconv1_w, dconv1_b = conv_bwd(x_conv1, conv1_w, grad_output=dx_norm1, groups=Fuse)
+                _, dconv1_w, dconv1_b = conv_bwd(x_conv1, conv1_w, grad_output=dx_norm1, groups=Fuse,layout=layout)
                 x_conv1 = split_half_snd_dim([x_conv1 ],fuse_mask_list)[0]
                 dx_norm1 = split_half_snd_dim([dx_norm1 ],fuse_mask_list)[0]
                 grad = [dconv1_w , dconv1_b ,dnorm1_w ,dnorm1_b, dconv2_w , dconv2_b ,dnorm2_w ,dnorm2_b,dconv3_w , dconv3_b ,dnorm3_w ,dnorm3_b,dlin_w, dlin_b]
@@ -708,7 +745,7 @@ def main(args):
             # ddx_conv2, dxconv1_d2, _,dx_norm1_d2,_ = ConvBlock_double_bwd(x_conv1, x_norm1, x_pool1, dx_norm1, dx_pool1, \
             #                                                                 ddx_conv, conv1_w, norm1_w,ddconv1_w, ddconv1_b, ddnorm1_w, ddnorm1_b,bwd_Fuse  )
             # del ddx_conv,dx_norm1,dx_pool1
-            ddx_norm, dxconv1_d2, _ = conv_double_bwd(ddx_conv, ddconv1_w, ddconv1_b, dx_norm1, conv1_w, x_conv1, groups_=bwd_Fuse )
+            ddx_norm, dxconv1_d2, _ = conv_double_bwd(ddx_conv, ddconv1_w, ddconv1_b, dx_norm1, conv1_w, x_conv1, groups_=bwd_Fuse,layout=layout )
             del ddx_conv,ddconv1_w,ddconv1_b, dx_norm1
             ddx_pool, dx_norm1_d2, _ = insNormNRelu_double_bwd(ddx_norm, ddnorm1_w, ddnorm1_b, dx_pool1, x_pool1, norm1_w, x_norm1, v_fuse=args.v_fuse)
             del ddx_norm,dx_pool1,ddnorm1_w,ddnorm1_b
@@ -721,33 +758,33 @@ def main(args):
             del dlin_w, dlin_b
 
             ddx_conv3, dxconv2_d2, _,dx_norm2_d2,_ = ConvBlock_double_bwd(x_conv2, x_norm2, x_pool2, dx_norm2, dx_pool2, \
-                                                                            ddx_conv2,conv2_w, norm2_w, ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b,bwd_Fuse, v_fuse=args.v_fuse )
+                                                                            ddx_conv2,conv2_w, norm2_w, ddconv2_w, ddconv2_b, ddnorm2_w, ddnorm2_b,bwd_Fuse, v_fuse=args.v_fuse ,layout=layout)
             del ddx_conv2,dx_norm2,dx_pool2
             ddx_lin, dxconv3_d2, _,dx_norm3_d2,_ = ConvBlock_double_bwd(x_conv3, x_norm3, x_pool3, dx_norm3, dx_pool3, \
-                                                                        ddx_conv3, conv3_w,norm3_w, ddconv3_w, ddconv3_b, ddnorm3_w, ddnorm3_b,bwd_Fuse, v_fuse=args.v_fuse )
+                                                                        ddx_conv3, conv3_w,norm3_w, ddconv3_w, ddconv3_b, ddnorm3_w, ddnorm3_b,bwd_Fuse, v_fuse=args.v_fuse ,layout=layout)
             del ddx_conv3,dx_norm3,dx_pool3
-            ddx_out, dx_lin_d2, _ = linearFused_double_bwd(x_lin,lin_w, dx_out, ddx_lin, ddlin_w ,ddlin_b ,bwd_Fuse)
+            ddx_out, dx_lin_d2, _ = grouped_linear_double_bwd(x_lin,lin_w, dx_out, ddx_lin, ddlin_w ,ddlin_b ,bwd_Fuse, setup='conv')
             del dx_out, ddx_lin
 
             dx_out_d1 = crossEntropy_double_bwd(x_out, ddx_out, bwd_Fuse)
             del ddx_out,x_out
 
-            dx_lin_d1, _, _ = linerFused_bwd(x_lin, lin_w, grad_output=dx_out_d1, Fuse=bwd_Fuse)
+            dx_lin_d1, _, _ = grouped_linear_bwd(x_lin, lin_w, grad_output=dx_out_d1, Fuse=bwd_Fuse, setup='conv')
             # dx_lin_d1 = dx_lin_d1.reshape(-1, student_net.module.net_width * bwd_Fuse, 4,4)  # 这里128是net_width， 但是distill里面好像没有这个变量。。
             dx_lin_d1 = dx_lin_d1.reshape(
                 -1,
-                student_net.module.net_width * bwd_Fuse,
+                x_lin.shape[1],
                 feat_h,
                 feat_w
             )
             
             dx_lin_d1 += dx_lin_d2 
             del x_lin,dx_out_d1,dx_lin_d2
-            dx_conv3_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv3, x_norm3, x_pool3,conv3_w, norm3_w, dx_lin_d1,dx_norm3_d2,dxconv3_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse )
+            dx_conv3_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv3, x_norm3, x_pool3,conv3_w, norm3_w, dx_lin_d1,dx_norm3_d2,dxconv3_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse ,layout=layout)
             del dx_norm3_d2,dxconv3_d2, x_conv3, x_norm3,x_pool3,dx_lin_d1
-            dx_conv2_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3_d1,dx_norm2_d2,dxconv2_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse)
+            dx_conv2_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv2, x_norm2, x_pool2, conv2_w, norm2_w, dx_conv3_d1,dx_norm2_d2,dxconv2_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse,layout=layout)
             del dx_norm2_d2,dxconv2_d2, x_conv2, x_norm2,x_pool2,dx_conv3_d1
-            dx_conv1_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv1, x_norm1, x_pool1,conv1_w, norm1_w, dx_conv2_d1,dx_norm1_d2,dxconv1_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse)
+            dx_conv1_d1 , _ ,_ ,_ ,_ = ConvBlock_bwd2_1(x_conv1, x_norm1, x_pool1,conv1_w, norm1_w, dx_conv2_d1,dx_norm1_d2,dxconv1_d2 ,Fuse=bwd_Fuse, v_fuse=args.v_fuse,layout=layout)
             del dx_norm1_d2,dxconv1_d2, x_conv1, x_norm1,x_pool1, dx_conv2_d1
             # ddw_output = [ddconv1_w,ddconv1_b,ddnorm1_w,ddnorm1_b,ddconv2_w,ddconv2_b,ddnorm2_w,ddnorm2_b,ddconv3_w,ddconv3_b,ddnorm3_w,ddnorm3_b,ddlin_w,ddlin_b ]
             # if args.use_barrier:
@@ -764,7 +801,7 @@ def main(args):
             if args.use_barrier:
                 torch.cuda.synchronize()
             iter_end = time.time()
-            if args.split_fwd_barrier:
+            if args.use_barrier and args.split_fwd_barrier:
                 prep_time += (syn_start- pre_end) # 从iter开始一直到内层循环。包含了data loading以及system 操作。
                 syn_time += (syn_end-syn_start) # 内层循环的时间
                 bwd_time += (iter_end-syn_end) # 广义的backward 时间（还有一些数据准备）
@@ -852,8 +889,8 @@ if __name__ == '__main__':
     parser.add_argument('--dsa_strategy', type=str, default='color_crop_cutout_flip_scale_rotate',
                         help='differentiable Siamese augmentation strategy')
 
-    parser.add_argument('--data_path', type=str, default='data', help='dataset path')
-    parser.add_argument('--buffer_path', type=str, default='./buffers', help='buffer path')
+    parser.add_argument('--data_path', type=str, default='/scratch/yguo25/files/mtt-distillation/dataset', help='dataset path')
+    parser.add_argument('--buffer_path', type=str, default='/scratch/yguo25/files/mtt-distillation/buffer', help='buffer path')
 
     parser.add_argument('--expert_epochs', type=int, default=3, help='how many expert epochs the target params are')
     parser.add_argument('--syn_steps', type=int, default=20, help='how many steps to take on synthetic data')

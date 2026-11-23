@@ -12,11 +12,13 @@ set -u
 set -o pipefail
 
 # ================== MANUAL SETTINGS ==================
-# Edit the following values in THIS script; no command-line options needed.
+# Set values here; --family can override MASK_FAMILY from the command line.
 BARRIER_MODE="on"         # "both": run with and without --use-barrier; "on": only with; "off": only without
 LOAD_ALL=0                  # 1 adds --load_all; 0 omits it
 SPLIT_FWD_BARRIER=0         # 1 adds --split-fwd-barrier; 0 omits it
 MAX_FUSE=0                  # 0: continue until CUDA OOM; N > 0: stop at K=N
+MASK_FAMILY="both"          # "1-1": all ones; "1-0": K ones then K zeros; "both": both families
+LOG_NAME=""               # Optional suffix between scalability and timestamp; override with --name
 
 # Other experiment settings. Edit here as needed.
 DATASET=CIFAR10
@@ -36,6 +38,58 @@ FUSE=1
 # --v_fuse is always enabled; --AccTest is never passed.
 # =====================================================
 
+# Optional CLI overrides for the family and log directory suffix.
+# Examples: --family 1-0 --name layout, --family both --name testA
+while (( $# > 0 )); do
+  case "$1" in
+    --family)
+      if (( $# < 2 )); then
+        echo '[ERROR] --family requires 1-1, 1-0, or both' >&2
+        exit 2
+      fi
+      MASK_FAMILY="$2"
+      shift 2 ;;
+    --family=*)
+      MASK_FAMILY="${1#--family=}"
+      shift ;;
+    --name|--log-name)
+      if (( $# < 2 )) || [[ -z "$2" ]]; then
+        echo '[ERROR] --name requires a nonempty label' >&2
+        exit 2
+      fi
+      LOG_NAME="$2"
+      shift 2 ;;
+    --name=*|--log-name=*)
+      LOG_NAME="${1#*=}"
+      shift ;;
+    -h|--help)
+      printf 'Usage: bash %s [--family 1-1|1-0|both] [--name LABEL]\n' "${0##*/}"
+      printf '  1-1: masks [1], [1 1], [1 1 1], ...\n'
+      printf '  1-0: masks [1 0], [1 1 0 0], [1 1 1 0 0 0], ...\n'
+      printf '  both: test both families (default)\n'
+      printf '  --name: optional output directory label (alias: --log-name)\n'
+      printf '  Output: testlog_scalability_[LABEL_]YYYYMMDD_HHMMSS/\n'
+      exit 0 ;;
+    *)
+      printf '[ERROR] Unrecognized option: %s\n' "$1" >&2
+      exit 2 ;;
+  esac
+done
+
+# Prevent paths or shell-special characters from entering the directory name.
+# Empty is the default, giving a clean name without a doubled underscore.
+if [[ -n "$LOG_NAME" && ! "$LOG_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+  echo '[ERROR] --name must contain only letters, numbers, dots, underscores, or hyphens and start with a letter/number' >&2
+  exit 2
+fi
+
+case "$MASK_FAMILY" in
+  1-1) FAMILIES=(all_ones) ;;
+  1-0) FAMILIES=(ones_zeros) ;;
+  both) FAMILIES=(all_ones ones_zeros) ;;
+  *) echo '[ERROR] MASK_FAMILY / --family must be 1-1, 1-0, or both' >&2; exit 2 ;;
+esac
+
 # Check configuration values, NOT the Python program's output.
 case "$BARRIER_MODE" in
   both|on|off) ;;
@@ -52,12 +106,15 @@ for setting in LOAD_ALL SPLIT_FWD_BARRIER; do
 done
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-FLEX_FILE="${FLEX_FILE:-${SCRIPT_DIR}/distill_flexFuse_timeTest_conv_preload.py}"
-LOG_DIR="${LOG_DIR:-testlog$(date '+%Y%m%d')}"
+FLEX_FILE="${FLEX_FILE:-${SCRIPT_DIR}/distill_flexFuse_timeTest_conv.py}"
+# One timestamp for the output folder and its files; LOG_DIR can still override.
+RUN_TIME="$(date '+%Y%m%d_%H%M%S')"
+LOG_SUFFIX="${LOG_NAME:+${LOG_NAME}_}"
+LOG_DIR="${LOG_DIR:-testlog_scalability_${LOG_SUFFIX}${RUN_TIME}}"
 BUFFER_PATH="${BUFFER_PATH:-/scratch/yguo25/files/mtt-distillation/buffer}"
 DATA_PATH="${DATA_PATH:-/scratch/yguo25/files/mtt-distillation/dataset}"
 mkdir -p -- "$LOG_DIR"
-RUN_TAG="$(date '+%Y%m%d_%H%M%S')_$$"
+RUN_TAG="${RUN_TIME}_$$"
 LOG_FILE="${LOG_DIR}/conv_fuse_until_oom_${RUN_TAG}.txt"
 CSV_FILE="${LOG_DIR}/conv_fuse_until_oom_${RUN_TAG}.csv"
 
@@ -102,11 +159,14 @@ fi
     "$DATASET" "$MODEL" "$IPC" "$SYN_STEPS" "$ITERATION"
   printf 'FLEX_FILE: %s\n' "$FLEX_FILE"
   printf 'MAX_FUSE: %s (0=unlimited)\n' "$MAX_FUSE"
+  printf 'MASK_FAMILY: %s\n' "$MASK_FAMILY"
+  printf 'LOG_NAME: %s\n' "${LOG_NAME:-<none>}"
   printf 'BARRIER_MODE: %s\n' "$BARRIER_MODE"
   printf 'LOAD_ALL: %s\n' "$LOAD_ALL"
   printf 'SPLIT_FWD_BARRIER: %s\n' "$SPLIT_FWD_BARRIER"
   printf 'MODE_ORDER: %s\n' "${MODES[*]}"
-  printf 'V_FUSE: True\nACC_TEST: omitted\nFAMILY_ORDER: all_ones then ones_zeros\n'
+  printf 'V_FUSE: True\nACC_TEST: omitted\n'
+  printf 'FAMILY_ORDER: %s\n' "${FAMILIES[*]}"
   printf 'CSV_POLICY: optional best-effort extraction; missing fields never fail a run\n'
   printf 'LOG_FILE: %s\nCSV_FILE: %s\n' "$LOG_FILE" "$CSV_FILE"
   printf '============================================================\n\n'
@@ -117,7 +177,7 @@ echo "[INFO] LOG_FILE=$LOG_FILE"
 echo "[INFO] CSV_FILE=$CSV_FILE"
 echo "[INFO] FLEX_FILE=$FLEX_FILE"
 echo "[INFO] BARRIER_MODE=$BARRIER_MODE LOAD_ALL=$LOAD_ALL SPLIT_FWD_BARRIER=$SPLIT_FWD_BARRIER"
-echo "[INFO] IPC=$IPC ITERATION=$ITERATION MAX_FUSE=$MAX_FUSE"
+echo "[INFO] IPC=$IPC ITERATION=$ITERATION MAX_FUSE=$MAX_FUSE MASK_FAMILY=$MASK_FAMILY"
 
 RUN_STATUS=''
 CURRENT_TMP=''
@@ -250,7 +310,7 @@ stop_fatal() {
   exit 1
 }
 
-for family in all_ones ones_zeros; do
+for family in "${FAMILIES[@]}"; do
   echo "[INFO] Start family: $family"
   printf 'FAMILY_START: %s\n' "$family" >> "$LOG_FILE"
   k=1

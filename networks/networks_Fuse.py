@@ -4,7 +4,8 @@
 # 现在的model 应该都可以把Fuse 写好了。唯一的区别就是 flex fuse 有没有做以及有没有封装到model 里面。所以现在准备重新整理一下这些网络。这里希望可以包含Conv3 、 Resnet18（resnet18test file 复制）
 # 这里是完整的大模型, 来源主要有两个： stateless & stateless_basic block 。两个分别是一个封装后的模块，一个是原始的函数接口。
 
-
+import operator
+from torch.nn.modules.utils import _pair
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,6 +36,11 @@ linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossE
         dropout_fwd,dropout_bwd, dropout_double_bwd,geluDropout_bwd,geluDropout_double_bwd
 
 from utils_flex import build_global_group_mask, fuse_params_with_mask,split_half_snd_dim,recover_params,set_random_seed
+
+
+from networks.grouped_kernels.grouped_conv_double_bwd import grouped_conv2d
+from networks.networks_stateless_basicblock import grouped_instancenorm_fwd as groupd_instance_norm
+
 
 class GroupedLayerNorm(nn.Module):
     def __init__(self, embed_dim, Fuse=1, eps=1e-5):
@@ -78,41 +84,72 @@ class LinearStacked_2(nn.Module):
             x = x.squeeze(0) #加一个squeeze，为了适配在Fuse=1的时候的模型。
             return x
 
+
+
 class GroupedLinear(nn.Module):
-    # batch* fusion * In。 --> Batch,fusion ,Out
-    def __init__(self ,in_features, out_features, Fuse):
-        super(GroupedLinear, self).__init__()
+    def __init__(self, in_features, out_features, Fuse):
+        super().__init__()
         self.Fuse = Fuse
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = torch.nn.Parameter(torch.randn(Fuse* out_features,in_features))
-        self.bias = torch.nn.Parameter(torch.randn(self.Fuse* out_features))
+        self.weight = nn.Parameter(
+            torch.randn(Fuse * out_features, in_features)
+        )
+        self.bias = nn.Parameter(
+            torch.randn(Fuse * out_features)
+        )
 
-    def forward(self, x):
-        W = self.weight.view( self.Fuse, self.out_features, self.in_features ).transpose(-1, -2)
-        if x.ndim == 3:
-            x = x.view(-1,self.Fuse, self.in_features)
-            x = torch.einsum("bfi,fio->bfo", x, W)
-            x = x + self.bias.view(1, self.Fuse, self.out_features)
-        elif x.ndim == 4:
-            # x: [B, Fuse, N, In]
-            B, Fs, N, I = x.shape
-            x = torch.einsum("bfni,fio->bfno", x, W)
-            x = x + self.bias.view(1, self.Fuse, 1, self.out_features)
-        return x
+    def forward(self, x, setup='vit'):
+        W = self.weight.view(
+            self.Fuse, self.out_features, self.in_features
+        ).transpose(1, 2)  # [G,I,O]
+
+        if setup == 'conv':
+            gb = x.shape[0]
+            X = x.reshape(gb, -1)
+            if gb % self.Fuse != 0:
+                raise ValueError('Input batch must be divisible by Fuse')
+            if X.shape[1] != self.in_features:
+                raise ValueError(
+                    f'Expected {self.in_features} features, got {X.shape[1]}'
+                )
+            X = X.reshape(self.Fuse, gb // self.Fuse, self.in_features)
+            out = torch.bmm(X, W)
+            out = out + self.bias.view(self.Fuse, 1, self.out_features)
+            return out.reshape(gb, self.out_features)
+
+        elif setup == 'vit':
+            # if x.ndim == 4:
+            # [B,G,N,I] -> [B,G,N,O]
+            out = torch.einsum("bfni,fio->bfno", x, W)
+            return out + self.bias.view( 1, self.Fuse, 1, self.out_features)
+            # elif x.ndim == 3:
+            #     # 保留原来的三维输入兼容
+            #     X = x.view(-1, self.Fuse, self.in_features)
+            #     out = torch.einsum("bfi,fio->bfo", X, W)
+            #     return out + self.bias.view(
+            #         1, self.Fuse, self.out_features
+            #     )
+            raise ValueError('vit input must be [B,G,I] or [B,G,N,I]')
+
+        raise ValueError(f'Unsupported setup: {setup}')
+
 
 class NormActive(nn.Module):
+    # TODO: 这里的代码也比较旧了，最好都更新掉，后续fwd 都换成stateless 比较好。
     # Instasnce Norm + ReLU 的组合，使用了Fst_Order_NormActive 这个triton kernel
     # 但是也只有bwd+ double bwd 有fuse 。其实fwd也没有fuse
     def __init__(self, channel_num, affine=True):
         super().__init__()
         self.weight = nn.Parameter(torch.randn([channel_num]))
         self.bias = nn.Parameter(torch.randn([channel_num]))
-    def forward(self, input):
-        out = Fst_Order_NormActive.apply(input, self.weight, self.bias)
-        return out
-
-
+    def forward(self, input, layout = 'b_f'):
+        if layout == 'b_f':
+            out = Fst_Order_NormActive.apply(input, self.weight, self.bias)
+            return out
+        else:
+        # input: [G*B,C,H,W]
+            return groupd_instance_norm(input, self.weight, self.bias, eps=1e-5, v_fuse=True)
 
 class Conv_Flexfuse_backup(nn.Module):
     # 区别就是加上了v_fuse的开关。v_fuse=True的时候，使用NormActive；否则使用InstanceNorm2d。
@@ -3753,3 +3790,99 @@ class VGG11_Flexfuse(nn.Module):
                 d2_cache[idx] = None
             del b, w, dxconv_d2, dx_norm_d2, dx_norm_d1, dx_norm_total, conv
         return g
+
+
+class GroupedConv2d(nn.Conv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 padding=0, dilation=1, groups=1, bias=True,
+                 precision='ieee', device=None, dtype=None):
+        super().__init__(
+            in_channels, out_channels, kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+            device=device,
+            dtype=dtype,
+        )
+        self.precision = precision
+
+    def forward(self, x):
+        g = self.groups
+        weight = self.weight.view(
+            g,
+            self.out_channels // g,
+            self.in_channels // g,
+            *self.kernel_size,
+        )
+        bias = None if self.bias is None else self.bias.view(g, -1)
+
+        return grouped_conv2d(
+            x, weight,
+            bias=bias,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            groups=g,
+            precision=self.precision,
+        )
+
+class Conv_Flexfuse_datalayout(nn.Module):
+    # 更新新的datalayout。
+    # pool，relu，norm 不需要修改。 conv / linear替换成为最新的代码
+    def __init__(self, channel=3, num_classes=10, net_width=128, net_depth=3, net_act='relu', net_norm='instancenorm', net_pooling='maxpooling', im_size = (32,32), Fuse=2, v_fuse=True):
+        super(Conv_Flexfuse_datalayout, self).__init__()
+        self.Fuse = Fuse
+        self.v_fuse = v_fuse
+        self.num_classes = num_classes
+        self.channel = channel
+        self.im_size = im_size
+        self.conv1 = GroupedConv2d(in_channels=channel*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+        if v_fuse:
+            self.norm1 = NormActive(net_width*Fuse, affine=True) 
+        else:
+            self.norm1 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+            # self.norm1 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+        self.pool1 = nn.AvgPool2d(kernel_size=2)
+        self.conv2 = GroupedConv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+        if v_fuse:
+            self.norm2 = NormActive(net_width*Fuse,affine=True) #BN在channel上单独计算，所以目前不用管。
+        else:
+            self.norm2 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+            # self.norm2 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+        self.pool2 = nn.AvgPool2d(kernel_size=2)
+        self.conv3 = GroupedConv2d(in_channels=net_width*Fuse, out_channels=net_width*Fuse, kernel_size=3, padding=1, groups=Fuse)  #conv是N，G，C。其中G替换成FUse
+        if v_fuse:
+            self.norm3 = NormActive(net_width*Fuse,affine=True) #BN在channel上单独计算，所以目前不用管。
+        else:
+            self.norm3 = nn.InstanceNorm2d(net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+            # self.norm3 = nn.GroupNorm(net_width*Fuse,net_width*Fuse, affine=True) #BN在channel上单独计算，所以目前不用管。
+        self.pool3 = nn.AvgPool2d(kernel_size=2)
+        # self.linear = LinearStacked_2(net_width * 4 * 4, num_classes,Fuse )
+        feat_h = im_size[0] // 8
+        feat_w = im_size[1] // 8
+        self.feat_h = feat_h
+        self.feat_w = feat_w
+        self.linear = GroupedLinear(
+            net_width * feat_h * feat_w,
+            num_classes,
+            Fuse
+        )
+
+        self.net_width= net_width
+
+    def forward(self, x_conv1):
+        # 不管是不是vfuse，都可以加rfelu，因为反正fwd 也不做fuse。
+        x_norm1 = self.conv1(x_conv1)          
+        x_pool1 = F.relu(self.norm1(x_norm1, layout = 'f_f') )
+        x_conv2 = self.pool1(x_pool1)
+        x_norm2 = self.conv2(x_conv2)          
+        x_pool2 = F.relu(self.norm2(x_norm2, layout = 'f_f')) 
+        x_conv3 = self.pool2(x_pool2)
+        x_norm3 = self.conv3(x_conv3)          
+        x_pool3 = F.relu(self.norm3(x_norm3, layout = 'f_f'))    
+        x_lin  = self.pool3(x_pool3)
+        x_out = self.linear(x_lin, setup='conv')    # N x 10
+        x_out = x_out.view(-1,self.num_classes)
+        return  x_conv1,x_norm1, x_pool1,x_conv2,x_norm2, x_pool2,x_conv3,x_norm3, x_pool3, x_lin,x_out

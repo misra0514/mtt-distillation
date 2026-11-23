@@ -12,3 +12,5 @@ prof/trace_it0.json
 prof-ViT/trace_it0.json
 testlog*
 # test_script/stateless_conv_double_bwd/*.txt
+test_layout/*
+*.cvs
