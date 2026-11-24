@@ -1,0 +1,10 @@
+# MTT/FlexFuse application dependencies (GPU stack comes from base image)
+# Keep torch==2.5.1, torchvision==0.20.1, triton==3.1.0 from the base image.
+kornia==0.7.1
+numpy==1.26.4
+scipy==1.11.4
+Pillow==9.5.0
+tqdm==4.66.6
+wandb==0.18.7
+protobuf>=4.25,<6
+# Additional imports can be added after checking actual project scripts.
