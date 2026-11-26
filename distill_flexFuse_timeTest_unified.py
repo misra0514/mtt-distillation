@@ -415,7 +415,7 @@ def main(args):
 
     source = ExpertSource(args, expert_dir)
     student_net = make_student(args, channel, num_classes, im_size)
-    warmup = 0 if args.AccTest else 3
+    warmup = 0 if args.AccTest else 10
     torch.cuda.synchronize()  # preparation must finish before warmup
     measured_count = args.Iteration + 1  # preserve the original inclusive loop
     system_time = kernel_time = syn_time = bwd_time = 0.0

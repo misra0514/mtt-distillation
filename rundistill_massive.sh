@@ -3,7 +3,8 @@
 # ONE timing set per case: no --load_all, with --use-barrier.
 # Kernel set repeats twice. Original -> Flex masks (1 / 11 / 10, v_fuse on/off) -> FWD time test.
 # Default ConvNet only; other model blocks use unified Flex implementation when selected.
-# ConvNet layouts: bf=original Conv file, ff=DataLayout file + --datalayout=f_f.
+# ConvNet: bf=Conv Python file, ff=DataLayout Python file (neither receives --datalayout).
+# ViT/ResNet18/VGG11: unified Python file, explicitly pass --datalayout=b_f or --datalayout=f_f.
 # All cases use syn_steps=1; never test syn_steps=20.
 # No checkpoint tests.
 # IPC by dataset: CIFAR10/ImageNet = 1,10,50,100; Tiny = 1,5,10.
@@ -12,7 +13,7 @@
 #   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model vgg --dataset cifar10
 #   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --models vgg,resnet --dataset tiny
 #   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset imagenet --layout bf
-#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset tiny --layout ff
+#   bash rundistill_massive_flex_only.sh --model conv --dataset tiny --layout ff --flex-only
 #   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset cifar10 --layout both
 #   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model all --dataset all
 
@@ -23,13 +24,13 @@ usage() {
   cat <<'HELP'
 Usage:
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|imagenet|all]
-  bash rundistill_massive_v17_tiny_imagenet_ipc.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|imagenet|all] [--layout bf|ff|both]
+  bash rundistill_massive_flex_only.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|imagenet|all] [--layout bf|ff|both] [--flex-only]
 
 Examples:
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model vgg --dataset cifar10
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --models vgg,resnet --dataset tiny
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset imagenet --layout bf
-  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset tiny --layout ff
+  bash rundistill_massive_flex_only.sh --model conv --dataset tiny --layout ff --flex-only
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset cifar10 --layout both
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model all --dataset all
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset tiny --layout both --name trialA
@@ -38,7 +39,8 @@ Examples:
 Default:
   --model conv
   --dataset cifar10
-  --layout bf (ConvNet only; ff runs the DataLayout Python file with --datalayout=f_f)
+  --layout bf (all models; ConvNet selects a file, other models pass --datalayout to unified)
+  --flex-only: skip Original and Original FWD; run only Flex cases (default: off)
   --name LABEL (alias: --log-name; optional)
   LOG_DIR=testlog_massive_[LABEL_]YYYYMMDD_HHMMSS (override with LOG_DIR=...)
 HELP
@@ -48,6 +50,7 @@ MODEL_SELECTION="${MODEL_SELECTION:-conv}"
 DATASET_SELECTION="${DATASET_SELECTION:-cifar10}"
 LAYOUT_SELECTION="${LAYOUT_SELECTION:-bf}"
 LOG_NAME="${LOG_NAME:-}"
+FLEX_ONLY=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -87,6 +90,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --layout=*|--layouts=*)
       LAYOUT_SELECTION="${1#*=}"
+      shift
+      ;;
+    --flex-only)
+      FLEX_ONLY=1
       shift
       ;;
     --name|--log-name)
@@ -236,10 +243,9 @@ ORIGINAL_FWD_FILE="distill_original_fwdtimetest.py"
 
 # Keep the ConvNet Flex implementation unchanged.
 CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py"   # Change only if your actual ConvNet file has another name.
-# Only FF ConvNet runs use this file. BF keeps the original Python arguments unchanged.
+# Only FF ConvNet runs use this file. Neither ConvNet script accepts --datalayout.
 CONV_DATALAYOUT_FLEX_FILE="distill_flexFuse_timeTest_conv_datalayout.py"
-# Actual Python option (do NOT pass this to the BF/original/unified implementations).
-CONV_FF_PYTHON_ARG="--datalayout=f_f"
+# Unified only: accepts --datalayout=b_f or --datalayout=f_f.
 
 # All three non-ConvNet models share one Flex implementation; --model selects architecture.
 UNIFIED_FLEX_FILE="distill_flexFuse_timeTest_unified.py"
@@ -272,8 +278,9 @@ IPC_LIST: ${ipc_list_text}
 SYN_STEPS: ${SYN_STEPS} (all cases)
 DEFAULT_ITERATION: ${ITERATION}
 SET_KERNEL_ONLY: --use-barrier, NO --load_all, repeats=${KERNEL_SET_REPEATS}
+FLEX_ONLY: ${FLEX_ONLY}
 FLEX_MASKS: 1 / 1 1 / 1 0; VFUSE: --v_fuse / --no-v_fuse
-ORDER: Original (syn_steps=1) -> Flex (syn_steps=1) -> Original FWDTEST (syn_steps=1)
+RUN_SELECTION: $(if [[ "$FLEX_ONLY" -eq 1 ]]; then echo "Flex only (Original and FWD skipped)"; else echo "Original -> Flex -> Original FWDTEST"; fi)
 LOG_FILE: ${log_file}
 CSV_FILE: ${SUMMARY_CSV}
 NOTE: no ckpt or total-time cases; kernel-only timing for Original / Flex / FWDTEST.
@@ -506,7 +513,7 @@ run_flex_case() {
   local mask_tag="${mask_string// /}" vfuse_tag="no_vfuse"
   [[ "$vfuse_arg" == "--v_fuse" ]] && vfuse_tag="vfuse"
   # Optional final argument after iteration: the actual Python datalayout flag.
-  # Empty for all legacy BF and non-ConvNet calls.
+  # Empty for ConvNet; unified receives explicit b_f/f_f.
   local datalayout_arg="${11:-}"
   local case_name="${case_prefix}_mask_${mask_tag}_${vfuse_tag}"
   local tag="MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=${case_name}"
@@ -525,26 +532,32 @@ run_model_block() {
   for ipc in "${ipc_list[@]}"; do
     iteration="$(iteration_for_model_ipc "$model_label" "$ipc")"
     # 1. Original: syn_steps=1 only.
-    run_original "$log_file" "$model_label" "$model_arg" "$ipc" "$SYN_STEPS" "$iteration"
-    # 2. Flex: ConvNet can test BF, FF, or both; other models are unchanged.
+    if [[ "$FLEX_ONLY" -eq 0 ]]; then
+      run_original "$log_file" "$model_label" "$model_arg" "$ipc" "$SYN_STEPS" "$iteration"
+    fi
+    # 2. Flex: apply --layout to ALL models.
     # Original and FWD baselines remain once per IPC (not duplicated per layout).
     local layout actual_flex actual_extra case_prefix
     local layouts=(bf)
-    if [[ "$model_label" == "ConvNet" ]]; then
-      case "$LAYOUT_SELECTION" in
-        ff) layouts=(ff) ;;
-        both) layouts=(bf ff) ;;
-      esac
-    fi
+    case "$LAYOUT_SELECTION" in
+      ff) layouts=(ff) ;;
+      both) layouts=(bf ff) ;;
+    esac
     for layout in "${layouts[@]}"; do
       actual_flex="$flex_file"
       actual_extra=""
-      case_prefix="flex"
+      case_prefix="flex_${layout}"
       if [[ "$model_label" == "ConvNet" ]]; then
-        case_prefix="flex_${layout}"
+        # ConvNet selects the Python file; neither file has --datalayout.
         if [[ "$layout" == "ff" ]]; then
           actual_flex="$CONV_DATALAYOUT_FLEX_FILE"
-          actual_extra="$CONV_FF_PYTHON_ARG"
+        fi
+      else
+        # Unified implementation has an explicit --datalayout parser option.
+        if [[ "$layout" == "ff" ]]; then
+          actual_extra="--datalayout=f_f"
+        else
+          actual_extra="--datalayout=b_f"
         fi
       fi
       for mask in "1" "1 1" "1 0"; do
@@ -555,7 +568,9 @@ run_model_block() {
       done
     done
     # 3. Original forward-only test: syn_steps=1 only.
-    run_original_fwdtest "$log_file" "$model_label" "$model_arg" "$ipc" "$SYN_STEPS" "$iteration"
+    if [[ "$FLEX_ONLY" -eq 0 ]]; then
+      run_original_fwdtest "$log_file" "$model_label" "$model_arg" "$ipc" "$SYN_STEPS" "$iteration"
+    fi
   done
 }
 
@@ -563,7 +578,7 @@ run_convnet_tests() {
   SUMMARY_CSV="${CONV_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
   write_header "$CONV_LOG" "ConvNet" "ConvNet" "$CONV_FLEX_FILE" "${CONV_IPC_LIST[*]}" \
-    "ConvNet layout=${LAYOUT_SELECTION}; BF=${CONV_FLEX_FILE}; FF=${CONV_DATALAYOUT_FLEX_FILE} ${CONV_FF_PYTHON_ARG}; Original and FWD once per IPC."
+    "ConvNet layout=${LAYOUT_SELECTION}; BF=${CONV_FLEX_FILE}; FF=${CONV_DATALAYOUT_FLEX_FILE}; neither passes --datalayout; Original and FWD once per IPC unless --flex-only."
   run_model_block "$CONV_LOG" "ConvNet" "ConvNet" "$CONV_FLEX_FILE" "${CONV_IPC_LIST[@]}"
   write_footer "$CONV_LOG"
 }
@@ -572,7 +587,7 @@ run_vit_tests() {
   SUMMARY_CSV="${VIT_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
   write_header "$VIT_LOG" "ViT" "ViT" "$UNIFIED_FLEX_FILE" "${VIT_IPC_LIST[*]}" \
-    "Unified Flex via --model=ViT; --Iteration=50 for IPC >= 50 (unchanged)."
+    "Unified Flex via --model=ViT; layout=${LAYOUT_SELECTION} (explicit --datalayout=b_f/f_f); --Iteration=50 for IPC >= 50."
   run_model_block "$VIT_LOG" "ViT" "ViT" "$UNIFIED_FLEX_FILE" "${VIT_IPC_LIST[@]}"
   write_footer "$VIT_LOG"
 }
@@ -581,7 +596,7 @@ run_resnet18_tests() {
   SUMMARY_CSV="${RESNET_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
   write_header "$RESNET_LOG" "ResNet18" "ResNet18" "$UNIFIED_FLEX_FILE" "${RESNET_IPC_LIST[*]}" \
-    "Unified Flex via --model=ResNet18; --Iteration=50 for all IPC (${RESNET_IPC_LIST[*]})."
+    "Unified Flex via --model=ResNet18; layout=${LAYOUT_SELECTION} (explicit --datalayout=b_f/f_f); --Iteration=50 for all IPC (${RESNET_IPC_LIST[*]})."
   run_model_block "$RESNET_LOG" "ResNet18" "ResNet18" "$UNIFIED_FLEX_FILE" "${RESNET_IPC_LIST[@]}"
   write_footer "$RESNET_LOG"
 }
@@ -590,7 +605,7 @@ run_vgg11_tests() {
   SUMMARY_CSV="${VGG_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
   write_header "$VGG_LOG" "VGG11" "VGG11" "$UNIFIED_FLEX_FILE" "${VGG_IPC_LIST[*]}" \
-    "Unified Flex via --model=VGG11; --Iteration=50 for all IPC (${VGG_IPC_LIST[*]})."
+    "Unified Flex via --model=VGG11; layout=${LAYOUT_SELECTION} (explicit --datalayout=b_f/f_f); --Iteration=50 for all IPC (${VGG_IPC_LIST[*]})."
   run_model_block "$VGG_LOG" "VGG11" "VGG11" "$UNIFIED_FLEX_FILE" "${VGG_IPC_LIST[@]}"
   write_footer "$VGG_LOG"
 }
@@ -616,7 +631,7 @@ run_dataset_tests() {
   RESNET_LOG="${dataset_log_dir}/resnet18.txt"
   VGG_LOG="${dataset_log_dir}/vgg11.txt"
 
-  echo "[INFO] DATASET=${DATASET} | IPC_LIST=${dataset_ipcs[*]} | CONV_LAYOUT=${LAYOUT_SELECTION}"
+  echo "[INFO] DATASET=${DATASET} | IPC_LIST=${dataset_ipcs[*]} | LAYOUT=${LAYOUT_SELECTION}"
   if model_selected "ConvNet"; then
     run_convnet_tests
   else
@@ -658,7 +673,8 @@ run_dataset_tests() {
 echo "[INFO] LOG_DIR=${LOG_DIR} LOG_NAME=${LOG_NAME:-<none>}"
 echo "[INFO] SELECTED_MODELS=${SELECTED_MODELS}"
 echo "[INFO] SELECTED_DATASETS=${SELECTED_DATASETS}"
-echo "[INFO] CONV_LAYOUT=${LAYOUT_SELECTION} (BF=${CONV_FLEX_FILE}; FF=${CONV_DATALAYOUT_FLEX_FILE} ${CONV_FF_PYTHON_ARG})"
+echo "[INFO] FLEX_ONLY=${FLEX_ONLY} (1 skips Original and Original FWD)"
+echo "[INFO] LAYOUT=${LAYOUT_SELECTION} (ConvNet: BF=${CONV_FLEX_FILE}, FF=${CONV_DATALAYOUT_FLEX_FILE}; unified: --datalayout=b_f/f_f)"
 
 for dataset in ${SELECTED_DATASETS}; do
   run_dataset_tests "${dataset}"
