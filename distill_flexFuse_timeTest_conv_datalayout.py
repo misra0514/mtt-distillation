@@ -30,7 +30,7 @@ import warnings
 from reparam_module import ReparamModule
 
 from networks.networks_stateless import  ConvBlock_double_bwd,ConvBlock_bwd2_1,ConvBlock_bwd1_2,conv3_double_bwd,conv3_bwd
-from networks.networks_stateless_basicblock import instanceNorm_bwd, linear_bwd, conv_bwd, \
+from networks.networks_stateless_basicblock import insNormNRelu_bwd, linear_bwd, conv_bwd, \
 linear_double_bwd, conv_double_bwd, insNormNRelu_double_bwd, avgPool_bwd, crossEntropy_bwd, \
     avgPool_double_bwd,bmm_bwd, linerFused_bwd, linearFused_double_bwd,crossEntropy_double_bwd
 
@@ -42,22 +42,27 @@ layout = 'f_f'
 
 
 def split_half_snd_dim(param_list, fuse_mask_list):
-    """Split group-major activations [G*B,...] along dimension 0.
-
-    Keep the original name; parameter splitting remains separate.
-    """
+    """切分 group-first 激活 [G*B,...]，部分保留时复制到独立 storage。"""
     Fuse = len(fuse_mask_list)
     start = fuse_mask_list.index(1)
     count = fuse_mask_list.count(1)
     end = start + count
+
     if fuse_mask_list[start:end] != [1] * count:
         raise ValueError("Active fuse lanes must be contiguous")
+
     output = []
     for p in param_list:
         if p.ndim == 0 or p.shape[0] % Fuse:
             raise ValueError("Expected activation with leading dimension G*B")
-        block = p.shape[0] // Fuse
-        output.append(p[start * block:end * block, ...].contiguous())
+
+        if count == Fuse:
+            output.append(p.contiguous())
+        else:
+            block = p.shape[0] // Fuse
+            part = p[start * block:end * block, ...]
+            output.append(part.clone(memory_format=torch.contiguous_format))
+
     return output
 
 def view_falf_fst_dim(weights, Fuse, bwd_Fuse):
@@ -656,7 +661,7 @@ def main(args):
                 del dx_conv2
                 # dx_conv2 = split_half_snd_dim([dx_conv2], fuse_mask_list)[0]
                 # dx_lin_d1.copy_(dx_lin_d1[:, :, ...].contiguous())
-                dx_norm1, dnorm1_w, dnorm1_b = instanceNorm_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1, v_fuse=args.v_fuse, layout=layout)
+                dx_norm1, dnorm1_w, dnorm1_b = insNormNRelu_bwd(x_norm1, norm1_w, x_pool1, grad_output=dx_pool1, v_fuse=args.v_fuse, layout=layout)
                 x_norm1 = split_half_snd_dim([x_norm1],fuse_mask_list)[0]
                 x_pool1 = split_half_snd_dim([x_pool1 ],fuse_mask_list)[0]
                 dx_pool1 = split_half_snd_dim([dx_pool1],fuse_mask_list)[0]

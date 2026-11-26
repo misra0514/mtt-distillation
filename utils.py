@@ -15,7 +15,7 @@ from scipy.ndimage.interpolation import rotate as scipyrotate
 # from networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP
 from networks.networks import MLP, ConvNet, LeNet, AlexNet, VGG11BN, VGG11, ResNet18, ResNet18BN_AP, ResNet18_AP, ResNet50
 
-from networks.networks_stacked import ConvNetStacked, ConvNet_virticalfuse
+# from networks.networks_stacked import ConvNetStacked, ConvNet_virticalfuse
 from networks.networks_Fuse  import Conv_Flexfuse, Conv_Flexfuse_backup, ResNet18_FlexFuse, VGG11_Flexfuse, ViT_FlexFuse,Conv_Flexfuse_datalayout
 
 from networks.networks_exptended import ViT
@@ -338,10 +338,10 @@ def get_network(model, channel, num_classes, im_size=(32, 32), dist=True,v_fuse=
         net = MLP(channel=channel, num_classes=num_classes)
     elif model == 'ConvNet':
         net = ConvNet(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
-    elif model.startswith("ConvStacked"):
-        fusion = int(model[11:])
-        # net = ConvNet_virticalfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
-        net = ConvNetStacked(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, stack_size=fusion)
+    # elif model.startswith("ConvStacked"):
+    #     fusion = int(model[11:])
+    #     # net = ConvNet_virticalfuse(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size)
+    #     net = ConvNetStacked(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, stack_size=fusion)
     elif model.startswith("Conv_Flexfuse_datalayout"):
         fusion = int(model[24:])
         net = Conv_Flexfuse_datalayout(channel=channel, num_classes=num_classes, net_width=net_width, net_depth=net_depth, net_act=net_act, net_norm=net_norm, net_pooling=net_pooling, im_size=im_size, Fuse=fusion,v_fuse=v_fuse)

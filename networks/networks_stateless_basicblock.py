@@ -28,33 +28,14 @@ from networks.networks_basicblock_tritonwrapper import instanceNorm_backward ,in
 
 from networks.grouped_kernels.grouped_conv_double_bwd import convolution_double_backward as grouped_conv_double_bwd
 from networks.grouped_kernels.grouped_conv_bwd import conv_bwd as grouped_conv_bwd
-from networks.grouped_kernels.grouped_norm_bwd import grouped_instancenorm_bwd  as grouped_instancenorm_bwd_triton
-from networks.grouped_kernels.grouped_norm_double_bwd import grouped_instancenorm_double_bwd as grouped_instancenorm_double_bwd_triton
+from networks.grouped_kernels.grouped_norm_bwd import grouped_instancenorm_bwd  as grouped_instancenorm_relu_bwd_triton, grouped_instancenorm_only_bwd
+from networks.grouped_kernels.grouped_norm_double_bwd import grouped_instancenorm_double_bwd as grouped_instancenorm_relu_double_bwd_triton, grouped_instancenorm_only_double_bwd as grouped_instancenorm_double_bwd_triton
 from networks.grouped_kernels.grouped_norm_fwd import grouped_instancenorm_fwd as grouped_instancenorm_fwd_triton
 
 
 #########################
 # 一阶导数：
 #########################
-
-
-def insNormNRelu_bwd( x, weight, output, grad_output, v_fuse = True):
-    if(v_fuse):
-        grad_x, grad_weight, grad_bias = instancenorm_relu_backward_triton(x, weight, grad_output, output)
-    else:
-        grad_x, grad_weight, grad_bias =  instancenorm_relu_backward_plain(x, weight, grad_output, output)
-    return grad_x, grad_weight, grad_bias
-
-
-def insNorm_bwd( x, weight, grad_output, v_fuse = True):
-    # TODO:目前没有什么fuse 不fuse一说。后面如果把relu也拿进来，可能会写fused 版本吧。
-    if(v_fuse):
-        grad_x, grad_weight, grad_bias = instanceNorm_backward(x, weight, grad_output)
-    else:
-        grad_x, grad_weight, grad_bias =  instanceNorm_backward(x, weight, grad_output)
-    # TODO: 理论上是不应该返回Mean & std 的。但是这个接口可能影响的地方比较多。所以现在就先这样吧。
-    return grad_x, grad_weight, grad_bias, None, None
-
 
 
 def crossEntropy_bwd(logits, target, Fuse = 2):
@@ -120,34 +101,38 @@ def bmm_bwd(mat1, mat2, grad_output):
     grad_mat2 = torch.bmm(mat1, grad_output)
     return grad_input, grad_mat2
 
-def linerFused_bwd(x, w, grad_output, Fuse =2 ):
-    # 参数形状约定与 LinearStacked_2.forward 保持一致：
-    #   x: (..., Fuse * I) 经过 view(B, Fuse, I) 使用
-    #   w: (Fuse * O, I)   其中每个 fuse 切片是 (O, I)
-    #   grad_output: (B * Fuse, O) 或 (Fuse, B, O) 展平的上游梯度
-    F = Fuse
-    O = w.shape[0] // F
-    I = w.shape[1]
+def linerFused_bwd(x, w, grad_output, Fuse =2 , layout = 'b_f'):
+    # 这里也加了layout的接口，后面给他合并掉好了
+    if layout == 'b_f':
+        # 参数形状约定与 LinearStacked_2.forward 保持一致：
+        #   x: (..., Fuse * I) 经过 view(B, Fuse, I) 使用
+        #   w: (Fuse * O, I)   其中每个 fuse 切片是 (O, I)
+        #   grad_output: (B * Fuse, O) 或 (Fuse, B, O) 展平的上游梯度
+        F = Fuse
+        O = w.shape[0] // F
+        I = w.shape[1]
 
-    # 根据 x 反推 batch 数，避免 grad_output 形状不一致带来的误差
-    B = x.numel() // (F * I)
+        # 根据 x 反推 batch 数，避免 grad_output 形状不一致带来的误差
+        B = x.numel() // (F * I)
 
-    # 将梯度、权重、输入都还原到与 forward 相同的内部布局
-    G = grad_output.reshape(F, B, O)       # (F, B, O)
-    W = w.reshape(F, O, I)                 # (F, O, I)
-    X = x.reshape(B, F, I).transpose(0, 1) # (F, B, I)
+        # 将梯度、权重、输入都还原到与 forward 相同的内部布局
+        G = grad_output.reshape(F, B, O)       # (F, B, O)
+        W = w.reshape(F, O, I)                 # (F, O, I)
+        X = x.reshape(B, F, I).transpose(0, 1) # (F, B, I)
 
-    grad_input_int = torch.bmm(G, W)                   # (F, B, I)
-    grad_w_int     = torch.bmm(G.transpose(1, 2), X)   # (F, O, I)
-    grad_b_int     = G.sum(dim=1)                      # (F, O)
+        grad_input_int = torch.bmm(G, W)                   # (F, B, I)
+        grad_w_int     = torch.bmm(G.transpose(1, 2), X)   # (F, O, I)
+        grad_b_int     = G.sum(dim=1)                      # (F, O)
 
-    # 回到原始 x 的布局（batch 在前，Fuse 在内层）
-    grad_input = grad_input_int.transpose(0, 1).reshape_as(x)
-    grad_w     = grad_w_int.reshape(F * O, I)          # (F*O, I)
-    grad_b     = grad_b_int.reshape(F * O)             # (F*O,)
+        # 回到原始 x 的布局（batch 在前，Fuse 在内层）
+        grad_input = grad_input_int.transpose(0, 1).reshape_as(x)
+        grad_w     = grad_w_int.reshape(F * O, I)          # (F*O, I)
+        grad_b     = grad_b_int.reshape(F * O)             # (F*O,)
 
-    return grad_input, grad_w, grad_b
+        return grad_input, grad_w, grad_b
 
+    elif layout == 'f_f':
+        return grouped_linear_bwd(x,w,grad_output, Fuse = Fuse, setup = 'conv')
 
 #########################
 # 二阶导数：
@@ -181,59 +166,62 @@ def linearFused_double_bwd(
     gg_grad_w=None,       # same shape as grad_w:   (F*O, I)
     gg_grad_b=None,       # same shape as grad_b:   (F*O,)
     Fuse=2,
+    layout='b_f',
 ):
-    batch_full, C = grad_output.shape[-2], grad_output.shape[-1]
-    F = Fuse
-    B = batch_full // F
-    # 内部布局：与一阶 backward 完全一致
-    G = grad_output.view(F, B, C)    # (F, B, O)
-    W = w.view(F, C, -1)             # (F, O, I)
-    I = W.shape[-1]
-    X = x.view(B, F, I).transpose(0, 1)   # (F, B, I)
-    dG = torch.zeros_like(G)
-    dW = torch.zeros_like(W)
-    dX = torch.zeros_like(X)
-    # ---- 1) 来自 grad_input_int = G @ W ----
-    if gg_grad_input is not None:
-        # 外部 grad_input: (B*F, I)
-        # 一阶里是 grad_input_int.transpose(0,1).reshape(B*F, I)
-        # 反向映射回内部 GI 的梯度：
-        H_ext = gg_grad_input.view(B, F, I)    # (B, F, I)
-        H     = H_ext.transpose(0, 1)          # (F, B, I)  对应 GI
-        # GI = G @ W
-        # ∂L/∂G += H @ Wᵀ
-        dG = dG + torch.bmm(H, W.transpose(1, 2))       # (F, B, C)
-        # ∂L/∂W += Gᵀ @ H
-        dW = dW + torch.bmm(G.transpose(1, 2), H)       # (F, C, I)
+    if layout == 'b_f':
+        batch_full, C = grad_output.shape[-2], grad_output.shape[-1]
+        F = Fuse
+        B = batch_full // F
+        # 内部布局：与一阶 backward 完全一致
+        G = grad_output.view(F, B, C)    # (F, B, O)
+        W = w.view(F, C, -1)             # (F, O, I)
+        I = W.shape[-1]
+        X = x.view(B, F, I).transpose(0, 1)   # (F, B, I)
+        dG = torch.zeros_like(G)
+        dW = torch.zeros_like(W)
+        dX = torch.zeros_like(X)
+        # ---- 1) 来自 grad_input_int = G @ W ----
+        if gg_grad_input is not None:
+            # 外部 grad_input: (B*F, I)
+            # 一阶里是 grad_input_int.transpose(0,1).reshape(B*F, I)
+            # 反向映射回内部 GI 的梯度：
+            H_ext = gg_grad_input.view(B, F, I)    # (B, F, I)
+            H     = H_ext.transpose(0, 1)          # (F, B, I)  对应 GI
+            # GI = G @ W
+            # ∂L/∂G += H @ Wᵀ
+            dG = dG + torch.bmm(H, W.transpose(1, 2))       # (F, B, C)
+            # ∂L/∂W += Gᵀ @ H
+            dW = dW + torch.bmm(G.transpose(1, 2), H)       # (F, C, I)
 
-    # ---- 2) 来自 grad_w_int = Gᵀ @ X ----
-    if gg_grad_w is not None:
-        # 外部 grad_w: (F*O, I) → (F, O, I)
-        ggW = gg_grad_w.view(F, C, I)     # (F, O, I)
+        # ---- 2) 来自 grad_w_int = Gᵀ @ X ----
+        if gg_grad_w is not None:
+            # 外部 grad_w: (F*O, I) → (F, O, I)
+            ggW = gg_grad_w.view(F, C, I)     # (F, O, I)
 
-        # 对 Y = Gᵀ X 的二阶：
-        # dX += G @ ggW
-        dX = dX + torch.bmm(G, ggW)                     # (F, B, I)
-        # dG += X @ ggWᵀ
-        dG = dG + torch.bmm(X, ggW.transpose(1, 2))     # (F, B, C)
+            # 对 Y = Gᵀ X 的二阶：
+            # dX += G @ ggW
+            dX = dX + torch.bmm(G, ggW)                     # (F, B, I)
+            # dG += X @ ggWᵀ
+            dG = dG + torch.bmm(X, ggW.transpose(1, 2))     # (F, B, C)
 
-    # ---- 3) 来自 grad_b_int = G.sum(dim=1) ----
-    if gg_grad_b is not None:
-        ggb = gg_grad_b.view(F, C)                     # (F, O)
-        # 每个 batch 位置都加上同一 ggb
-        dG = dG + ggb.unsqueeze(1).expand(F, B, C)     # (F, B, O)
+        # ---- 3) 来自 grad_b_int = G.sum(dim=1) ----
+        if gg_grad_b is not None:
+            ggb = gg_grad_b.view(F, C)                     # (F, O)
+            # 每个 batch 位置都加上同一 ggb
+            dG = dG + ggb.unsqueeze(1).expand(F, B, C)     # (F, B, O)
 
-    # ---- 内部 dX, dW, dG → 外部 dx, dw, dgrad_output ----
-    # X = x.view(B, F, I).transpose(0,1)
-    # 反向：先 transpose 回去，再 reshape
-    dx = dX.transpose(0, 1).reshape_as(x)              # (B*F, I)
-    # W = w.view(F, O, I)
-    dw = dW.reshape_as(w)                              # (F*O, I)
-    # G = grad_output.view(F, B, C)
-    dgrad_output = dG.view(batch_full, C).reshape_as(grad_output)  # (B*F, C)
-    # 顺序：∂L/∂grad_output, ∂L/∂x, ∂L/∂w
-    return dgrad_output, dx, dw
-
+        # ---- 内部 dX, dW, dG → 外部 dx, dw, dgrad_output ----
+        # X = x.view(B, F, I).transpose(0,1)
+        # 反向：先 transpose 回去，再 reshape
+        dx = dX.transpose(0, 1).reshape_as(x)              # (B*F, I)
+        # W = w.view(F, O, I)
+        dw = dW.reshape_as(w)                              # (F*O, I)
+        # G = grad_output.view(F, B, C)
+        dgrad_output = dG.view(batch_full, C).reshape_as(grad_output)  # (B*F, C)
+        # 顺序：∂L/∂grad_output, ∂L/∂x, ∂L/∂w
+        return dgrad_output, dx, dw
+    elif layout =='f_f':
+        return grouped_linear_double_bwd(x, w, grad_output, gg_grad_input, gg_grad_w, gg_grad_b, Fuse=Fuse, setup='conv')
 
 
 def avgPool_double_bwd(
@@ -341,19 +329,6 @@ def avgPool_double_bwd(
     grad_grad_output = grad_S / div  # broadcast 到 [N,C,OH,OW]
 
     return grad_grad_output
-
-
-def insNormNRelu_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse=True):
-    if v_fuse:
-        gx, gw, ggO = instanceNorm_double_backwards_triton(x=x, gamma=weight, ggX=ggI, ggG=ggw, ggB=ggb, gO= grad_output,out= output,eps= 1e-5)
-        ggO = ggO.view_as(grad_output)
-    else:
-        # gx, gw, ggO = instanceNorm_double_backwards_triton(x=x, gamma=weight, ggX=ggI, ggG=ggw, ggB=ggb, gO= grad_output,out= output,eps= 1e-5)
-        gx, gw, ggO = instanceNorm_double_backwards_plain(x=x, gamma=weight, ggX=ggI, ggG=ggw, ggB=ggb, gO= grad_output,out= output,eps= 1e-5)
-        ggO = ggO.view_as(grad_output)
-    # gG是d_gamma , 也就是weight。
-    return ggO, gx, gw
-
 
 def linear_double_bwd(
     # grads: Sequence[Optional[torch.Tensor]],  # [grad_grad_input, grad_grad_weight, grad_grad_bias]
@@ -1354,19 +1329,19 @@ def conv_bwd( x, weight,grad_output, stride=1, padding=1, dilation=1, groups=1, 
 
 
 
-def grouped_instancenorm_bwd(
-    x, weight, output, grad_output, v_fuse=True
-):
-    # TODO： 目前还没有无fuse 版本。
-    hw = x.shape[-2] * x.shape[-1]
+# def grouped_instancenorm_relu_bwd(
+#     x, weight, output, grad_output, v_fuse=True
+# ):
+#     # TODO： 目前还没有无fuse 版本。
+#     hw = x.shape[-2] * x.shape[-1]
 
-    return grouped_instancenorm_bwd_triton(
-        x, weight, output, grad_output,
-        v_fuse=v_fuse,
-        eps=1e-5,
-        rows=4 if hw <= 64 else 1,
-        num_warps=4,
-    )
+#     return grouped_instancenorm_relu_bwd_triton(
+#         x, weight, output, grad_output,
+#         v_fuse=v_fuse,
+#         eps=1e-5,
+#         rows=4 if hw <= 64 else 1,
+#         num_warps=4,
+#     )
 
     # 输入：[G*B,C,H,W]，weight：[G*C]
     gb, c, h, w = x.shape
@@ -1396,13 +1371,43 @@ def grouped_instancenorm_bwd(
     return grad_x, grad_weight, grad_bias
 
 
-def instanceNorm_bwd(x, weight, output, grad_output, v_fuse = True, layout = 'b_f'):
-    if layout == 'b_f':
-        grad_x, grad_weight, grad_bias = insNormNRelu_bwd(x, weight, output, grad_output, v_fuse)
-    elif layout == 'f_f':
-        grad_x, grad_weight, grad_bias = grouped_instancenorm_bwd(x, weight, output, grad_output, v_fuse)
-    return grad_x, grad_weight, grad_bias
+# def instanceNorm_relu_bwd(x, weight, output, grad_output, v_fuse = True, layout = 'b_f'):
+#     # TODO: 这个已经弃用了。只有在做datalayout的时候短暂用了一下这个名字。
+#     if layout == 'b_f':
+#         grad_x, grad_weight, grad_bias = insNormNRelu_bwd(x, weight, output, grad_output, v_fuse)
+#     elif layout == 'f_f':
+#         grad_x, grad_weight, grad_bias = grouped_instancenorm_relu_bwd(x, weight, output, grad_output, v_fuse)
+#     return grad_x, grad_weight, grad_bias
 
+
+
+def insNormNRelu_bwd( x, weight, output, grad_output, v_fuse = True, layout = 'b_f'):
+    if layout == 'b_f':
+        if(v_fuse):
+            grad_x, grad_weight, grad_bias = instancenorm_relu_backward_triton(x, weight, grad_output, output)
+        else:
+            grad_x, grad_weight, grad_bias =  instancenorm_relu_backward_plain(x, weight, grad_output, output)
+        return grad_x, grad_weight, grad_bias
+    elif layout == 'f_f':
+        hw = x.shape[-2] * x.shape[-1]
+        return grouped_instancenorm_relu_bwd_triton(
+            x, weight, output, grad_output,
+            v_fuse=v_fuse,
+            eps=1e-5,
+            rows=4 if hw <= 64 else 1,
+            num_warps=4)
+
+
+
+def insNorm_bwd( x, weight, grad_output, v_fuse = True, layout = 'b_f'):
+    # TODO: 这个接口理论上就只做norm，那fuse不fuse就没区别。
+    # if(v_fuse):
+    if layout == 'b_f':
+        grad_x, grad_weight, grad_bias = instanceNorm_backward(x, weight, grad_output)
+    elif layout == 'f_f':
+        grad_x, grad_weight, grad_bias =  grouped_instancenorm_only_bwd(x, weight, grad_output)
+    # TODO: 理论上是不应该返回Mean & std 的。但是这个接口可能影响的地方比较多。所以现在就先这样吧。
+    return grad_x, grad_weight, grad_bias, None, None
 
 
 #########################
@@ -1481,56 +1486,111 @@ def conv_double_bwd(ggI_opt, ggW_r_opt, ggb_opt, gO_r, weight_r, input,
 
 
 
-def grouped_instancenorm_double_bwd( ggI, ggw, ggb, grad_output, output, weight, x, v_fuse=True):
-    # 新布局：[G*B,C,H,W]
-    hw = x.shape[-2] * x.shape[-1]
 
-    return grouped_instancenorm_double_bwd_triton(
-        ggI, ggw, ggb,
-        grad_output, output, weight, x,
-        v_fuse=v_fuse,
-        eps=1e-5,
-        rows=4 if hw <= 64 else 1,
-        num_warps=4,
-    )
-    gb, c, h, w = x.shape
-    g = weight.numel() // c
-    b = gb // g
-    def to_old(t):
-        if t is None:
-            return None
-        # -> [B,G*C,H,W]
-        return (
-            t.reshape(g, b, c, h, w)
-            .transpose(0, 1)
-            .reshape(b, g * c, h, w)
-        )
-    def to_new(t):
-        # -> [G*B,C,H,W]
-        return (
-            t.reshape(b, g, c, h, w)
-            .transpose(0, 1)
-            .reshape(gb, c, h, w)
-        )
-    ggO, gx, gw = insNormNRelu_double_bwd(
-        to_old(ggI),
-        ggw,
-        ggb,
-        to_old(grad_output),
-        to_old(output),
-        weight,
-        to_old(x),
-        v_fuse=v_fuse,
-    )
-    return to_new(ggO), to_new(gx), gw
+def insNormNRelu_double_bwd(
+    ggI, ggw, ggb, grad_output, output, weight, x,
+    v_fuse=True, layout='b_f'
+):
+    if layout == 'b_f':
+        if v_fuse:
+            gx, gw, ggO = instanceNorm_double_backwards_triton(
+                x=x, gamma=weight,
+                ggX=ggI, ggG=ggw, ggB=ggb,
+                gO=grad_output, out=output, eps=1e-5
+            )
+        else:
+            gx, gw, ggO = instanceNorm_double_backwards_plain(
+                x=x, gamma=weight,
+                ggX=ggI, ggG=ggw, ggB=ggb,
+                gO=grad_output, out=output, eps=1e-5
+            )
 
+        return ggO.view_as(grad_output), gx, gw
 
-
-def instanceNorm_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse=True, layout = 'b_f'):
-    # 更新完成，封装好的接口。这样conv可以直接调用这里。两种layout
-    if layout =='b_f':
-        ggO, gx, gw = insNormNRelu_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse)
     elif layout == 'f_f':
-        ggO, gx, gw = grouped_instancenorm_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse)
-    return ggO, gx, gw
+        hw = x.shape[-2] * x.shape[-1]
+
+        return grouped_instancenorm_relu_double_bwd_triton(
+            ggI, ggw, ggb, grad_output, output, weight, x,
+            v_fuse=v_fuse,
+            eps=1e-5,
+            rows=4 if hw <= 64 else 1,
+            num_warps=4
+        )
+
+        
+def insNorm_double_bwd(
+    ggI, ggw, ggb, grad_output, weight, x,
+    v_fuse=True, layout='b_f'
+):
+    if layout == 'b_f':
+        gx, gw, ggO = instanceNorm_double_backwards_fn(
+            x, weight, None,
+            ggI, ggw, ggb, grad_output
+        )
+        return ggO, gx, gw
+
+    elif layout == 'f_f':
+        hw = x.shape[-2] * x.shape[-1]
+
+        return grouped_instancenorm_double_bwd_triton(
+            ggI, ggw, ggb, grad_output, weight, x,
+            eps=1e-5,
+            rows=4 if hw <= 64 else 1,
+            num_warps=4
+        )
+
+
+
+# def grouped_instancenorm_double_bwd( ggI, ggw, ggb, grad_output, output, weight, x, v_fuse=True):
+#     # 新布局：[G*B,C,H,W]
+#     hw = x.shape[-2] * x.shape[-1]
+
+#     return grouped_instancenorm_double_bwd_triton(
+#         ggI, ggw, ggb,
+#         grad_output, output, weight, x,
+#         v_fuse=v_fuse,
+#         eps=1e-5,
+#         rows=4 if hw <= 64 else 1,
+#         num_warps=4,
+#     )
+#     gb, c, h, w = x.shape
+#     g = weight.numel() // c
+#     b = gb // g
+#     def to_old(t):
+#         if t is None:
+#             return None
+#         # -> [B,G*C,H,W]
+#         return (
+#             t.reshape(g, b, c, h, w)
+#             .transpose(0, 1)
+#             .reshape(b, g * c, h, w)
+#         )
+#     def to_new(t):
+#         # -> [G*B,C,H,W]
+#         return (
+#             t.reshape(b, g, c, h, w)
+#             .transpose(0, 1)
+#             .reshape(gb, c, h, w)
+#         )
+#     ggO, gx, gw = insNormNRelu_double_bwd(
+#         to_old(ggI),
+#         ggw,
+#         ggb,
+#         to_old(grad_output),
+#         to_old(output),
+#         weight,
+#         to_old(x),
+#         v_fuse=v_fuse,
+#     )
+#     return to_new(ggO), to_new(gx), gw
+
+
+# def instanceNorm_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse=True, layout = 'b_f'):
+#     # 更新完成，封装好的接口。这样conv可以直接调用这里。两种layout
+#     if layout =='b_f':
+#         ggO, gx, gw = insNormNRelu_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse)
+#     elif layout == 'f_f':
+#         ggO, gx, gw = grouped_instancenorm_double_bwd(ggI, ggw, ggb, grad_output, output ,weight, x, v_fuse)
+#     return ggO, gx, gw
 

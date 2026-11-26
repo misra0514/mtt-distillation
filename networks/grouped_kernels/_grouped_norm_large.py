@@ -12,7 +12,7 @@ import triton.language as tl
 def _stats(X, D, OUT, H, ST, PG, PB, B: tl.constexpr, C: tl.constexpr,
            ROWS: tl.constexpr, M: tl.constexpr, EPS: tl.constexpr,
            MODE: tl.constexpr, HAS_H: tl.constexpr, HAS_G: tl.constexpr,
-           S: tl.constexpr):
+           S: tl.constexpr, VFUSE: tl.constexpr = True):
     row = tl.program_id(0)
     base = row.to(tl.int64)*M
     col = tl.arange(0, S)
@@ -35,8 +35,9 @@ def _stats(X, D, OUT, H, ST, PG, PB, B: tl.constexpr, C: tl.constexpr,
         vv += xc*xc
         if MODE != 0:
             d = tl.load(D+base+j,j<M,other=0.).to(tl.float32)
-            out = tl.load(OUT+base+j,j<M,other=0.).to(tl.float32)
-            d = tl.where(out>0.,d,0.)
+            if VFUSE:
+                out = tl.load(OUT+base+j,j<M,other=0.).to(tl.float32)
+                d = tl.where(out>0.,d,0.)
             sd += d
             sdx += d*xc
             if HAS_H:
@@ -69,8 +70,9 @@ def _stats(X, D, OUT, H, ST, PG, PB, B: tl.constexpr, C: tl.constexpr,
                 x = tl.load(X+base+j,j<M,other=0.).to(tl.float32)
                 z = ((x-anchor)-mu)*inv
                 d = tl.load(D+base+j,j<M,other=0.).to(tl.float32)
-                out = tl.load(OUT+base+j,j<M,other=0.).to(tl.float32)
-                d = tl.where(out>0.,d,0.)
+                if VFUSE:
+                    out = tl.load(OUT+base+j,j<M,other=0.).to(tl.float32)
+                    d = tl.where(out>0.,d,0.)
                 h = tl.load(H+base+j,j<M,other=0.).to(tl.float32)
                 dot_acc += tl.where(j<M,h*(d-d0-z*dz),0.)
             dot = tl.sum(dot_acc,0)
@@ -86,7 +88,8 @@ def _apply(X, GAMMA, BETA, D, OUT, H, V, T, ST, Y, GX,
            B: tl.constexpr, C: tl.constexpr, ROWS: tl.constexpr,
            M: tl.constexpr, MODE: tl.constexpr, HAS_G: tl.constexpr,
            HAS_BETA: tl.constexpr, HAS_H: tl.constexpr,
-           HAS_V: tl.constexpr, HAS_T: tl.constexpr, S: tl.constexpr):
+           HAS_V: tl.constexpr, HAS_T: tl.constexpr, S: tl.constexpr,
+           VFUSE: tl.constexpr = True):
     row = tl.program_id(0)
     j = tl.program_id(1)*S+tl.arange(0,S)
     off = row.to(tl.int64)*M+j
@@ -101,12 +104,14 @@ def _apply(X, GAMMA, BETA, D, OUT, H, V, T, ST, Y, GX,
     if MODE == 0:
         y = z*gamma
         if HAS_BETA:y += tl.load(BETA+affine).to(tl.float32)
-        y = tl.maximum(y,0.,propagate_nan=tl.PropagateNan.ALL)
+        if VFUSE:
+            y = tl.maximum(y,0.,propagate_nan=tl.PropagateNan.ALL)
         tl.store(Y+off,y,j<M)
     else:
-        out = tl.load(OUT+off,j<M,other=0.).to(tl.float32)
         d = tl.load(D+off,j<M,other=0.).to(tl.float32)
-        d = tl.where(out>0.,d,0.)
+        if VFUSE:
+            out = tl.load(OUT+off,j<M,other=0.).to(tl.float32)
+            d = tl.where(out>0.,d,0.)
         d0 = tl.load(ST+3*ROWS+row)
         dz = tl.load(ST+4*ROWS+row)
         pd = d-d0-z*dz
@@ -131,22 +136,25 @@ def _apply(X, GAMMA, BETA, D, OUT, H, V, T, ST, Y, GX,
             if HAS_V:ggo += z*v
             if HAS_T:ggo += tl.load(T+affine).to(tl.float32)
             tl.store(GX+off,gx,j<M)
-            tl.store(Y+off,tl.where(out>0.,ggo,0.),j<M)
+            if VFUSE:
+                ggo = tl.where(out>0.,ggo,0.)
+            tl.store(Y+off,ggo,j<M)
 
 
 def _launch(x, weight, bias, d, out, h, v, t, y, gx, pg, pb,
-            b, c, m, eps, mode):
+            b, c, m, eps, mode, vfuse=True):
     rows = x.shape[0]*c
     if rows >= 2**31:
         raise ValueError('Too many spatial planes for int32 row indexing')
     st = torch.empty((3 if mode==0 else 5 if mode==1 else 8,rows),device=x.device,dtype=torch.float32)
     ptr = lambda a:x if a is None else a
     _stats[(rows,)](x,ptr(d),ptr(out),ptr(h),st,ptr(pg),ptr(pb),
-        b,c,rows,m,eps,mode,h is not None,weight is not None,1024,num_warps=4)
+        b,c,rows,m,eps,mode,h is not None,weight is not None,1024,
+        VFUSE=vfuse,num_warps=4)
     _apply[(rows,triton.cdiv(m,1024))](x,ptr(weight),ptr(bias),ptr(d),ptr(out),
         ptr(h),ptr(v),ptr(t),st,y,ptr(gx),b,c,rows,m,mode,
         weight is not None,bias is not None,h is not None,v is not None,
-        t is not None,1024,num_warps=4)
+        t is not None,1024,VFUSE=vfuse,num_warps=4)
 
 
 def forward(x, weight, bias, b, c, m, eps):
@@ -155,11 +163,12 @@ def forward(x, weight, bias, b, c, m, eps):
     return y
 
 
-def backward(x, weight, output, grad_output, buffers, b, c, m, eps):
+def backward(x, weight, output, grad_output, buffers, b, c, m, eps, vfuse=True):
     dx,dg,db,pg,pb = buffers
-    _launch(x,weight,None,grad_output,output,None,None,None,dx,None,pg,pb,b,c,m,eps,1)
+    _launch(x,weight,None,grad_output,output,None,None,None,dx,None,pg,pb,
+            b,c,m,eps,1,vfuse)
 
 
-def double_backward(x, weight, h, v, t, d, out, buffers, b, c, m, eps):
+def double_backward(x, weight, h, v, t, d, out, buffers, b, c, m, eps, vfuse=True):
     ggo,gx,gg,part = buffers
-    _launch(x,weight,None,d,out,h,v,t,ggo,gx,part,None,b,c,m,eps,2)
+    _launch(x,weight,None,d,out,h,v,t,ggo,gx,part,None,b,c,m,eps,2,vfuse)

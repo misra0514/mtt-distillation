@@ -3,6 +3,8 @@
 Activation order: [G*B,C,H,W], leading index g*B+b. Affine vectors: [G*C].
 Return order follows the project's manual double backward: (ggO, gX, gG).
 No autograd binding, saved statistics cache, input packing, or atomic reduction.
+vfuse=True applies ReLU gates inside norm kernels; False runs them separately.
+grouped_instancenorm_only_double_bwd differentiates norm alone.
 """
 import math
 import torch
@@ -16,11 +18,29 @@ else:
 
 
 @triton.jit
+def _relu_backward(DY, OUT, D_IN, N: tl.constexpr, BLOCK: tl.constexpr):
+    off = tl.program_id(0).to(tl.int64)*BLOCK + tl.arange(0, BLOCK)
+    valid = off < N
+    dy = tl.load(DY+off, valid, other=0.).to(tl.float32)
+    out = tl.load(OUT+off, valid, other=0.).to(tl.float32)
+    tl.store(D_IN+off, tl.where(out > 0., dy, 0.), valid)
+
+
+def _mask_relu(output, grad_output, destination=None):
+    """Validated tensors; destination may alias dY for our newly allocated ggO."""
+    result = torch.empty_like(grad_output) if destination is None else destination
+    _relu_backward[(triton.cdiv(grad_output.numel(), 1024),)](
+        grad_output, output, result, grad_output.numel(), 1024, num_warps=4)
+    return result
+
+
+@triton.jit
 def _double_rows(X, GAMMA, H, V, T, D, OUT, GX, GG, GGO, PART,
                  B: tl.constexpr, C: tl.constexpr, ROWS: tl.constexpr,
                  M: tl.constexpr, EPS: tl.constexpr, R: tl.constexpr,
                  S: tl.constexpr, HAS_GAMMA: tl.constexpr,
-                 HAS_H: tl.constexpr, HAS_V: tl.constexpr, HAS_T: tl.constexpr):
+                 HAS_H: tl.constexpr, HAS_V: tl.constexpr, HAS_T: tl.constexpr,
+                 VFUSE: tl.constexpr = True):
     row = tl.program_id(0) * R + tl.arange(0, R)
     col = tl.arange(0, S)
     valid_row = row < ROWS
@@ -29,7 +49,7 @@ def _double_rows(X, GAMMA, H, V, T, D, OUT, GX, GG, GGO, PART,
     affine = (row // (B * C)) * C + row % C
     gx = tl.full((R, S), 0., tl.float32)
     ggo = tl.full((R, S), 0., tl.float32)
-    if (HAS_H or HAS_V) or HAS_T:
+    if VFUSE and ((HAS_H or HAS_V) or HAS_T):
         gate = tl.load(OUT + off, valid, other=0.).to(tl.float32) > 0.
     if HAS_H or HAS_V:
         x = tl.load(X + off, valid, other=0.).to(tl.float32)
@@ -40,7 +60,8 @@ def _double_rows(X, GAMMA, H, V, T, D, OUT, GX, GG, GGO, PART,
         inv = tl.rsqrt(tl.sum(centered*centered, 1)/M + EPS)
         z = centered * inv[:, None]
         d = tl.load(D + off, valid, other=0.).to(tl.float32)
-        d = tl.where(gate, d, 0.)
+        if VFUSE:
+            d = tl.where(gate, d, 0.)
         d0 = tl.sum(d, 1)/M
         dz = tl.sum(d*z, 1)/M
         pd = d - d0[:, None] - z*dz[:, None]
@@ -76,7 +97,7 @@ def _double_rows(X, GAMMA, H, V, T, D, OUT, GX, GG, GGO, PART,
     if HAS_T:
         t = tl.load(T + affine, valid_row, other=0.).to(tl.float32)
         ggo += t[:, None]
-    if (HAS_H or HAS_V) or HAS_T:
+    if VFUSE and ((HAS_H or HAS_V) or HAS_T):
         ggo = tl.where(gate, ggo, 0.)
     # Write explicit zeros even when all optional inputs are None.
     tl.store(GX + off, gx, valid)
@@ -98,8 +119,11 @@ def _double_reduce(PART, GG, B: tl.constexpr, C: tl.constexpr,
     tl.store(GG + g*C + c, acc, c < C)
 
 
-def _validate(x, weight, h, v, t, d, out, eps, groups):
-    if x.ndim != 4 or x.shape != d.shape or x.shape != out.shape:
+def _validate(x, weight, h, v, t, d, out, eps, groups, *, require_output=True):
+    if require_output and out is None:
+        raise ValueError('Both vfuse modes require the saved post-ReLU output')
+    if (x.ndim != 4 or x.shape != d.shape
+            or (out is not None and x.shape != out.shape)):
         raise ValueError('x/grad_output/output must be [G*B,C,H,W]')
     gb, c, hi, wi = x.shape
     if min(gb, c, hi, wi) <= 0 or hi*wi <= 1:
@@ -132,18 +156,20 @@ def _allocate(x, g, b, c, has_g):
     return ggo, gx, gg, part
 
 
-def _launch_rows(x, weight, h, v, t, d, out, buffers, g, b, c, m, eps, rows, warps):
+def _launch_rows(x, weight, h, v, t, d, out, buffers, g, b, c, m, eps, rows, warps,
+                 vfuse=True):
     if m > 4096:
-        _large.double_backward(x, weight, h, v, t, d, out, buffers, b, c, m, eps)
+        _large.double_backward(x, weight, h, v, t, d, out, buffers, b, c, m, eps,
+                               vfuse=vfuse)
         return
     ggo, gx, gg, part = buffers
     # Absent arguments are compile-time eliminated; use x as a dummy pointer.
     ptr = lambda a: x if a is None else a
     _double_rows[(triton.cdiv(g*b*c, rows),)](
-        x, ptr(weight), ptr(h), ptr(v), ptr(t), d, out,
+        x, ptr(weight), ptr(h), ptr(v), ptr(t), d, ptr(out),
         gx, ptr(gg), ggo, ptr(part), b, c, g*b*c, m, eps,
         rows, triton.next_power_of_2(m), weight is not None,
-        h is not None, v is not None, t is not None, num_warps=warps)
+        h is not None, v is not None, t is not None, VFUSE=vfuse, num_warps=warps)
 
 
 def _launch_reduce(buffers, g, b, c):
@@ -153,30 +179,72 @@ def _launch_reduce(buffers, g, b, c):
         _double_reduce[(triton.cdiv(c, 8), g)](part, gg, b, c, 8, bb, num_warps=4)
 
 
-def grouped_instancenorm_double_bwd(ggI, ggw, ggb, grad_output, output, weight, x,
-                                    v_fuse=True, eps=1e-5, *, groups=None,
-                                    rows=1, num_warps=4):
-    """Return (ggO, gX, gG), matching the existing project wrapper.
-
-    x/ggI/grad_output/output: [G*B,C,H,W], leading index g*B+b.
-    weight/ggw/ggb: [G*C]. output is post-ReLU; optional inputs may be None.
-    G is inferred from affine vectors; groups is only needed if none exist and
-    the caller wants an explicit outer G. gG is None if weight or ggI is None.
-    H*W>4096 uses bounded spatial tiles; <=4096 retains the tested kernel.
-    Explicit configurations only; no workload selector or autotuning.
-    """
-    if not v_fuse: raise NotImplementedError('Only fused InstanceNorm+ReLU is implemented')
-    g, b, c, m = _validate(x, weight, ggI, ggw, ggb, grad_output, output, eps, groups)
+def _validate_config(rows, num_warps, m):
     if rows not in (1, 4) or num_warps not in (4, 8):
         raise ValueError('rows must be 1/4 and num_warps must be 4/8')
     if rows != 1 and m > 256:
         raise ValueError('rows4 is an explicit candidate for H*W<=256')
+
+
+def _run(ggI, ggw, ggb, grad_output, output, weight, x, eps, groups,
+          rows, num_warps, fuse_relu):
+    g, b, c, m = _validate(x, weight, ggI, ggw, ggb, grad_output, output, eps,
+                           groups, require_output=fuse_relu)
+    _validate_config(rows, num_warps, m)
     with torch.cuda.device(x.device):
         buffers = _allocate(x, g, b, c, weight is not None and ggI is not None)
         _launch_rows(x, weight, ggI, ggw, ggb, grad_output, output,
-                     buffers, g, b, c, m, eps, rows, num_warps)
+                     buffers, g, b, c, m, eps, rows, num_warps, fuse_relu)
         _launch_reduce(buffers, g, b, c)
     return buffers[:3]
+
+
+def grouped_instancenorm_double_bwd(ggI, ggw, ggb, grad_output, output, weight, x,
+                                    vfuse=True, eps=1e-5, *, groups=None,
+                                    rows=1, num_warps=4, v_fuse=None):
+    """InstanceNorm+ReLU double backward -> (ggO, gX, gG) in both modes.
+
+    x/ggI/grad_output/output: [G*B,C,H,W], leading index g*B+b.
+    weight/ggw/ggb: [G*C]; ggI/ggw/ggb and weight may be None.
+    vfuse=True: gate grad_output and ggO inside the norm kernels.
+    vfuse=False: gate grad_output separately, call norm-only double backward,
+    then gate ggO separately. output must be saved post-ReLU in both modes.
+    Inputs are never modified. Only our new ggO is gated in place.
+    The legacy v_fuse keyword, when supplied, overrides vfuse.
+    G is inferred from affine vectors; pass groups if none exist and G>1.
+    gG is None if weight or ggI is None. H*W>4096 uses bounded spatial tiles.
+    Explicit tiling only; no selector or autotuning.
+    """
+    if v_fuse is not None:
+        vfuse = v_fuse
+    if not isinstance(vfuse, bool):
+        raise TypeError('vfuse must be bool')
+    if vfuse:
+        return _run(ggI, ggw, ggb, grad_output, output, weight, x, eps, groups,
+                     rows, num_warps, True)
+    _, _, _, m = _validate(x, weight, ggI, ggw, ggb, grad_output, output, eps, groups)
+    _validate_config(rows, num_warps, m)
+    with torch.cuda.device(x.device):
+        grad_norm = _mask_relu(output, grad_output)
+        ggO, gX, gG = grouped_instancenorm_only_double_bwd(
+            ggI, ggw, ggb, grad_norm, weight, x, eps,
+            groups=groups, rows=rows, num_warps=num_warps)
+        # Chain back through ReLU a second time. gX/gG must NOT be gated here.
+        _mask_relu(output, ggO, destination=ggO)
+    return ggO, gX, gG
+
+
+def grouped_instancenorm_only_double_bwd(ggI, ggw, ggb, grad_output, weight, x,
+                                         eps=1e-5, *, groups=None,
+                                         rows=1, num_warps=4):
+    """Pure InstanceNorm double backward -> (ggO, gX, gG), with no ReLU gates.
+
+    No saved output is needed. grad_output is the upstream gradient at the norm
+    output. Shapes, optional inputs, groups and tiling match the combined API.
+    gG is None if weight or ggI is None. Supports small and ImageNet spatial sizes.
+    """
+    return _run(ggI, ggw, ggb, grad_output, None, weight, x, eps, groups,
+                 rows, num_warps, False)
 
 
 def to_old(x, g):

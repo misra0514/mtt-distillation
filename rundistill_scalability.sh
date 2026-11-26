@@ -18,7 +18,11 @@ LOAD_ALL=0                  # 1 adds --load_all; 0 omits it
 SPLIT_FWD_BARRIER=0         # 1 adds --split-fwd-barrier; 0 omits it
 MAX_FUSE=0                  # 0: continue until CUDA OOM; N > 0: stop at K=N
 MASK_FAMILY="both"          # "1-1": all ones; "1-0": K ones then K zeros; "both": both families
-LOG_NAME=""               # Optional suffix between scalability and timestamp; override with --name
+LOG_NAME=""                 # Optional user suffix; implementation is always included in output dir
+START_K=1                    # First K to test (inclusive); CLI --start-k overrides
+FLEX_IMPL="layout"           # layout or conv; CLI --impl overrides; --file selects a custom script
+IMPL_EXPLICIT=0             # Track explicit --impl so stale FLEX_FILE env cannot override it
+CUSTOM_FLEX_FILE=""          # Optional manual override of actual script path (CLI --file preferred)
 
 # Other experiment settings. Edit here as needed.
 DATASET=CIFAR10
@@ -38,10 +42,31 @@ FUSE=1
 # --v_fuse is always enabled; --AccTest is never passed.
 # =====================================================
 
-# Optional CLI overrides for the family and log directory suffix.
-# Examples: --family 1-0 --name layout, --family both --name testA
+# CLI overrides: --start-k N, --impl conv|layout, --file /path/to/script.py,
+# --family 1-1|1-0|both, --name LABEL, and --max-fuse N.
+# A selected script changes ONLY the Python filename, not Python arguments.
 while (( $# > 0 )); do
   case "$1" in
+    --start-k|--start)
+      if (( $# < 2 )); then echo '[ERROR] --start-k requires an integer >= 1' >&2; exit 2; fi
+      START_K="$2"; shift 2 ;;
+    --start-k=*|--start=*)
+      START_K="${1#*=}"; shift ;;
+    --impl|--implementation)
+      if (( $# < 2 )); then echo '[ERROR] --impl requires conv or layout' >&2; exit 2; fi
+      FLEX_IMPL="$2"; IMPL_EXPLICIT=1; shift 2 ;;
+    --impl=*|--implementation=*)
+      FLEX_IMPL="${1#*=}"; IMPL_EXPLICIT=1; shift ;;
+    --file|--flex-file)
+      if (( $# < 2 )) || [[ -z "$2" ]]; then echo '[ERROR] --file requires a Python file path' >&2; exit 2; fi
+      CUSTOM_FLEX_FILE="$2"; shift 2 ;;
+    --file=*|--flex-file=*)
+      CUSTOM_FLEX_FILE="${1#*=}"; shift ;;
+    --max-fuse)
+      if (( $# < 2 )); then echo '[ERROR] --max-fuse requires a nonnegative integer' >&2; exit 2; fi
+      MAX_FUSE="$2"; shift 2 ;;
+    --max-fuse=*)
+      MAX_FUSE="${1#*=}"; shift ;;
     --family)
       if (( $# < 2 )); then
         echo '[ERROR] --family requires 1-1, 1-0, or both' >&2
@@ -63,12 +88,17 @@ while (( $# > 0 )); do
       LOG_NAME="${1#*=}"
       shift ;;
     -h|--help)
-      printf 'Usage: bash %s [--family 1-1|1-0|both] [--name LABEL]\n' "${0##*/}"
+      printf 'Usage: bash %s [--start-k N] [--impl conv|layout] [--file PYTHON.py] [--max-fuse N] [--family 1-1|1-0|both] [--name LABEL]\n' "${0##*/}"
+      printf '  --start-k N: start sweep at K=N (default 1, inclusive)\n'
+      printf '  --impl: conv selects *_conv.py; layout selects *_conv_datalayout.py (default layout)\n'
+      printf '  --file: exact custom .py file; overrides --impl and FLEX_FILE env (if set)\n'
+      printf '  Selection precedence: --file > explicit --impl > FLEX_FILE env > default layout\n'
+      printf '  --max-fuse N: last K, 0 means stop on OOM (default 0)\n'
       printf '  1-1: masks [1], [1 1], [1 1 1], ...\n'
       printf '  1-0: masks [1 0], [1 1 0 0], [1 1 1 0 0 0], ...\n'
       printf '  both: test both families (default)\n'
       printf '  --name: optional output directory label (alias: --log-name)\n'
-      printf '  Output: testlog_scalability_[LABEL_]YYYYMMDD_HHMMSS/\n'
+      printf '  Output: testlog_scalability_IMPL[_LABEL]_YYYYMMDD_HHMMSS/\n'
       exit 0 ;;
     *)
       printf '[ERROR] Unrecognized option: %s\n' "$1" >&2
@@ -95,6 +125,13 @@ case "$BARRIER_MODE" in
   both|on|off) ;;
   *) echo "[ERROR] BARRIER_MODE must be both, on, or off" >&2; exit 2 ;;
 esac
+if [[ ! "$START_K" =~ ^[1-9][0-9]*$ ]]; then
+  echo '[ERROR] START_K / --start-k must be a positive integer' >&2; exit 2
+fi
+case "$FLEX_IMPL" in
+  conv|layout) ;;
+  *) echo '[ERROR] --impl must be conv or layout' >&2; exit 2 ;;
+esac
 if [[ ! "$MAX_FUSE" =~ ^(0|[1-9][0-9]*)$ ]]; then
   echo '[ERROR] MAX_FUSE must be a nonnegative integer' >&2; exit 2
 fi
@@ -105,24 +142,67 @@ for setting in LOAD_ALL SPLIT_FWD_BARRIER; do
   fi
 done
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-FLEX_FILE="${FLEX_FILE:-${SCRIPT_DIR}/distill_flexFuse_timeTest_conv.py}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+# Selection precedence: --file > explicit --impl > FLEX_FILE env > default layout.
+# This is the EXACT Python program used for every run and printed into CMD.
+if [[ -n "$CUSTOM_FLEX_FILE" ]]; then
+  SELECTED_FILE="$CUSTOM_FLEX_FILE"
+  FILE_SOURCE="--file"
+elif (( IMPL_EXPLICIT == 1 )); then
+  if [[ "$FLEX_IMPL" == conv ]]; then
+    SELECTED_FILE="${SCRIPT_DIR}/distill_flexFuse_timeTest_conv.py"
+  else
+    SELECTED_FILE="${SCRIPT_DIR}/distill_flexFuse_timeTest_conv_datalayout.py"
+  fi
+  FILE_SOURCE="explicit --impl"
+elif [[ -n "${FLEX_FILE:-}" ]]; then
+  SELECTED_FILE="$FLEX_FILE"
+  FILE_SOURCE="FLEX_FILE environment"
+else
+  if [[ "$FLEX_IMPL" == conv ]]; then
+    SELECTED_FILE="${SCRIPT_DIR}/distill_flexFuse_timeTest_conv.py"
+  else
+    SELECTED_FILE="${SCRIPT_DIR}/distill_flexFuse_timeTest_conv_datalayout.py"
+  fi
+  FILE_SOURCE="default --impl"
+fi
+# Resolve relative filenames relative to the script directory, never the caller cwd.
+if [[ "$SELECTED_FILE" != /* ]]; then
+  SELECTED_FILE="${SCRIPT_DIR}/${SELECTED_FILE}"
+fi
+if [[ ! -f "$SELECTED_FILE" ]]; then
+  echo "[ERROR] Python file not found: $SELECTED_FILE" >&2
+  exit 2
+fi
+FLEX_FILE="$(cd -- "$(dirname -- "$SELECTED_FILE")" && pwd -P)/$(basename -- "$SELECTED_FILE")"
+# Reflect actual selected Python filename even if --impl and external FLEX_FILE conflict.
+case "$(basename -- "$FLEX_FILE")" in
+  distill_flexFuse_timeTest_conv.py) ACTUAL_IMPL="conv" ;;
+  distill_flexFuse_timeTest_conv_datalayout.py) ACTUAL_IMPL="layout" ;;
+  *) ACTUAL_IMPL="custom" ;;
+esac
+if [[ "$ACTUAL_IMPL" != custom && "$ACTUAL_IMPL" != "$FLEX_IMPL" && "$FILE_SOURCE" != "explicit --impl" ]]; then
+  echo "[INFO] Python file override ($FILE_SOURCE): actual implementation=$ACTUAL_IMPL, --impl/default=$FLEX_IMPL" >&2
+fi
+if command -v sha256sum >/dev/null 2>&1; then
+  FLEX_SHA256="$(sha256sum -- "$FLEX_FILE" | awk '{print $1}')"
+else
+  FLEX_SHA256="<sha256sum unavailable>"
+fi
+if (( MAX_FUSE > 0 )) && (( START_K > MAX_FUSE )); then
+  echo "[ERROR] --start-k=$START_K exceeds --max-fuse=$MAX_FUSE" >&2
+  exit 2
+fi
 # One timestamp for the output folder and its files; LOG_DIR can still override.
 RUN_TIME="$(date '+%Y%m%d_%H%M%S')"
-LOG_SUFFIX="${LOG_NAME:+${LOG_NAME}_}"
-LOG_DIR="${LOG_DIR:-testlog_scalability_${LOG_SUFFIX}${RUN_TIME}}"
+LOG_SUFFIX="${LOG_NAME:+_${LOG_NAME}}"
+LOG_DIR="${LOG_DIR:-testlog_scalability_${ACTUAL_IMPL}${LOG_SUFFIX}_${RUN_TIME}}"
 BUFFER_PATH="${BUFFER_PATH:-/scratch/yguo25/files/mtt-distillation/buffer}"
 DATA_PATH="${DATA_PATH:-/scratch/yguo25/files/mtt-distillation/dataset}"
 mkdir -p -- "$LOG_DIR"
 RUN_TAG="${RUN_TIME}_$$"
 LOG_FILE="${LOG_DIR}/conv_fuse_until_oom_${RUN_TAG}.txt"
 CSV_FILE="${LOG_DIR}/conv_fuse_until_oom_${RUN_TAG}.csv"
-
-if [[ ! -f "$FLEX_FILE" ]]; then
-  echo "[ERROR] Python file not found: $FLEX_FILE" >&2
-  echo '        Put the Python file next to this script or set FLEX_FILE=/path/to/file.py' >&2
-  exit 2
-fi
 
 COMMON_ARGS=(
   "--dataset=${DATASET}"
@@ -158,6 +238,8 @@ fi
   printf 'DATASET: %s\nMODEL: %s\nIPC: %s\nSYN_STEPS: %s\nITERATION: %s\n' \
     "$DATASET" "$MODEL" "$IPC" "$SYN_STEPS" "$ITERATION"
   printf 'FLEX_FILE: %s\n' "$FLEX_FILE"
+  printf 'FILE_SOURCE: %s\nACTUAL_IMPL: %s\nFLEX_SHA256: %s\n' "$FILE_SOURCE" "$ACTUAL_IMPL" "$FLEX_SHA256"
+  printf 'START_K: %s\n' "$START_K"
   printf 'MAX_FUSE: %s (0=unlimited)\n' "$MAX_FUSE"
   printf 'MASK_FAMILY: %s\n' "$MASK_FAMILY"
   printf 'LOG_NAME: %s\n' "${LOG_NAME:-<none>}"
@@ -175,7 +257,8 @@ printf 'timestamp,family,num_ones,mask,barrier,status,exit_code,system_s,kernel_
 
 echo "[INFO] LOG_FILE=$LOG_FILE"
 echo "[INFO] CSV_FILE=$CSV_FILE"
-echo "[INFO] FLEX_FILE=$FLEX_FILE"
+echo "[INFO] ACTUAL_IMPL=$ACTUAL_IMPL FILE_SOURCE=$FILE_SOURCE FLEX_FILE=$FLEX_FILE"
+echo "[INFO] START_K=$START_K FLEX_SHA256=$FLEX_SHA256"
 echo "[INFO] BARRIER_MODE=$BARRIER_MODE LOAD_ALL=$LOAD_ALL SPLIT_FWD_BARRIER=$SPLIT_FWD_BARRIER"
 echo "[INFO] IPC=$IPC ITERATION=$ITERATION MAX_FUSE=$MAX_FUSE MASK_FAMILY=$MASK_FAMILY"
 
@@ -243,6 +326,7 @@ run_mode() {
     printf '==============================\n'
     printf '%s | MODEL=%s | IPC=%s | SYN_STEPS=%s | ITERATION=%s | FAMILY=%s | K=%s | MASK=%s | BARRIER=%s | LOAD_ALL=%s | SPLIT_FWD_BARRIER=%s\n' \
       "$timestamp" "$MODEL" "$IPC" "$SYN_STEPS" "$ITERATION" "$family" "$count" "$mask_tag" "$barrier_mode" "$LOAD_ALL" "$SPLIT_FWD_BARRIER"
+    printf 'RUN_FILE: %s | ACTUAL_IMPL=%s | SHA256=%s\n' "$FLEX_FILE" "$ACTUAL_IMPL" "$FLEX_SHA256"
     printf 'CMD: WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 '
     printf '%q ' "${command[@]}"
     printf '\n------------------------------\n'
@@ -251,7 +335,12 @@ run_mode() {
   CURRENT_TMP="$(mktemp "${LOG_DIR}/.conv_fuse_mask_run.XXXXXXXX")"
   WANDB_SILENT=true PYTHONWARNINGS=ignore TQDM_DISABLE=1 PYTHONUNBUFFERED=1 \
     "${command[@]}" 2>&1 | tee "$CURRENT_TMP" >> "$LOG_FILE"
-  rc="${PIPESTATUS[0]}"
+  local pipeline_status=( "${PIPESTATUS[@]}" )
+  rc="${pipeline_status[0]}"
+  if (( pipeline_status[1] != 0 )); then
+    echo "[ERROR] tee could not write temporary output (exit=${pipeline_status[1]})" >&2
+    stop_fatal "Logging failed for $family K=$count"
+  fi
 
   # Only the Python process outcome matters. No field is required.
   if (( rc == 0 )); then
@@ -313,7 +402,7 @@ stop_fatal() {
 for family in "${FAMILIES[@]}"; do
   echo "[INFO] Start family: $family"
   printf 'FAMILY_START: %s\n' "$family" >> "$LOG_FILE"
-  k=1
+  k="$START_K"
   while :; do
     if (( MAX_FUSE > 0 && k > MAX_FUSE )); then
       echo "[INFO] $family: reached --max-fuse=$MAX_FUSE (not necessarily OOM)"

@@ -3,6 +3,7 @@
 # ONE timing set per case: no --load_all, with --use-barrier.
 # Kernel set repeats twice. Original -> Flex masks (1 / 11 / 10, v_fuse on/off) -> FWD time test.
 # Default ConvNet only; other model blocks use unified Flex implementation when selected.
+# ConvNet layouts: bf=original Conv file, ff=DataLayout file + --datalayout=f_f.
 # All cases use syn_steps=1; never test syn_steps=20.
 # No checkpoint tests.
 # IPC by dataset: CIFAR10/ImageNet = 1,10,50,100; Tiny = 1,5,10.
@@ -10,7 +11,9 @@
 # Examples:
 #   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model vgg --dataset cifar10
 #   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --models vgg,resnet --dataset tiny
-#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset imagenet
+#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset imagenet --layout bf
+#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset tiny --layout ff
+#   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset cifar10 --layout both
 #   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model all --dataset all
 
 set -u
@@ -20,24 +23,31 @@ usage() {
   cat <<'HELP'
 Usage:
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh [--model conv|vit|resnet|vgg|all] [--dataset cifar10|tiny|imagenet|all]
-  bash rundistill_massive_v17_tiny_imagenet_ipc.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|imagenet|all]
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh [--models conv,vit,resnet,vgg] [--dataset cifar10|tiny|imagenet|all] [--layout bf|ff|both]
 
 Examples:
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model vgg --dataset cifar10
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --models vgg,resnet --dataset tiny
-  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset imagenet
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset imagenet --layout bf
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset tiny --layout ff
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset cifar10 --layout both
   bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model all --dataset all
+  bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model conv --dataset tiny --layout both --name trialA
   LOG_DIR=testlog_custom bash rundistill_massive_v17_tiny_imagenet_ipc.sh --model vgg --dataset all
 
 Default:
   --model conv
   --dataset cifar10
-  LOG_DIR=testlogYYYYMMDD_HHMMSS (override with LOG_DIR=...)
+  --layout bf (ConvNet only; ff runs the DataLayout Python file with --datalayout=f_f)
+  --name LABEL (alias: --log-name; optional)
+  LOG_DIR=testlog_massive_[LABEL_]YYYYMMDD_HHMMSS (override with LOG_DIR=...)
 HELP
 }
 
 MODEL_SELECTION="${MODEL_SELECTION:-conv}"
 DATASET_SELECTION="${DATASET_SELECTION:-cifar10}"
+LAYOUT_SELECTION="${LAYOUT_SELECTION:-bf}"
+LOG_NAME="${LOG_NAME:-}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -65,6 +75,30 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dataset=*)
       DATASET_SELECTION="${1#*=}"
+      shift
+      ;;
+    --layout|--layouts)
+      if [ "$#" -lt 2 ]; then
+        echo "[ERROR] $1 requires bf, ff, or both" >&2
+        exit 1
+      fi
+      LAYOUT_SELECTION="$2"
+      shift 2
+      ;;
+    --layout=*|--layouts=*)
+      LAYOUT_SELECTION="${1#*=}"
+      shift
+      ;;
+    --name|--log-name)
+      if [ "$#" -lt 2 ] || [[ -z "$2" || "$2" == --* ]]; then
+        echo '[ERROR] --name requires a nonempty label' >&2
+        exit 2
+      fi
+      LOG_NAME="$2"
+      shift 2
+      ;;
+    --name=*|--log-name=*)
+      LOG_NAME="${1#*=}"
       shift
       ;;
     conv|ConvNet|convnet|vit|ViT|resnet|ResNet18|resnet18|vgg|VGG|vgg11|VGG11|all)
@@ -147,10 +181,25 @@ normalize_dataset_selection() {
   esac
 }
 
+if [[ -n "$LOG_NAME" && ! "$LOG_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+  echo '[ERROR] --name must start with a letter/number and contain only letters, numbers, dots, underscores, or hyphens' >&2
+  exit 2
+fi
+
 SELECTED_MODELS="$(normalize_model_selection "${MODEL_SELECTION}")"
 SELECTED_DATASETS="$(normalize_dataset_selection "${DATASET_SELECTION}")"
 
-LOG_DIR="${LOG_DIR:-testlog$(date '+%Y%m%d_%H%M%S')}"
+case "${LAYOUT_SELECTION,,}" in
+  bf|batch-first|batch_first) LAYOUT_SELECTION="bf" ;;
+  ff|fuse-first|fuse_first) LAYOUT_SELECTION="ff" ;;
+  both) LAYOUT_SELECTION="both" ;;
+  *) echo "[ERROR] --layout must be bf, ff, or both (got: $LAYOUT_SELECTION)" >&2; exit 1 ;;
+esac
+
+
+RUN_TIME="$(date '+%Y%m%d_%H%M%S')"
+LOG_SUFFIX="${LOG_NAME:+${LOG_NAME}_}"
+LOG_DIR="${LOG_DIR:-testlog_massive_${LOG_SUFFIX}${RUN_TIME}}"
 
 mkdir -p "${LOG_DIR}"
 
@@ -186,7 +235,12 @@ ORIGINAL_FWD_FILE="distill_original_fwdtimetest.py"
 # IMPORTANT: both Original and Original FWDTEST must accept --use-barrier.
 
 # Keep the ConvNet Flex implementation unchanged.
-CONV_FLEX_FILE="distill_flexFuse_timeTest_conv_layout.py"   # Change only if your actual ConvNet file has another name.
+CONV_FLEX_FILE="distill_flexFuse_timeTest_conv.py"   # Change only if your actual ConvNet file has another name.
+# Only FF ConvNet runs use this file. BF keeps the original Python arguments unchanged.
+CONV_DATALAYOUT_FLEX_FILE="distill_flexFuse_timeTest_conv_datalayout.py"
+# Actual Python option (do NOT pass this to the BF/original/unified implementations).
+CONV_FF_PYTHON_ARG="--datalayout=f_f"
+
 # All three non-ConvNet models share one Flex implementation; --model selects architecture.
 UNIFIED_FLEX_FILE="distill_flexFuse_timeTest_unified.py"
 
@@ -194,7 +248,8 @@ UNIFIED_FLEX_FILE="distill_flexFuse_timeTest_unified.py"
 # ResNet18/VGG11 use Iteration=50 at all IPC.
 CONV_IPC_LIST=(1 10 50 100)
 VIT_IPC_LIST=(1 10 50 100)
-RESNET_IPC_LIST=(1 10 50 100)
+RESNET_IPC_LIST=(1 10 50 1
+00)
 VGG_IPC_LIST=(1 10 50 100)
 
 # Single syn_steps setting applies to Original, Flex, and FWDTEST alike.
@@ -450,11 +505,16 @@ run_flex_case() {
   read -r -a mask_args <<< "$mask_string"
   local mask_tag="${mask_string// /}" vfuse_tag="no_vfuse"
   [[ "$vfuse_arg" == "--v_fuse" ]] && vfuse_tag="vfuse"
+  # Optional final argument after iteration: the actual Python datalayout flag.
+  # Empty for all legacy BF and non-ConvNet calls.
+  local datalayout_arg="${11:-}"
   local case_name="${case_prefix}_mask_${mask_tag}_${vfuse_tag}"
   local tag="MODEL=${model_label} | IPC=${ipc} | SYN_STEPS=${syn_steps} | ITERATION=${iteration} | CASE=${case_name}"
   local args=( $(common_args "$ipc" "$syn_steps" "$model_arg" "$iteration") )
+  local layout_args=()
+  if [[ -n "$datalayout_arg" ]]; then layout_args+=("$datalayout_arg"); fi
   run_cmd "$log_file" "$tag" "$model_label" "$ipc" "$syn_steps" "$iteration" "$case_name" \
-    python "$flex_file" --fuse_mask_list "${mask_args[@]}" "$vfuse_arg" "${args[@]}"
+    python "$flex_file" --fuse_mask_list "${mask_args[@]}" "$vfuse_arg" "${layout_args[@]}" "${args[@]}"
 }
 
 run_model_block() {
@@ -466,11 +526,32 @@ run_model_block() {
     iteration="$(iteration_for_model_ipc "$model_label" "$ipc")"
     # 1. Original: syn_steps=1 only.
     run_original "$log_file" "$model_label" "$model_arg" "$ipc" "$SYN_STEPS" "$iteration"
-    # 2. Flex: exactly 1, 11, 10, each with v_fuse ON and OFF
-    for mask in "1" "1 1" "1 0"; do
-      for vfuse in "--v_fuse" "--no-v_fuse"; do
-        run_flex_case "$log_file" "$model_label" "$model_arg" "$flex_file" "$ipc" \
-          "$SYN_STEPS" "$mask" "$vfuse" flex "$iteration"
+    # 2. Flex: ConvNet can test BF, FF, or both; other models are unchanged.
+    # Original and FWD baselines remain once per IPC (not duplicated per layout).
+    local layout actual_flex actual_extra case_prefix
+    local layouts=(bf)
+    if [[ "$model_label" == "ConvNet" ]]; then
+      case "$LAYOUT_SELECTION" in
+        ff) layouts=(ff) ;;
+        both) layouts=(bf ff) ;;
+      esac
+    fi
+    for layout in "${layouts[@]}"; do
+      actual_flex="$flex_file"
+      actual_extra=""
+      case_prefix="flex"
+      if [[ "$model_label" == "ConvNet" ]]; then
+        case_prefix="flex_${layout}"
+        if [[ "$layout" == "ff" ]]; then
+          actual_flex="$CONV_DATALAYOUT_FLEX_FILE"
+          actual_extra="$CONV_FF_PYTHON_ARG"
+        fi
+      fi
+      for mask in "1" "1 1" "1 0"; do
+        for vfuse in "--v_fuse" "--no-v_fuse"; do
+          run_flex_case "$log_file" "$model_label" "$model_arg" "$actual_flex" "$ipc" \
+            "$SYN_STEPS" "$mask" "$vfuse" "$case_prefix" "$iteration" "$actual_extra"
+        done
       done
     done
     # 3. Original forward-only test: syn_steps=1 only.
@@ -482,7 +563,7 @@ run_convnet_tests() {
   SUMMARY_CSV="${CONV_LOG%.txt}_summary.csv"
   printf 'dataset,model,ipc,syn_steps,iteration,case,mode,repeats,success_count,metric_name,run1_s,run2_s,mean_s,process_wall_mean_s,peak_cache_mean_mb,peak_tensor_mean_mb,process_wall_run1_s,process_wall_run2_s\n' > "$SUMMARY_CSV"
   write_header "$CONV_LOG" "ConvNet" "ConvNet" "$CONV_FLEX_FILE" "${CONV_IPC_LIST[*]}" \
-    "ConvNet --Iteration=${ITERATION} for every IPC; first Original, then Flex, then FWD."
+    "ConvNet layout=${LAYOUT_SELECTION}; BF=${CONV_FLEX_FILE}; FF=${CONV_DATALAYOUT_FLEX_FILE} ${CONV_FF_PYTHON_ARG}; Original and FWD once per IPC."
   run_model_block "$CONV_LOG" "ConvNet" "ConvNet" "$CONV_FLEX_FILE" "${CONV_IPC_LIST[@]}"
   write_footer "$CONV_LOG"
 }
@@ -535,7 +616,7 @@ run_dataset_tests() {
   RESNET_LOG="${dataset_log_dir}/resnet18.txt"
   VGG_LOG="${dataset_log_dir}/vgg11.txt"
 
-  echo "[INFO] DATASET=${DATASET} | IPC_LIST=${dataset_ipcs[*]}"
+  echo "[INFO] DATASET=${DATASET} | IPC_LIST=${dataset_ipcs[*]} | CONV_LAYOUT=${LAYOUT_SELECTION}"
   if model_selected "ConvNet"; then
     run_convnet_tests
   else
@@ -574,9 +655,10 @@ run_dataset_tests() {
   fi
 }
 
-echo "[INFO] LOG_DIR=${LOG_DIR}"
+echo "[INFO] LOG_DIR=${LOG_DIR} LOG_NAME=${LOG_NAME:-<none>}"
 echo "[INFO] SELECTED_MODELS=${SELECTED_MODELS}"
 echo "[INFO] SELECTED_DATASETS=${SELECTED_DATASETS}"
+echo "[INFO] CONV_LAYOUT=${LAYOUT_SELECTION} (BF=${CONV_FLEX_FILE}; FF=${CONV_DATALAYOUT_FLEX_FILE} ${CONV_FF_PYTHON_ARG})"
 
 for dataset in ${SELECTED_DATASETS}; do
   run_dataset_tests "${dataset}"

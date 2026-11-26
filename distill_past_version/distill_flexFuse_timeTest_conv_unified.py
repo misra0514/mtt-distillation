@@ -1,3 +1,5 @@
+# TODO: 一个中间版本。其实就是调用了run bwd 。已经被unified 取代。
+
 # 8.4 unified  版本。把原来散装的接口统一了。就是性能不是极限性能。
 # 11.8: Note 因为conv 已经更新，所以这里有些地方已经不是uptodate了。
 # 从conv 复制来的。把原来的distill conv backup 改掉了。改为用更标准的形式调用。 峰值内存开销会大一些。 

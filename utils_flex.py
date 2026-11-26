@@ -71,37 +71,62 @@ def fuse_params_with_mask(starting_params, Fuse, mask_list):
     mask = torch.cat([fm.reshape(-1) for fm in fused_mask], dim=0).cuda()
     return  student_params, mask
 
-def split_half_snd_dim(param_list, fuse_mask_list):
-    output = []
-    Fuse = len(fuse_mask_list)
-    # 找连续 1 的起点和终点
-    start = fuse_mask_list.index(1)
-    end = start + fuse_mask_list.count(1)   # 不包括 end（Python 切片习惯）
+def split_half_snd_dim(param_list, fuse_mask_list, layout = 'b_f'):
+    if layout == 'b_f':
+        output = []
+        Fuse = len(fuse_mask_list)
+        # 找连续 1 的起点和终点
+        start = fuse_mask_list.index(1)
+        end = start + fuse_mask_list.count(1)   # 不包括 end（Python 切片习惯）
 
-    for p in param_list:
-        if p.ndim > 2:
-            c = p.shape[1]
-            block = c // Fuse               # 每一份的长度
-            # 计算切片范围
-            s = start * block
-            e = end * block
-            # 切分并保证连续（减少显存峰值）
-            output.append(p[:, s:e, ...].contiguous())
-            # output.append(p[:, s:e, ...])
-            del p
-        else:
-            # 似乎只有x_out 系列是2维,在第一维切
-            c = p.shape[0]
-            block = c // Fuse               # 每一份的长度
-            # 计算切片范围
-            s = start * block
-            e = end * block
-            # 切分并保证连续（减少显存峰值）
-            output.append(p[ s:e, ...].contiguous())
-            # output.append(p[ s:e, ...])
-            # output.append(p)
+        for p in param_list:
+            if p.ndim > 2:
+                c = p.shape[1]
+                block = c // Fuse               # 每一份的长度
+                # 计算切片范围
+                s = start * block
+                e = end * block
+                # 切分并保证连续（减少显存峰值）
+                output.append(p[:, s:e, ...].contiguous())
+                # output.append(p[:, s:e, ...])
+                del p
+            else:
+                # 似乎只有x_out 系列是2维,在第一维切
+                c = p.shape[0]
+                block = c // Fuse               # 每一份的长度
+                # 计算切片范围
+                s = start * block
+                e = end * block
+                # 切分并保证连续（减少显存峰值）
+                output.append(p[ s:e, ...].contiguous())
+                # output.append(p[ s:e, ...])
+                # output.append(p)
+        return output
+    elif layout == 'f_f':
+        """切分 group-first 激活 [G*B,...]，部分保留时复制到独立 storage。"""
+        Fuse = len(fuse_mask_list)
+        start = fuse_mask_list.index(1)
+        count = fuse_mask_list.count(1)
+        end = start + count
 
-    return output
+        if fuse_mask_list[start:end] != [1] * count:
+            raise ValueError("Active fuse lanes must be contiguous")
+
+        output = []
+        for p in param_list:
+            if p.ndim == 0 or p.shape[0] % Fuse:
+                raise ValueError("Expected activation with leading dimension G*B")
+
+            if count == Fuse:
+                output.append(p.contiguous())
+            else:
+                block = p.shape[0] // Fuse
+                part = p[start * block:end * block, ...]
+                output.append(part.clone(memory_format=torch.contiguous_format))
+
+        return output
+
+
 
 
 def split_half_snd_dim_countious(param_list, fuse_mask_list):

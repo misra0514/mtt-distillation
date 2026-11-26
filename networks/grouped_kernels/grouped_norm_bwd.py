@@ -1,7 +1,9 @@
-"""FP32 fused InstanceNorm+ReLU backward for group-major [G*B,C,H,W].
+"""FP32 InstanceNorm backward for group-major [G*B,C,H,W].
 
 No packing, atomics, global cache, or dependency on forward statistics.
-Only fused first backward is implemented. No autograd/double-backward binding.
+vfuse=True fuses ReLU backward; vfuse=False runs ReLU backward separately.
+grouped_instancenorm_only_bwd differentiates norm alone, with no ReLU gate.
+First backward only. No autograd/double-backward binding.
 """
 import math
 import torch
@@ -15,10 +17,28 @@ else:
 
 
 @triton.jit
+def _relu_backward(DY, OUT, D_IN, N: tl.constexpr, BLOCK: tl.constexpr):
+    offset = tl.program_id(0).to(tl.int64) * BLOCK + tl.arange(0, BLOCK)
+    valid = offset < N
+    dy = tl.load(DY + offset, valid, other=0.).to(tl.float32)
+    out = tl.load(OUT + offset, valid, other=0.).to(tl.float32)
+    tl.store(D_IN + offset, tl.where(out > 0., dy, 0.), valid)
+
+
+def _mask_relu(output, grad_output):
+    """Inputs already validated; return a fresh tensor, preserving grad_output."""
+    grad_norm = torch.empty_like(grad_output)
+    _relu_backward[(triton.cdiv(grad_output.numel(), 1024),)](
+        grad_output, output, grad_norm, grad_output.numel(), 1024, num_warps=4)
+    return grad_norm
+
+
+@triton.jit
 def _row_backward(X, DY, OUT, GAMMA, DX, DG, DB, PG, PB,
                   B: tl.constexpr, C: tl.constexpr, ROWS: tl.constexpr,
                   HW: tl.constexpr, EPS: tl.constexpr,
-                  R: tl.constexpr, S: tl.constexpr):
+                  R: tl.constexpr, S: tl.constexpr,
+                  VFUSE: tl.constexpr = True):
     row = tl.program_id(0) * R + tl.arange(0, R)
     col = tl.arange(0, S)
     valid = (row[:, None] < ROWS) & (col[None, :] < HW)
@@ -34,8 +54,9 @@ def _row_backward(X, DY, OUT, GAMMA, DX, DG, DB, PG, PB,
     xhat = centered * rstd[:, None]
 
     dy = tl.load(DY + offset, valid, other=0).to(tl.float32)
-    out = tl.load(OUT + offset, valid, other=0).to(tl.float32)
-    dy = tl.where(out > 0., dy, 0.)
+    if VFUSE:
+        out = tl.load(OUT + offset, valid, other=0).to(tl.float32)
+        dy = tl.where(out > 0., dy, 0.)
     sb = tl.sum(dy, 1)
     sg = tl.sum(dy * xhat, 1)
     affine = (row // (B * C)) * C + row % C
@@ -90,8 +111,13 @@ def _reduce_batch_v2(PG, PB, DG, DB, B: tl.constexpr, C: tl.constexpr,
     tl.store(DB + g * C + c, sb, c < C)
 
 
-def _validate(x, weight, output, grad_output, eps):
-    if x.ndim != 4 or weight.ndim != 1 or x.shape != output.shape or x.shape != grad_output.shape:
+def _validate(x, weight, output, grad_output, eps, vfuse=True):
+    if not isinstance(vfuse, bool):
+        raise TypeError('vfuse must be bool')
+    if vfuse and output is None:
+        raise ValueError('vfuse=True requires the saved post-ReLU output')
+    if (x.ndim != 4 or weight.ndim != 1 or x.shape != grad_output.shape
+            or (output is not None and x.shape != output.shape)):
         raise ValueError('Expected x/output/dY=[G*B,C,H,W], weight=[G*C]')
     gb, c, h, w = x.shape
     if min(gb, c, h, w) <= 0 or h * w <= 1:
@@ -101,7 +127,8 @@ def _validate(x, weight, output, grad_output, eps):
     g = weight.numel() // c
     if gb % g:
         raise ValueError('Leading input dimension must be divisible by G')
-    for t in (x, weight, output, grad_output):
+    tensors = (x, weight, grad_output) + (() if output is None else (output,))
+    for t in tensors:
         if not t.is_cuda or t.device != x.device or t.dtype != torch.float32:
             raise ValueError('All inputs must be FP32 CUDA tensors on the same device')
         if not t.is_contiguous():
@@ -120,15 +147,17 @@ def _allocate(x, weight, g, b, c):
     return dx, dg, db, pg, pb
 
 
-def _launch_rows(x, weight, output, grad_output, buffers, g, b, c, hw, eps, rows, num_warps=4):
+def _launch_rows(x, weight, output, grad_output, buffers, g, b, c, hw, eps, rows,
+                 num_warps=4, vfuse=True):
     if hw > 4096:
-        _large.backward(x, weight, output, grad_output, buffers, b, c, hw, eps)
+        _large.backward(x, weight, output, grad_output, buffers, b, c, hw, eps,
+                        vfuse=vfuse)
         return
     dx, dg, db, pg, pb = buffers
     _row_backward[(triton.cdiv(g * b * c, rows),)](
-        x, grad_output, output, weight, dx, dg, db, pg, pb,
+        x, grad_output, x if output is None else output, weight, dx, dg, db, pg, pb,
         b, c, g * b * c, hw, eps, rows, triton.next_power_of_2(hw),
-        num_warps=num_warps,
+        VFUSE=vfuse, num_warps=num_warps,
     )
 
 
@@ -140,39 +169,68 @@ def _launch_reduce(buffers, g, b, c):
                                               num_warps=4)
 
 
-def _run(x, weight, output, grad_output, eps, rows, num_warps=4):
-    g, b, c, hw = _validate(x, weight, output, grad_output, eps)
+def _run(x, weight, output, grad_output, eps, rows, num_warps=4, vfuse=True):
+    g, b, c, hw = _validate(x, weight, output, grad_output, eps, vfuse)
     if rows not in (1, 4, 8) or num_warps not in (1, 2, 4):
         raise ValueError('rows must be 1/4/8 and num_warps must be 1/2/4')
     if (rows, num_warps) != (1, 4) and hw > 256:
         raise ValueError('Explicit tiling candidates require H*W<=256')
     with torch.cuda.device(x.device):
         buffers = _allocate(x, weight, g, b, c)
-        _launch_rows(x, weight, output, grad_output, buffers, g, b, c, hw, eps, rows, num_warps)
+        _launch_rows(x, weight, output, grad_output, buffers, g, b, c, hw, eps,
+                     rows, num_warps, vfuse)
         _launch_reduce(buffers, g, b, c)
     return buffers[:3]
 
 
-def grouped_instancenorm_bwd(x, weight, output, grad_output, v_fuse=True, eps=1e-5,
-                              *, rows=1, num_warps=4):
-    """Stateless fused backward. Returns dX=[G*B,C,H,W], dweight/dbias=[G*C].
+def grouped_instancenorm_bwd(x, weight, output, grad_output, vfuse=True, eps=1e-5,
+                              *, rows=1, num_warps=4, v_fuse=None):
+    """Return dX=[G*B,C,H,W], dweight/dbias=[G*C]; no layout conversion.
 
     G is inferred from weight.numel()/C; the leading input index is g*B+b.
-    output is the post-ReLU tensor. No statistics cache or layout conversion.
-    FP32 contiguous CUDA, H*W >= 2; fused first backward only.
+    Both modes differentiate InstanceNorm+ReLU using saved output > 0.
+    vfuse=True: apply the ReLU gate inside the norm backward kernel.
+    vfuse=False: run a separate ReLU backward kernel, then norm-only backward.
+    output is required in both modes; grad_output is never modified in place.
+    For norm without ReLU, call grouped_instancenorm_only_bwd instead.
+    The legacy keyword v_fuse, when supplied, overrides vfuse.
+    FP32 contiguous CUDA, H*W >= 2; first backward only.
     H*W>4096 uses bounded spatial tiles; <=4096 keeps the tested v3 kernels.
     Default row computation (rows=1, num_warps=4) preserves v1.
     v3 changes the batch reduction; it requires on-device verification. Explicit small-spatial
     candidates pack 4/8 planes into one CTA with 1/2/4 warps; no selector.
     """
-    if not v_fuse:
-        raise NotImplementedError('v3 implements only the fused path (v_fuse=True)')
-    return _run(x, weight, output, grad_output, eps, rows, num_warps)
+    if v_fuse is not None:
+        vfuse = v_fuse
+    if not isinstance(vfuse, bool):
+        raise TypeError('vfuse must be bool')
+    if vfuse:
+        return _run(x, weight, output, grad_output, eps, rows, num_warps, True)
+    # The unfused path still requires the saved ReLU output. Validate before
+    # launching the separate mask kernel; never mask the caller's dY in place.
+    _validate(x, weight, output, grad_output, eps, vfuse=True)
+    with torch.cuda.device(x.device):
+        grad_norm = _mask_relu(output, grad_output)
+        return grouped_instancenorm_only_bwd(
+            x, weight, grad_norm, eps, rows=rows, num_warps=num_warps)
 
 
-def grouped_instancenorm_bwd_rows4(x, weight, output, grad_output, eps=1e-5):
+def grouped_instancenorm_only_bwd(x, weight, grad_output, eps=1e-5,
+                                 *, rows=1, num_warps=4):
+    """Pure InstanceNorm backward; no ReLU, saved output, or layout conversion.
+
+    x/dY=[G*B,C,H,W], weight=[G*C]. dY is the gradient at the norm output.
+    Return dX with x's shape and dweight/dbias with weight's shape.
+    Supports the same small-spatial and ImageNet paths as the fused API.
+    """
+    return _run(x, weight, None, grad_output, eps, rows, num_warps, False)
+
+
+def grouped_instancenorm_bwd_rows4(x, weight, output, grad_output, eps=1e-5,
+                                   *, vfuse=True):
     """Explicit candidate: same algorithm, four spatial planes per program."""
-    return _run(x, weight, output, grad_output, eps, rows=4)
+    return grouped_instancenorm_bwd(
+        x, weight, output, grad_output, vfuse=vfuse, eps=eps, rows=4)
 
 
 # User-provided two-stage/atomic reference. Kept as a separate old-layout path.
@@ -200,7 +258,7 @@ def _reference_stats(X, mean_ptr, rstd_ptr, stride_n, stride_c, C, HW,
 @triton.jit
 def _reference_backward(dY, X, gamma, out_ptr, mean_ptr, rstd_ptr,
                         dX, dgamma, dbeta, stride_n, stride_c, C, HW,
-                        BLOCK_SIZE: tl.constexpr):
+                        BLOCK_SIZE: tl.constexpr, VFUSE: tl.constexpr = True):
     n = tl.program_id(0)
     c = tl.program_id(1)
     idx_offset = n * stride_n + c * stride_c
@@ -214,8 +272,9 @@ def _reference_backward(dY, X, gamma, out_ptr, mean_ptr, rstd_ptr,
         mask = idx < HW
         x = tl.load(X + idx_offset + idx, mask, other=0.).to(tl.float32)
         dy = tl.load(dY + idx_offset + idx, mask, other=0.).to(tl.float32)
-        outv = tl.load(out_ptr + idx_offset + idx, mask, other=0.).to(tl.float32)
-        dy = tl.where(outv > 0., dy, 0.)
+        if VFUSE:
+            outv = tl.load(out_ptr + idx_offset + idx, mask, other=0.).to(tl.float32)
+            dy = tl.where(outv > 0., dy, 0.)
         xhat = (x - mean) * rstd
         sum_dy += tl.sum(dy, axis=0)
         sum_dy_xhat += tl.sum(dy * xhat, axis=0)
@@ -229,21 +288,29 @@ def _reference_backward(dY, X, gamma, out_ptr, mean_ptr, rstd_ptr,
         mask = idx < HW
         x = tl.load(X + idx_offset + idx, mask, other=0.).to(tl.float32)
         dy = tl.load(dY + idx_offset + idx, mask, other=0.).to(tl.float32)
-        outv = tl.load(out_ptr + idx_offset + idx, mask, other=0.).to(tl.float32)
-        dy = tl.where(outv > 0., dy, 0.)
+        if VFUSE:
+            outv = tl.load(out_ptr + idx_offset + idx, mask, other=0.).to(tl.float32)
+            dy = tl.where(outv > 0., dy, 0.)
         xhat = (x - mean) * rstd
         dx = rstd * (g * dy - term2 - term3 * xhat)
         tl.store(dX + idx_offset + idx, dx, mask=mask)
 
 
-def reference_instancenorm_relu_bwd(x, gamma, grad_output, out, eps=1e-5):
-    """Original signature/layout: x=[B,G*C,H,W], gamma=[G*C]."""
+def reference_instancenorm_relu_bwd(x, gamma, grad_output, out, eps=1e-5,
+                                    *, vfuse=True):
+    """Old layout x=[B,G*C,H,W], gamma=[G*C]; both modes include ReLU bwd."""
+    if not isinstance(vfuse, bool):
+        raise TypeError('vfuse must be bool')
+    if out is None:
+        raise ValueError('Both vfuse modes require the saved post-ReLU output')
     n, c, h, w = x.shape
     hw = h * w
     x_flat = x.contiguous().view(n, c, hw)
     dy_flat = grad_output.contiguous().view(n, c, hw)
     out_flat = out.contiguous().view(n, c, hw)
     with torch.cuda.device(x.device):
+        if not vfuse:
+            dy_flat = _mask_relu(out_flat, dy_flat)
         mean = torch.empty((n * c,), device=x.device, dtype=torch.float32)
         rstd = torch.empty_like(mean)
         dx = torch.empty_like(x_flat, dtype=torch.float32)
@@ -252,7 +319,8 @@ def reference_instancenorm_relu_bwd(x, gamma, grad_output, out, eps=1e-5):
         _reference_stats[(n, c)](x_flat, mean, rstd, c * hw, hw, c, hw,
                                 eps=eps, BLOCK_SIZE=256)
         _reference_backward[(n, c)](dy_flat, x_flat, gamma, out_flat, mean, rstd,
-                                    dx, dg, db, c * hw, hw, c, hw, BLOCK_SIZE=256)
+                                    dx, dg, db, c * hw, hw, c, hw,
+                                    BLOCK_SIZE=256, VFUSE=vfuse)
     return dx.view(n, c, h, w), dg, db
 
 
@@ -266,8 +334,10 @@ def to_new(x, g):
     return x.view(b, g, gc // g, h, w).transpose(0, 1).reshape(g * b, gc // g, h, w)
 
 
-def reference_grouped_instancenorm_bwd(x, weight, output, grad_output, eps=1e-5):
+def reference_grouped_instancenorm_bwd(x, weight, output, grad_output, eps=1e-5,
+                                       *, vfuse=True):
     g = weight.numel() // x.shape[1]
     dx, dg, db = reference_instancenorm_relu_bwd(
-        to_old(x, g), weight, to_old(grad_output, g), to_old(output, g), eps)
+        to_old(x, g), weight, to_old(grad_output, g),
+        to_old(output, g), eps, vfuse=vfuse)
     return to_new(dx, g), dg, db

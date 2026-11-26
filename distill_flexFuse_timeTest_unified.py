@@ -3,6 +3,8 @@
 
 """Unified FlexFuse MTT timing entry: ConvNet / ResNet18 / ViT / VGG11.
 
+--datalayout b_f (default) or f_f; f_f is supported by ConvNet, ResNet18 and VGG11.
+
 Place this file in the original mtt-distillation project, alongside utils.py.
 Example (replace data/buffer paths as needed):
   python distill_flexFuse_timeTest_unified.py --model ResNet18 \
@@ -188,14 +190,19 @@ def make_student(args, channel, num_classes, im_size):
     if args.model == 'ConvNet':
         from networks.networks_Fuse import Conv_Flexfuse
         model = Conv_Flexfuse(channel=channel, num_classes=num_classes,
-                             im_size=im_size, Fuse=int(args.Fuse), v_fuse=args.v_fuse)
+                             im_size=im_size, Fuse=int(args.Fuse), v_fuse=args.v_fuse,
+                             layout=args.datalayout)
     elif args.model == 'VGG11':
         from networks.networks_Fuse import VGG11_Flexfuse
         model = VGG11_Flexfuse(channel, num_classes, Fuse=int(args.Fuse),
-                              im_size=im_size, v_fuse=args.v_fuse)
+                              im_size=im_size, v_fuse=args.v_fuse, layout=args.datalayout)
+    elif args.model == 'ResNet18':
+        from networks.networks_Fuse import ResNet18_FlexFuse
+        model = ResNet18_FlexFuse(channel=channel, num_classes=num_classes,
+                                  Fuse=int(args.Fuse), v_fuse=args.v_fuse,
+                                  layout=args.datalayout)
     else:
-        prefix = 'ResNetFlexFuse' if args.model == 'ResNet18' else 'ViTFlexFuse'
-        model = get_network(prefix + args.Fuse, channel, num_classes, im_size,
+        model = get_network('ViTFlexFuse' + args.Fuse, channel, num_classes, im_size,
                             dist=False, v_fuse=args.v_fuse)
     return ReparamModule(model.to(args.device))
 
@@ -238,7 +245,12 @@ def run_iteration(args, student, image_syn, label_syn, syn_lr, optimizer_img,
         if not indices_chunks:
             indices_chunks = list(torch.split(torch.arange(len(image_syn)), args.batch_syn))
         these_indices = indices_chunks.pop()
-        x = image_syn[these_indices].repeat(1, fuse, 1, 1).requires_grad_(True)
+        if args.datalayout == 'f_f':
+            # [B,C,H,W] -> [Fuse*B,C,H,W], group-major order.
+            x = image_syn[these_indices].repeat(fuse, 1, 1, 1).requires_grad_(True)
+        else:
+            # Original channel-packed layout [B,Fuse*C,H,W].
+            x = image_syn[these_indices].repeat(1, fuse, 1, 1).requires_grad_(True)
         labels = label_syn[these_indices]
         labels = labels.repeat_interleave(fuse) if args.model == 'ViT' else labels.repeat(fuse)
         forward_params = params
@@ -287,7 +299,10 @@ def run_iteration(args, student, image_syn, label_syn, syn_lr, optimizer_img,
         # Only the supplied VGG script assigns these optimizer gradients.
         # Preserve Conv/ResNet/ViT behavior rather than silently changing training.
         if args.model == 'VGG11':
-            dx_image = dx.reshape(dx.shape[0], bwd_fuse, channel, *dx.shape[2:]).sum(dim=1)
+            if args.datalayout == 'f_f':
+                dx_image = dx.reshape(bwd_fuse, -1, channel, *dx.shape[2:]).sum(dim=0)
+            else:
+                dx_image = dx.reshape(dx.shape[0], bwd_fuse, channel, *dx.shape[2:]).sum(dim=1)
             image_syn.grad = torch.zeros_like(image_syn)
             image_syn.grad.index_add_(0, these_indices.to(image_syn.device), dx_image)
             syn_lr.grad = syn_lr_grad.detach().reshape_as(syn_lr)
@@ -306,6 +321,10 @@ def run_iteration(args, student, image_syn, label_syn, syn_lr, optimizer_img,
 
 def main(args):
     validate_mask(args.fuse_mask_list)
+    if args.datalayout not in ('b_f', 'f_f'):
+        raise ValueError("datalayout must be 'b_f' or 'f_f'")
+    if args.datalayout == 'f_f' and args.model not in ('ConvNet', 'ResNet18', 'VGG11'):
+        raise ValueError('--datalayout f_f currently supports ConvNet, ResNet18 and VGG11 only')
     args.Fuse = str(len(args.fuse_mask_list))
     if args.split_fwd_barrier and not args.use_barrier:
         raise ValueError('--split-fwd-barrier requires --use-barrier')
@@ -402,7 +421,8 @@ def main(args):
     system_time = kernel_time = syn_time = bwd_time = 0.0
     print(f'MODEL={args.model} | PRELOAD={args.load_all} | FUSE={args.Fuse} | '
           f'BARRIER={args.use_barrier} | SPLIT_FWD_BARRIER={args.split_fwd_barrier} | '
-          f'WARMUP={warmup} | MEASURED_ITERATIONS={measured_count}')
+          f'WARMUP={warmup} | MEASURED_ITERATIONS={measured_count} | '
+          f'DATALAYOUT={args.datalayout}')
     for it in range(warmup + measured_count):
         measured = it >= warmup
         if measured:
@@ -447,6 +467,8 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Parameter Processing')
     parser.add_argument(   '--fuse_mask_list',   type=int,   nargs='+',       required=True,        help='fuse mask list, e.g. 1 1 0')
+    parser.add_argument('--datalayout', type=str, choices=('b_f', 'f_f'),
+                        default='b_f', help='activation layout (f_f: ConvNet/ResNet18 only)')
     parser.add_argument('--Fuse', type=str, default="1", help='num of models being stacked')
     parser.add_argument('--v_fuse', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--use-barrier', '--use_barrier', dest='use_barrier', action=argparse.BooleanOptionalAction, default=False, help='use explicit cuda.synchronize timing')
